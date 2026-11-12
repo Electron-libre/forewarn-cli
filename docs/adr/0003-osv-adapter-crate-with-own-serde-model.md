@@ -8,7 +8,7 @@
 The matching of the domain (`specs/vulnerability-matching.md`) works on vulnerabilities shaped after the OSV schema;
 something must read OSV records into them. ADR 0001 lets a later adapter start as a module and become a crate when
 another consumer needs it alone: the hosted service will read OSV records without the CLI, and the fetching of the
-records (`issues/fetch_osv_records.md`) will grow this adapter with its own dependencies (HTTP, cache).
+records (`issues/done/fetch_osv_records.md`) will grow this adapter with its own dependencies (HTTP, cache).
 
 The domain reads a small subset of a record: `id`, `aliases`, `withdrawn`, and in `affected` the package, `versions`
 and `ranges`. The `osv` crate, measured on version 0.3.0:

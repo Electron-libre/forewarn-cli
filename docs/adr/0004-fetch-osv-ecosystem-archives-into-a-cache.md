@@ -5,7 +5,7 @@
 
 ## Context
 
-The matching needs the OSV records that may affect the components of an SBOM (`issues/fetch_osv_records.md`), and a
+The matching needs the OSV records that may affect the components of an SBOM (`issues/done/fetch_osv_records.md`), and a
 vendor cannot be asked to download them by hand. OSV offers two ways to get them:
 
 - its API: `/v1/querybatch` takes package URLs and versions and returns ids only, paginated; each full record then
