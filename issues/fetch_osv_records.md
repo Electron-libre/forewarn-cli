@@ -52,6 +52,10 @@ directory and the local-directory option (wired by `cli_list_affected_components
 2. [x] Read the cache: the policies `offline` and `older-than <age>`, the snapshot read back with its freshness;
    verified by tests on a cache filled by deliverable 1, the server counting the requests; makes true OSR-12, OSR-13,
    OSR-15; the spec `accepted`. (autonomous)
+3. [x] Review fixes of the whole issue (`high` review): download timeouts, one agent per fetch, a clock read per
+   download, a damaged freshness taken as no snapshot, scratch paths without the process id so that a stopped run's
+   leftovers are cleared and a snapshot set aside is put back, `enclosed_name` in the entry check, the archive read
+   once; verified by 4 new tests. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -80,3 +84,17 @@ directory and the local-directory option (wired by `cli_list_affected_components
 - red: OSR-H4, OSR-12, OSR-13: `no variant ... named Offline found for enum Refresh`.
 - Code review: no findings
 - not verified: none.
+
+## Summary of deliverable 3 (fixes of the `high` review)
+- done: the fixes listed in the plan line 3; ADR 0004 and the scenarios of OSR-13 and OSR-16 updated.
+- checks: tests pass (22 in `fetching.rs`), clippy pedantic clean, `check-specs` passes.
+- red: none: the tests were written after the fixes, the API change (the clock) keeping them from compiling on the
+  former code.
+- `high` review, 10 findings: 8 fixed (timeouts, damaged freshness, lost former snapshot, leftovers of a stopped run,
+  Windows drive prefix through `enclosed_name`, double read, one agent, time of each download); 2 not fixed:
+  - the names of ecosystems with a space or a `:` (`Debian:12`, `GitHub Actions`) are refused by OSR-17: the domain
+    maps none of them yet (VMT-4); to revisit with the matching of those ecosystems.
+  - a snapshot downloaded from another base URL is reused: its freshness names that URL, so the report shows it;
+    refusing it needs a requirement of its own.
+- Code review: no findings
+- not verified: the timeouts (a test would wait 60 s or more); the Windows drive prefix (no Windows test run).

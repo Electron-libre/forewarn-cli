@@ -5,7 +5,6 @@ use std::fmt;
 use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process;
 use std::time::{Duration, SystemTime};
 
 use forewarn_domain::vulnerability::Vulnerability;
@@ -15,6 +14,11 @@ use crate::{ReadError, read_directory};
 
 /// Where OSV publishes the archive of each ecosystem.
 pub const OSV_ARCHIVES: &str = "https://osv-vulnerabilities.storage.googleapis.com";
+
+/// How long a download waits to connect, for the response, and for the whole body.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(60);
+const BODY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 /// The file of a snapshot directory holding its freshness; its name does not end in `.json`, so reading the records
 /// skips it.
@@ -121,30 +125,56 @@ impl Archives {
     }
 
     /// Returns the snapshot of each ecosystem, in the order given, downloading its archive when the refresh policy
-    /// says so; `now` is the time recorded for a download.
+    /// says so; `clock` gives the time the policy compares with and the time recorded for a download, read when the
+    /// request of that download starts.
     ///
     /// # Errors
     ///
     /// The [`FetchError`] of the first ecosystem that cannot be fetched; a failed download leaves the snapshot the
     /// cache held before unchanged.
-    pub fn fetch(&self, ecosystems: &[&str], now: SystemTime) -> Result<Vec<Snapshot>, FetchError> {
+    pub fn fetch(
+        &self,
+        ecosystems: &[&str],
+        clock: impl Fn() -> SystemTime,
+    ) -> Result<Vec<Snapshot>, FetchError> {
+        // One agent for every download, so that they share its connections.
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .http_status_as_error(false)
+            .timeout_connect(Some(CONNECT_TIMEOUT))
+            .timeout_recv_response(Some(RESPONSE_TIMEOUT))
+            .timeout_recv_body(Some(BODY_TIMEOUT))
+            .build()
+            .into();
         ecosystems
             .iter()
             .map(|ecosystem| {
-                self.snapshot(ecosystem, now).map_err(|cause| FetchError {
-                    ecosystem: (*ecosystem).to_owned(),
-                    cause,
-                })
+                self.snapshot(ecosystem, &agent, &clock)
+                    .map_err(|cause| FetchError {
+                        ecosystem: (*ecosystem).to_owned(),
+                        cause,
+                    })
             })
             .collect()
     }
 
-    fn snapshot(&self, ecosystem: &str, now: SystemTime) -> Result<Snapshot, FetchCause> {
+    fn snapshot(
+        &self,
+        ecosystem: &str,
+        agent: &ureq::Agent,
+        clock: &impl Fn() -> SystemTime,
+    ) -> Result<Snapshot, FetchCause> {
         if !is_valid_name(ecosystem) {
             return Err(FetchCause::InvalidName);
         }
         let directory = self.cache.join(ecosystem);
+        let scratch = |kind: &str| self.cache.join(format!(".{kind}-{ecosystem}"));
+        let former = scratch("former");
+        // A run stopped between the two renames of a download left the snapshot there: put it back.
+        if !directory.exists() && former.is_dir() {
+            fs::rename(&former, &directory).map_err(|e| cache_error(&e))?;
+        }
         let cached = read_freshness(&directory)?;
+        let now = clock();
         let freshness = match (self.refresh, cached) {
             (Refresh::Offline, None) => return Err(FetchCause::NotCached),
             (Refresh::Offline | Refresh::IfMissing, Some(freshness)) => freshness,
@@ -156,7 +186,24 @@ impl Archives {
             {
                 freshness
             }
-            _ => self.download(ecosystem, &directory, now)?,
+            _ => {
+                let download = Download {
+                    agent,
+                    url: format!(
+                        "{}/{ecosystem}/all.zip",
+                        self.base_url.trim_end_matches('/')
+                    ),
+                    archive: Scratch(scratch("download")),
+                    staging: Scratch(scratch("staging")),
+                    former: Scratch(former),
+                };
+                let (freshness, vulnerabilities) = download.run(&self.cache, &directory, now)?;
+                return Ok(Snapshot {
+                    ecosystem: ecosystem.to_owned(),
+                    freshness,
+                    vulnerabilities,
+                });
+            }
         };
         Ok(Snapshot {
             ecosystem: ecosystem.to_owned(),
@@ -164,49 +211,54 @@ impl Archives {
             freshness,
         })
     }
+}
 
-    /// Downloads the archive of an ecosystem into a staging directory, reads it, then puts it in place of the former
-    /// snapshot.
-    fn download(
-        &self,
-        ecosystem: &str,
+/// The download of the archive of an ecosystem, and the paths of the cache it goes through. Their names start with
+/// `.`, which no ecosystem name does; one run at a time uses them (concurrent runs are a non-goal), so that a run
+/// clears what a stopped one left.
+struct Download<'a> {
+    agent: &'a ureq::Agent,
+    url: String,
+    archive: Scratch,
+    staging: Scratch,
+    former: Scratch,
+}
+
+impl Download<'_> {
+    /// Downloads the archive into the staging directory, reads it, then puts it in place of the former snapshot;
+    /// `now` is the time recorded for the download.
+    fn run(
+        self,
+        cache: &Path,
         directory: &Path,
         now: SystemTime,
-    ) -> Result<Freshness, FetchCause> {
-        fs::create_dir_all(&self.cache).map_err(|e| cache_error(&e))?;
-        // The names of ecosystems never start with `.`: these paths are no snapshot's.
-        let id = process::id();
-        let staging = Scratch(self.cache.join(format!(".staging-{ecosystem}-{id}")));
-        let download = Scratch(self.cache.join(format!(".download-{ecosystem}-{id}.zip")));
-        let former = Scratch(self.cache.join(format!(".former-{ecosystem}-{id}")));
-        staging.clear()?;
-        fs::create_dir(&staging.0).map_err(|e| cache_error(&e))?;
-
-        let url = format!(
-            "{}/{ecosystem}/all.zip",
-            self.base_url.trim_end_matches('/')
-        );
-        let last_modified = get(&url, &download.0)?;
-        extract(&download.0, &staging.0)?;
-        read_records(&staging.0)?;
+    ) -> Result<(Freshness, Vec<Vulnerability>), FetchCause> {
+        fs::create_dir_all(cache).map_err(|e| cache_error(&e))?;
+        self.staging.clear()?;
+        fs::create_dir(&self.staging.0).map_err(|e| cache_error(&e))?;
+        let last_modified = get(self.agent, &self.url, &self.archive.0)?;
+        extract(&self.archive.0, &self.staging.0)?;
+        let vulnerabilities = read_records(&self.staging.0)?;
         let freshness = Freshness {
             downloaded_at: now,
-            url,
+            url: self.url,
             last_modified,
         };
         let json = serde_json::to_vec(&freshness).map_err(|e| FetchCause::Cache(e.to_string()))?;
-        fs::write(staging.0.join(FRESHNESS_FILE), json).map_err(|e| cache_error(&e))?;
+        fs::write(self.staging.0.join(FRESHNESS_FILE), json).map_err(|e| cache_error(&e))?;
 
-        former.clear()?;
+        self.former.clear()?;
         if directory.exists() {
-            fs::rename(directory, &former.0).map_err(|e| cache_error(&e))?;
+            fs::rename(directory, &self.former.0).map_err(|e| cache_error(&e))?;
         }
-        if let Err(error) = fs::rename(&staging.0, directory) {
-            // Puts the former snapshot back rather than leave the ecosystem with none.
-            let _ = fs::rename(&former.0, directory);
+        if let Err(error) = fs::rename(&self.staging.0, directory) {
+            // Puts the former snapshot back; when that fails too, keeps it where it is for the next run.
+            if fs::rename(&self.former.0, directory).is_err() {
+                std::mem::forget(self.former);
+            }
             return Err(cache_error(&error));
         }
-        Ok(freshness)
+        Ok((freshness, vulnerabilities))
     }
 }
 
@@ -219,12 +271,11 @@ fn is_valid_name(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
 }
 
-/// The freshness of the snapshot of a directory; none when the directory holds no complete snapshot.
+/// The freshness of the snapshot of a directory; none when the directory holds no snapshot, or one whose freshness
+/// cannot be read (a later download replaces it).
 fn read_freshness(directory: &Path) -> Result<Option<Freshness>, FetchCause> {
     match fs::read(directory.join(FRESHNESS_FILE)) {
-        Ok(json) => serde_json::from_slice(&json)
-            .map(Some)
-            .map_err(|e| FetchCause::Cache(format!("{}: {e}", directory.display()))),
+        Ok(json) => Ok(serde_json::from_slice(&json).ok()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(cache_error(&e)),
     }
@@ -242,15 +293,11 @@ fn read_records(directory: &Path) -> Result<Vec<Vulnerability>, FetchCause> {
 }
 
 /// Downloads a URL into a file; returns the `Last-Modified` header the server sent.
-fn get(url: &str, file: &Path) -> Result<Option<String>, FetchCause> {
+fn get(agent: &ureq::Agent, url: &str, file: &Path) -> Result<Option<String>, FetchCause> {
     let failed = |reason: String| FetchCause::Download {
         url: url.to_owned(),
         reason,
     };
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .http_status_as_error(false)
-        .build()
-        .into();
     let response = agent.get(url).call().map_err(|e| failed(e.to_string()))?;
     if response.status() != 200 {
         return Err(failed(format!("the server answered {}", response.status())));
@@ -276,7 +323,10 @@ fn extract(archive: &Path, directory: &Path) -> Result<(), FetchCause> {
             .by_index(index)
             .map_err(|e| FetchCause::NotZip(e.to_string()))?;
         let name = entry.name().to_owned();
-        if name.starts_with('/') || name.contains('\\') || name.split('/').any(|part| part == "..")
+        if entry.enclosed_name().is_none()
+            || name.starts_with('/')
+            || name.contains('\\')
+            || name.split('/').any(|part| part == "..")
         {
             return Err(FetchCause::UnsafeEntry(name));
         }

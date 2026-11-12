@@ -38,7 +38,11 @@ The OSV API is not used; querying it, which sends the package URLs out, would be
 - Only ecosystem names leave the CI; a snapshot in the cache makes a run reproducible and lets an air-gapped CI run
   `offline` on a cache filled elsewhere.
 - A report can state how fresh its data is: the download time and the `Last-Modified` of each archive.
-- A first run downloads whole archives; a large ecosystem costs time and disk space.
+- A first run downloads whole archives; a large ecosystem costs time and disk space. A download waits at most 30 s to
+  connect, 60 s for the response and 30 min for the body, so that a stalled server fails the fetch rather than the CI
+  job hanging.
+- One run at a time uses a cache: the scratch paths of a download are named after the ecosystem only, so that a run
+  clears what a stopped one left and puts back a snapshot it left aside.
 - One unreadable record of an archive fails the fetch of its ecosystem, as `read_directory` does: the former snapshot
   stays usable.
 - The domain stays free of I/O: the CLI derives the ecosystems from the SBOM and passes the vulnerabilities to the

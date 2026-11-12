@@ -161,7 +161,7 @@ fn ids(snapshot: &Snapshot) -> Vec<&str> {
 
 fn fetch_error(cache: &Path, server: &Server, refresh: Refresh, ecosystem: &str) -> FetchError {
     archives(cache, server, refresh)
-        .fetch(&[ecosystem], at(1_000))
+        .fetch(&[ecosystem], || at(1_000))
         .expect_err("the fetch fails")
 }
 
@@ -180,7 +180,7 @@ fn the_archives_of_the_ecosystems_are_downloaded_and_read_with_their_freshness()
     server.route("/npm/all.zip", ok(npm_archive()));
 
     let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io", "npm"], at(1_000))
+        .fetch(&["crates.io", "npm"], || at(1_000))
         .expect("the archives are fetched");
 
     assert_eq!(
@@ -236,7 +236,7 @@ fn only_the_records_at_the_top_of_an_archive_are_read() {
     );
 
     let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(1_000))
+        .fetch(&["crates.io"], || at(1_000))
         .expect("the archive is fetched");
 
     assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
@@ -255,11 +255,11 @@ fn a_cached_snapshot_is_read_back_without_a_request() {
         },
     );
     let first = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(1_000))
+        .fetch(&["crates.io"], || at(1_000))
         .expect("the archive is fetched");
 
     let second = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(5_000))
+        .fetch(&["crates.io"], || at(5_000))
         .expect("the snapshot is read");
 
     assert_eq!(server.requests().len(), 1);
@@ -273,12 +273,12 @@ fn the_policy_always_downloads_again() {
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
     archives(cache.path(), &server, Refresh::Always)
-        .fetch(&["crates.io"], at(1_000))
+        .fetch(&["crates.io"], || at(1_000))
         .expect("the archive is fetched");
     server.route("/crates.io/all.zip", ok(npm_archive()));
 
     let snapshots = archives(cache.path(), &server, Refresh::Always)
-        .fetch(&["crates.io"], at(2_000))
+        .fetch(&["crates.io"], || at(2_000))
         .expect("the archive is fetched again");
 
     assert_eq!(server.requests().len(), 2);
@@ -293,7 +293,7 @@ fn a_failed_download_keeps_the_former_snapshot() {
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
     let before = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(1_000))
+        .fetch(&["crates.io"], || at(1_000))
         .expect("the archive is fetched");
     server.route(
         "/crates.io/all.zip",
@@ -314,7 +314,7 @@ fn a_failed_download_keeps_the_former_snapshot() {
     assert!(reason.contains("503"), "{reason}");
     assert!(error.to_string().contains("cannot download"), "{error}");
     let after = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(3_000))
+        .fetch(&["crates.io"], || at(3_000))
         .expect("the former snapshot is read");
     assert_eq!(after, before);
 }
@@ -326,7 +326,7 @@ fn an_unreadable_record_fails_naming_its_entry_and_keeps_the_former_snapshot() {
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
     let before = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(1_000))
+        .fetch(&["crates.io"], || at(1_000))
         .expect("the archive is fetched");
     server.route(
         "/crates.io/all.zip",
@@ -348,7 +348,7 @@ fn an_unreadable_record_fails_naming_its_entry_and_keeps_the_former_snapshot() {
     assert_eq!(path, Path::new("broken.json"));
     assert!(error.to_string().contains("not JSON"), "{error}");
     let after = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(3_000))
+        .fetch(&["crates.io"], || at(3_000))
         .expect("the former snapshot is read");
     assert_eq!(after, before);
 }
@@ -365,7 +365,7 @@ fn an_unreachable_server_fails_with_cannot_download() {
     };
 
     let error = unreachable
-        .fetch(&["crates.io"], at(1_000))
+        .fetch(&["crates.io"], || at(1_000))
         .expect_err("the fetch fails");
 
     assert!(
@@ -457,7 +457,7 @@ fn the_names_osv_uses_are_accepted() {
         server.route(&format!("/{name}/all.zip"), ok(archive(&[])));
 
         let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
-            .fetch(&[name], at(1_000))
+            .fetch(&[name], || at(1_000))
             .expect("the name is accepted");
 
         assert_eq!(snapshots[0].vulnerabilities, []);
@@ -495,11 +495,11 @@ fn a_cache_is_read_offline_without_a_request() {
         },
     );
     let filled = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(1_000))
+        .fetch(&["crates.io"], || at(1_000))
         .expect("the archive is fetched");
 
     let read = archives(cache.path(), &server, Refresh::Offline)
-        .fetch(&["crates.io"], at(9_000))
+        .fetch(&["crates.io"], || at(9_000))
         .expect("the cache is read");
 
     assert_eq!(server.requests().len(), 1);
@@ -530,18 +530,18 @@ fn a_snapshot_older_than_the_age_is_downloaded_again() {
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
     archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(10_000))
+        .fetch(&["crates.io"], || at(10_000))
         .expect("the archive is fetched");
     let two_hours_later = at(10_000) + 2 * hour;
 
     let kept = archives(cache.path(), &server, Refresh::OlderThan(24 * hour))
-        .fetch(&["crates.io"], two_hours_later)
+        .fetch(&["crates.io"], || two_hours_later)
         .expect("the snapshot is read");
     assert_eq!(server.requests().len(), 1);
     assert_eq!(kept[0].freshness.downloaded_at, at(10_000));
 
     let renewed = archives(cache.path(), &server, Refresh::OlderThan(hour))
-        .fetch(&["crates.io"], two_hours_later)
+        .fetch(&["crates.io"], || two_hours_later)
         .expect("the archive is fetched again");
     assert_eq!(server.requests().len(), 2);
     assert_eq!(renewed[0].freshness.downloaded_at, two_hours_later);
@@ -559,7 +559,7 @@ fn an_empty_cache_is_filled_under_older_than() {
         &server,
         Refresh::OlderThan(Duration::from_secs(60)),
     )
-    .fetch(&["crates.io"], at(1_000))
+    .fetch(&["crates.io"], || at(1_000))
     .expect("the archive is fetched");
 
     assert_eq!(server.requests().len(), 1);
@@ -573,7 +573,7 @@ fn a_snapshot_dated_after_now_is_not_downloaded_again() {
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
     archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], at(5_000))
+        .fetch(&["crates.io"], || at(5_000))
         .expect("the archive is fetched");
 
     // A clock set back: the snapshot is not older than the age.
@@ -582,8 +582,104 @@ fn a_snapshot_dated_after_now_is_not_downloaded_again() {
         &server,
         Refresh::OlderThan(Duration::from_secs(60)),
     )
-    .fetch(&["crates.io"], at(1_000))
+    .fetch(&["crates.io"], || at(1_000))
     .expect("the snapshot is read");
 
     assert_eq!(server.requests().len(), 1);
+}
+
+// spec: OSR-13
+#[test]
+fn a_snapshot_whose_freshness_cannot_be_read_is_downloaded_again() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    fs::write(
+        cache.path().join("crates.io/forewarn-freshness"),
+        "{ truncated",
+    )
+    .expect("the freshness is damaged");
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(2_000))
+        .expect("the archive is fetched again");
+
+    assert_eq!(server.requests().len(), 2);
+    assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
+}
+
+// spec: OSR-16
+#[test]
+fn a_snapshot_left_aside_by_a_stopped_run_is_put_back() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    let filled = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    // A run stopped between moving the snapshot aside and putting the new one in place.
+    fs::rename(
+        cache.path().join("crates.io"),
+        cache.path().join(".former-crates.io"),
+    )
+    .expect("moved aside");
+
+    let read = archives(cache.path(), &server, Refresh::Offline)
+        .fetch(&["crates.io"], || at(2_000))
+        .expect("the snapshot is put back");
+
+    assert_eq!(read, filled);
+}
+
+// spec: OSR-16
+#[test]
+fn what_a_stopped_download_left_is_cleared() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    fs::create_dir(cache.path().join(".staging-crates.io")).expect("a stale staging");
+    fs::write(
+        cache
+            .path()
+            .join(".staging-crates.io/GHSA-35jh-r3h4-6jhm.json"),
+        fixture("GHSA-35jh-r3h4-6jhm.json"),
+    )
+    .expect("a stale record");
+    fs::write(cache.path().join(".download-crates.io"), "partial").expect("a stale download");
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+
+    assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
+    let mut left: Vec<_> = fs::read_dir(cache.path())
+        .expect("the cache is listed")
+        .map(|entry| entry.expect("an entry").file_name())
+        .collect();
+    left.sort();
+    assert_eq!(left, ["crates.io"]);
+}
+
+// spec: OSR-11
+#[test]
+fn each_download_records_the_time_it_started() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    server.route("/npm/all.zip", ok(npm_archive()));
+    let ticks = std::cell::Cell::new(0);
+    let clock = || {
+        ticks.set(ticks.get() + 1);
+        at(1_000 * ticks.get())
+    };
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io", "npm"], clock)
+        .expect("the archives are fetched");
+
+    assert_eq!(snapshots[0].freshness.downloaded_at, at(1_000));
+    assert_eq!(snapshots[1].freshness.downloaded_at, at(2_000));
 }

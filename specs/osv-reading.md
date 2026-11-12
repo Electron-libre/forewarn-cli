@@ -132,6 +132,10 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
 - (OSR-13) Given a snapshot downloaded 2 hours ago, when it is fetched under `older-than 1h`, then the archive is
   downloaded again; under `older-than 1d`, it is read from the cache.
 - (OSR-13) Given a snapshot in the cache, when it is fetched under `always`, then the archive is downloaded again.
+- (OSR-13) Given a snapshot whose record of freshness is damaged, when it is fetched under `if-missing`, then it is
+  taken as no snapshot and the archive is downloaded again.
+- (OSR-16) Given a run stopped after setting the former snapshot aside and before putting the new one in place, when
+  the ecosystem is fetched again, then the former snapshot is put back first.
 - (OSR-13, OSR-18) Given an empty cache, when `npm` is fetched under `offline`, then it fails with "not cached"
   naming `npm`.
 - (OSR-16, OSR-18) Given a snapshot of `crates.io` in the cache and a server answering 503, when it is fetched under
