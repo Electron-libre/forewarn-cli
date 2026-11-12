@@ -166,32 +166,27 @@ pub fn match_components(
                 outcome => Group::add(&mut groups, vulnerability, outcome),
             }
         }
-        let (affected, unaffected): (Vec<Group>, Vec<Group>) =
-            groups.into_iter().partition(|group| group.affected);
-        let mut matches: Vec<Match> = affected
-            .into_iter()
-            .map(|group| group.into_match(component))
-            .collect();
-        matches.sort_by(|a, b| a.id.cmp(&b.id));
-        report.matches.extend(matches);
-        let mut pairs: Vec<(&Vulnerability, PairReason)> = unaffected
-            .into_iter()
-            .flat_map(|group| group.unevaluated)
-            .collect();
+        let mut matches = Vec::new();
+        let mut pairs = Vec::new();
+        for group in groups {
+            if group.affected {
+                matches.push(group.into_match(component));
+            } else {
+                pairs.extend(group.unevaluated);
+            }
+        }
+        matches.sort_by(|a: &Match, b| a.id.cmp(&b.id));
         pairs.sort_by(|(a, _), (b, _)| a.id.cmp(&b.id));
-        report
-            .not_evaluated
-            .extend(
-                pairs
-                    .into_iter()
-                    .map(|(vulnerability, reason)| NotEvaluated {
-                        component: component.into(),
-                        reason: Reason::Pair {
-                            vulnerability_id: vulnerability.id.clone(),
-                            reason,
-                        },
-                    }),
-            );
+        report.matches.extend(matches);
+        for (vulnerability, reason) in pairs {
+            report.not_evaluated.push(NotEvaluated {
+                component: component.into(),
+                reason: Reason::Pair {
+                    vulnerability_id: vulnerability.id.clone(),
+                    reason,
+                },
+            });
+        }
     }
     report
 }
@@ -240,6 +235,7 @@ impl<'a> Group<'a> {
     /// The match of the group: named by its first CVE, else its first record id (VMT-16, VMT-17, VMT-18).
     fn into_match(mut self, component: &Component) -> Match {
         self.records.sort_by(|a, b| a.id.cmp(&b.id));
+        self.records.dedup_by(|a, b| a.id == b.id);
         let id = self
             .ids
             .iter()

@@ -658,3 +658,17 @@ fn drops_a_pair_not_evaluated_of_a_record_grouped_into_a_match() {
     assert_eq!(report.matches().len(), 1);
     assert_eq!(report.not_evaluated(), []);
 }
+
+// spec: VMT-18
+#[test]
+fn lists_a_record_given_twice_once() {
+    let rustsec = time_record("RUSTSEC-2020-0071", "RUSTSEC", &["CVE-2020-26235"], "0");
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[rustsec.clone(), rustsec],
+    );
+    assert_eq!(
+        report.matches()[0].records,
+        [record("RUSTSEC-2020-0071", "RUSTSEC")]
+    );
+}
