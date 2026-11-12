@@ -58,10 +58,10 @@ pairs not evaluated reported apart (`specs/vulnerability-matching.md`). Out of s
 1. [x] Vulnerability types and package URL: `forewarn_domain::vulnerability` (vulnerability, affected package,
    range, events) and the package URL reading with its ecosystem and name, the component reasons; verified by tests in
    `crates/forewarn-domain/tests/`; makes true VMT-4, VMT-5, VMT-6, VMT-7. (~500 lines) (autonomous)
-2. [ ] Matching: `forewarn_domain::matching` (explicit versions, semver ranges by the OSV algorithm, pair reasons,
+2. [x] Matching: `forewarn_domain::matching` (explicit versions, semver ranges by the OSV algorithm, pair reasons,
    withdrawn, order, one match per pair); verified by tests in `crates/forewarn-domain/tests/` and a happy path on the
    `cargo-cyclonedx` fixture; makes true VMT-1 to VMT-3, VMT-8 to VMT-14, VMT-H1, VMT-H2. (~700
-   lines)
+   lines) (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -69,6 +69,8 @@ pairs not evaluated reported apart (`specs/vulnerability-matching.md`). Out of s
 - Package URL: read by a small parser of the domain, no dependency.
 - Semver ranges: compared with the `semver` crate (MIT OR Apache-2.0), the first dependency of the domain.
 - Version matched: the component's, else its package URL's (VMT-7).
+- Happy path VMT-H1 traced on built components (`time` 0.1.43, as the spec says); the `cargo-cyclonedx` fixture is
+  matched by a test of the adapter crate (VMT-1, VMT-5).
 
 ## Deliverable 1 summary
 done: `forewarn_domain::vulnerability` (OSV-shaped types), `forewarn_domain::matching::{ComponentPackage, ComponentReason, same_name}`, a private package URL parser; spec VMT draft.
@@ -81,6 +83,23 @@ done: `forewarn_domain::vulnerability` (OSV-shaped types), `forewarn_domain::mat
 | docs | n/a: the domain crate keeps its role; CLAUDE.md is updated when matching works (deliverable 2) |
 
 red: VMT-4, VMT-5, VMT-6, VMT-7: `unresolved import forewarn_domain::matching`
+
+Code review: no findings
+
+not verified: none
+decisions needed: none
+
+## Deliverable 2 summary
+done: `forewarn_domain::matching::match_components` and its `MatchReport` (matches, components and pairs not evaluated), `semver` added to the domain, spec VMT accepted, CLAUDE.md status.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (VMT accepted) |
+| docs | CLAUDE.md project status |
+
+red: VMT-1, VMT-2, VMT-3, VMT-8, VMT-9, VMT-10, VMT-11, VMT-12, VMT-13, VMT-14, VMT-H1, VMT-H2: `unresolved imports forewarn_domain::matching::match_components`
 
 Code review: no findings
 
