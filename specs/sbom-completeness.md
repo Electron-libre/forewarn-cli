@@ -30,12 +30,12 @@ TR-03183-2 and is kept as data so that it can grow.
   | Field | Present when |
   |---|---|
   | supplier | the component has a supplier, a manufacturer, an author or a publisher |
-  | license | the component has a license entry (an SPDX id, a name or an expression) other than `NOASSERTION` |
+  | license | the component has a license entry (an SPDX id, a name or an expression) other than `NOASSERTION` in any case |
   | hash | the component has a hash with a value and an algorithm the CycloneDX enumeration lists |
 
 - **SBC-5** (deterministic) The hash algorithms that count must be those of the CycloneDX 1.7 enumeration, compared
   without regard to case: `MD5`, `SHA-1`, `SHA-256`, `SHA-384`, `SHA-512`, `SHA3-256`, `SHA3-384`, `SHA3-512`,
-  `BLAKE2b-256`, `BLAKE2b-384`, `BLAKE2b-512`, `BLAKE3`.
+  `BLAKE2b-256`, `BLAKE2b-384`, `BLAKE2b-512`, `BLAKE3`, `Streebog-256`, `Streebog-512`.
 - **SBC-6** (deterministic) A reported component must carry its name, its version when it has one and its package URL
   when it has one, and its missing fields in the order supplier, license, hash.
 - **SBC-7** (deterministic) The reported components must keep the order of the SBOM, a component appearing twice
@@ -51,7 +51,8 @@ TR-03183-2 and is kept as data so that it can grow.
 - (SBC-4) Given a component whose only creator is an `author`, when it is checked, then its supplier is present.
 - (SBC-4) Given a component whose only license is the expression `MIT OR Apache-2.0`, when it is checked, then its
   license is present.
-- (SBC-4) Given a component whose only license is `NOASSERTION`, when it is checked, then its license is missing.
+- (SBC-4) Given a component whose only license is `NOASSERTION` or `noassertion`, when it is checked, then its license
+  is missing; with `NONE`, an assertion that it has no license, its license is present.
 - (SBC-4) Given a component whose supplier is `"  "`, when it is checked, then its supplier is missing.
 - (SBC-4, SBC-5) Given a component whose only hash has the algorithm `sha-256`, when it is checked, then its hash is
   present; with the algorithm `CRC32`, or with an empty value, its hash is missing.
@@ -62,6 +63,7 @@ TR-03183-2 and is kept as data so that it can grow.
 - Fields BSI TR-03183-2 also requires but the issue leaves for later (file name, executable, archive and structured
   properties, dependencies, the creator's contact): the list of checked fields grows by amending this spec.
 - Requiring a SHA-512 hash, as BSI TR-03183-2 does for the executable: any listed algorithm counts.
+- Checking that a hash value is well formed for its algorithm (hexadecimal, length).
 - Judging whether a license is valid SPDX, or whether a supplier name is real.
 - Checking the SBOM's own metadata (`metadata.component`, `metadata.supplier`, timestamp).
 - Rendering the report for a human or a CI job: the `rollcall check` command does (`issues/cli_check_command.md`).

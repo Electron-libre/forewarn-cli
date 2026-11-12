@@ -8,7 +8,7 @@ use crate::sbom::{Component, Hash};
 pub enum Field {
     /// The organisation that supplies the component: its supplier, manufacturer, an author or its publisher.
     Supplier,
-    /// A license, other than `NOASSERTION`.
+    /// A license, other than `NOASSERTION` in any case.
     License,
     /// A hash with a value and an algorithm of the CycloneDX enumeration.
     Hash,
@@ -19,7 +19,7 @@ pub enum Field {
 pub const CHECKED_FIELDS: [Field; 3] = [Field::Supplier, Field::License, Field::Hash];
 
 /// The hash algorithms of the CycloneDX 1.7 enumeration, compared without regard to case.
-const HASH_ALGORITHMS: [&str; 12] = [
+const HASH_ALGORITHMS: [&str; 14] = [
     "MD5",
     "SHA-1",
     "SHA-256",
@@ -32,6 +32,8 @@ const HASH_ALGORITHMS: [&str; 12] = [
     "BLAKE2b-384",
     "BLAKE2b-512",
     "BLAKE3",
+    "Streebog-256",
+    "Streebog-512",
 ];
 
 impl Field {
@@ -48,10 +50,9 @@ impl Field {
             .flatten()
             .chain(&component.authors)
             .any(|value| is_filled(value)),
-            Self::License => component
-                .licenses
-                .iter()
-                .any(|license| is_filled(license) && license.trim() != "NOASSERTION"),
+            Self::License => component.licenses.iter().any(|license| {
+                is_filled(license) && !license.trim().eq_ignore_ascii_case("NOASSERTION")
+            }),
             Self::Hash => component.hashes.iter().any(is_usable_hash),
         }
     }

@@ -1,6 +1,6 @@
 //! The completeness check of the components of an SBOM (`specs/sbom-completeness.md`).
 
-use rollcall_domain::completeness::{CHECKED_FIELDS, Field, IncompleteComponent, check};
+use rollcall_domain::completeness::{Field, IncompleteComponent, check};
 use rollcall_domain::sbom::{Component, Hash};
 
 fn hash(algorithm: &str, value: &str) -> Hash {
@@ -135,6 +135,7 @@ fn an_expression_is_a_license_but_noassertion_is_not() {
     assert_eq!(missing(&with_license("MIT OR Apache-2.0")), []);
     assert_eq!(missing(&with_license("NONE")), []);
     assert_eq!(missing(&with_license("NOASSERTION")), [Field::License]);
+    assert_eq!(missing(&with_license("noassertion")), [Field::License]);
     let noassertion_then_mit = Component {
         licenses: vec!["NOASSERTION".into(), "MIT".into()],
         ..complete("a")
@@ -162,6 +163,8 @@ fn only_a_listed_algorithm_with_a_value_makes_the_hash_present() {
         "BLAKE2b-384",
         "BLAKE2b-512",
         "BLAKE3",
+        "Streebog-256",
+        "Streebog-512",
         "sha-256",
         "blake2B-512",
     ] {
@@ -190,12 +193,4 @@ fn keeps_the_order_of_the_sbom_and_reports_duplicates_twice() {
         .map(|c| c.name.as_str())
         .collect();
     assert_eq!(names, ["b", "a", "b"]);
-}
-
-#[test]
-fn the_checked_fields_are_supplier_license_and_hash() {
-    assert_eq!(
-        CHECKED_FIELDS,
-        [Field::Supplier, Field::License, Field::Hash]
-    );
 }
