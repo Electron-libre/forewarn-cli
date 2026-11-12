@@ -154,7 +154,8 @@ fn to_domain(component: &CdxComponent) -> Component {
     }
 }
 
-/// The identity of an organization (SBR-5): its name, else its first URL, else the first email of its contacts.
+/// The identity of an organization (SBR-5): its name, else the first email of its contacts, else its
+/// first URL (BSI TR-03183-2 asks for an email, a URL when there is none).
 fn organization(entity: &OrganizationalEntity) -> Option<String> {
     let name = entity.name.iter().map(ToString::to_string);
     let urls = entity.url.iter().flatten().map(ToString::to_string);
@@ -164,7 +165,7 @@ fn organization(entity: &OrganizationalEntity) -> Option<String> {
         .flatten()
         .filter_map(|contact| contact.email.as_ref())
         .map(ToString::to_string);
-    first_filled(name.chain(urls).chain(emails))
+    first_filled(name.chain(emails).chain(urls))
 }
 
 /// The identity of an author (SBR-5): its name, else its email.

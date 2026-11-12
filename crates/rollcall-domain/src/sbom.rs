@@ -48,9 +48,9 @@ pub struct Component {
     pub version: Option<String>,
     /// The package URL, as written in the SBOM.
     pub purl: Option<String>,
-    /// The supplier organisation: its name, else a URL or a contact email.
+    /// The supplier organisation: its name, else a contact email or a URL.
     pub supplier: Option<String>,
-    /// The manufacturer organisation (CycloneDX 1.6): its name, else a URL or a contact email.
+    /// The manufacturer organisation (CycloneDX 1.6): its name, else a contact email or a URL.
     pub manufacturer: Option<String>,
     /// The authors: the legacy single `author` text, then the name, else the email, of each author of
     /// CycloneDX 1.6.

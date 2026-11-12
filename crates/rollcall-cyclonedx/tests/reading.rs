@@ -126,27 +126,27 @@ fn creators(component: &Value) -> Component {
 
 // spec: SBR-5
 #[test]
-fn identifies_an_organization_with_no_name_by_its_url_then_its_contact_email() {
+fn identifies_an_organization_with_no_name_by_its_contact_email_then_its_url() {
     let contact = json!([{ "name": "Jane Doe", "phone": "+33 1 00 00 00 00" }, { "email": "sec@example.com" }]);
-    let by_url = creators(&json!({
+    let by_email = creators(&json!({
         "type": "library",
         "name": "a",
-        "supplier": { "url": ["  ", "https://example.com"], "contact": contact },
-        "manufacturer": { "name": "  ", "url": ["https://maker.example"] },
+        "supplier": { "url": ["https://example.com"], "contact": contact },
+        "manufacturer": { "name": "  ", "contact": [{ "email": "maker@example.com" }] },
+    }));
+    assert_eq!(by_email.supplier.as_deref(), Some("sec@example.com"));
+    assert_eq!(by_email.manufacturer.as_deref(), Some("maker@example.com"));
+    let by_url = creators(&json!({
+        "type": "library",
+        "name": "b",
+        "supplier": { "url": ["  ", "https://example.com"], "contact": [{ "email": " " }] },
+        "manufacturer": { "url": ["https://maker.example"] },
     }));
     assert_eq!(by_url.supplier.as_deref(), Some("https://example.com"));
     assert_eq!(
         by_url.manufacturer.as_deref(),
         Some("https://maker.example")
     );
-    let by_email = creators(&json!({
-        "type": "library",
-        "name": "b",
-        "supplier": { "contact": contact },
-        "manufacturer": { "contact": [{ "email": "maker@example.com" }] },
-    }));
-    assert_eq!(by_email.supplier.as_deref(), Some("sec@example.com"));
-    assert_eq!(by_email.manufacturer.as_deref(), Some("maker@example.com"));
 }
 
 // spec: SBR-5

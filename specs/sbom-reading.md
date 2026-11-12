@@ -41,7 +41,7 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
   | hashes | each entry of `hashes`: the algorithm as written and the value |
 
   The identity of an organization (`supplier`, `manufacturer`) is the first that is not empty nor only whitespace of
-  its `name`, each of its `url` in order, then the `email` of each of its `contact` in order; that of an author (an
+  its `name`, the `email` of each of its `contact` in order, then each of its `url` in order; that of an author (an
   entry of `authors`) is the first such of its `name` and its `email`. An entry with none of them has no identity.
 
 - **SBR-6** (deterministic) The components nested in a component (`components[].components`, at any depth) must be
@@ -73,8 +73,8 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
   "missing spec version".
 - (SBR-7) Given an SPDX JSON document, when it is read, then it fails with "not a CycloneDX SBOM".
 - (SBR-7) Given a 1.6 document whose `components` is a string, when it is read, then it fails with "invalid SBOM".
-- (SBR-5) Given a component whose `supplier` has no name, the URL `https://example.com` and a contact with an email,
-  when it is read, then its supplier is `https://example.com`; with no URL, its supplier is the contact's email.
+- (SBR-5) Given a component whose `supplier` has no name, the URL `https://example.com` and a contact with the email
+  `sec@example.com`, when it is read, then its supplier is `sec@example.com`; with no email, it is the URL.
 - (SBR-5) Given a component whose only entry of `authors` has an email and no name, when it is read, then its authors
   are that email; an entry with only a phone gives no author.
 - (SBR-5) Given a component whose `supplier` name is `"  "` and that has a URL, when it is read, then its supplier is

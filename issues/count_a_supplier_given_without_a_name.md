@@ -71,3 +71,34 @@ Code review: 1 findings
 
 not verified: none
 decisions needed: none
+
+## Whole-issue review (high)
+Code review: 6 findings
+- Fallback order URL before email: fixed in deliverable 2, email first as BSI TR-03183-2 asks (overrides the order
+  of the plan).
+- Blank legacy `author` kept: not fixed, pre-existing behaviour; the completeness check already counts it absent.
+- Plain string for a name, URL or email: not fixed, the validated plan keeps a plain string (decision of step 2).
+- Blank rule in adapter and domain: not fixed, the adapter needs it to choose the fallback.
+- Allocation of skipped candidates: not fixed, negligible.
+- End-to-end test asserts the exit code only: not fixed, the mapping is proved by the reading tests.
+
+2. [x] Review fixes: email before URL in the organization identity; verified by the reading tests; makes true SBR-5.
+   (autonomous)
+
+## Deliverable 2 summary
+done: the identity of an organization takes its contact emails before its URLs (spec, code, test, doc comment).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | doc comments of `Component` |
+| code review | no findings |
+
+red: none
+
+Code review: no findings
+
+not verified: none
+decisions needed: none
