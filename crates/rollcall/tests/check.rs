@@ -131,6 +131,19 @@ fn shows_the_name_alone_of_a_component_with_no_version_nor_purl() {
     );
 }
 
+// spec: SBR-5, SBC-4
+#[test]
+fn a_supplier_given_only_by_url_or_an_author_only_by_email_is_not_a_gap() {
+    let mut by_url = complete_component("by-url");
+    by_url["supplier"] = json!({"url": ["https://example.com"]});
+    let mut by_email = complete_component("by-email");
+    by_email.as_object_mut().expect("object").remove("supplier");
+    by_email["authors"] = json!([{"email": "dev@example.com"}]);
+    let input = bom("1.6", &json!([by_url, by_email]));
+    let run = run(&["check", "-"], Some(&input));
+    assert_eq!(run.code, 0, "{}{}", run.stdout, run.stderr);
+}
+
 // spec: CHK-3, CHK-7
 #[test]
 fn an_sbom_with_no_component_is_complete() {

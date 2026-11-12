@@ -48,11 +48,12 @@ pub struct Component {
     pub version: Option<String>,
     /// The package URL, as written in the SBOM.
     pub purl: Option<String>,
-    /// The name of the supplier organisation.
+    /// The supplier organisation: its name, else a URL or a contact email.
     pub supplier: Option<String>,
-    /// The name of the manufacturer organisation (CycloneDX 1.6).
+    /// The manufacturer organisation (CycloneDX 1.6): its name, else a URL or a contact email.
     pub manufacturer: Option<String>,
-    /// The authors: the legacy single `author` text, then each named author of CycloneDX 1.6.
+    /// The authors: the legacy single `author` text, then the name, else the email, of each author of
+    /// CycloneDX 1.6.
     pub authors: Vec<String>,
     pub publisher: Option<String>,
     /// Each license: an SPDX identifier, a license name, or an SPDX expression.

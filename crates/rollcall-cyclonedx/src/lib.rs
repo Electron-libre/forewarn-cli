@@ -6,6 +6,7 @@ use std::io::Read;
 use cyclonedx_bom::models::bom::{Bom, SpecVersion as CdxSpecVersion};
 use cyclonedx_bom::models::component::Component as CdxComponent;
 use cyclonedx_bom::models::license::{LicenseChoice, LicenseIdentifier};
+use cyclonedx_bom::models::organization::{OrganizationalContact, OrganizationalEntity};
 use rollcall_domain::sbom::{Component, Hash, Sbom, SpecVersion};
 use serde_json::Value;
 
@@ -120,27 +121,13 @@ fn to_domain(component: &CdxComponent) -> Component {
         name: component.name.to_string(),
         version: component.version.as_ref().map(ToString::to_string),
         purl: component.purl.as_ref().map(ToString::to_string),
-        supplier: component
-            .supplier
-            .as_ref()
-            .and_then(|s| s.name.as_ref())
-            .map(ToString::to_string),
-        manufacturer: component
-            .manufacturer
-            .as_ref()
-            .and_then(|m| m.name.as_ref())
-            .map(ToString::to_string),
+        supplier: component.supplier.as_ref().and_then(organization),
+        manufacturer: component.manufacturer.as_ref().and_then(organization),
         authors: component
             .author
             .iter()
-            .chain(
-                component
-                    .authors
-                    .iter()
-                    .flatten()
-                    .filter_map(|contact| contact.name.as_ref()),
-            )
             .map(ToString::to_string)
+            .chain(component.authors.iter().flatten().filter_map(author))
             .collect(),
         publisher: component.publisher.as_ref().map(ToString::to_string),
         licenses: component
@@ -165,4 +152,32 @@ fn to_domain(component: &CdxComponent) -> Component {
             })
             .collect(),
     }
+}
+
+/// The identity of an organization (SBR-5): its name, else its first URL, else the first email of its contacts.
+fn organization(entity: &OrganizationalEntity) -> Option<String> {
+    let name = entity.name.iter().map(ToString::to_string);
+    let urls = entity.url.iter().flatten().map(ToString::to_string);
+    let emails = entity
+        .contact
+        .iter()
+        .flatten()
+        .filter_map(|contact| contact.email.as_ref())
+        .map(ToString::to_string);
+    first_filled(name.chain(urls).chain(emails))
+}
+
+/// The identity of an author (SBR-5): its name, else its email.
+fn author(contact: &OrganizationalContact) -> Option<String> {
+    first_filled(
+        [&contact.name, &contact.email]
+            .into_iter()
+            .flatten()
+            .map(ToString::to_string),
+    )
+}
+
+/// The first value that is not empty nor only whitespace.
+fn first_filled(mut values: impl Iterator<Item = String>) -> Option<String> {
+    values.find(|value| !value.trim().is_empty())
 }

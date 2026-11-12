@@ -99,7 +99,11 @@ fn maps_the_fields_of_a_component() {
                 purl: Some("pkg:cargo/serde@1.0.228".into()),
                 supplier: Some("Serde Team".into()),
                 manufacturer: Some("Serde Foundry".into()),
-                authors: vec!["David Tolnay".into(), "Serde Contributors".into()],
+                authors: vec![
+                    "David Tolnay".into(),
+                    "Serde Contributors".into(),
+                    "anonymous@example.com".into(),
+                ],
                 publisher: Some("crates.io".into()),
                 licenses: vec!["MIT".into(), "Custom terms".into()],
                 hashes: vec![Hash {
@@ -113,6 +117,62 @@ fn maps_the_fields_of_a_component() {
             },
         ]
     );
+}
+
+fn creators(component: &Value) -> Component {
+    let mut sbom = read(&bom("1.6", &json!([component]))).expect("readable");
+    sbom.components.remove(0)
+}
+
+// spec: SBR-5
+#[test]
+fn identifies_an_organization_with_no_name_by_its_url_then_its_contact_email() {
+    let contact = json!([{ "name": "Jane Doe", "phone": "+33 1 00 00 00 00" }, { "email": "sec@example.com" }]);
+    let by_url = creators(&json!({
+        "type": "library",
+        "name": "a",
+        "supplier": { "url": ["  ", "https://example.com"], "contact": contact },
+        "manufacturer": { "name": "  ", "url": ["https://maker.example"] },
+    }));
+    assert_eq!(by_url.supplier.as_deref(), Some("https://example.com"));
+    assert_eq!(
+        by_url.manufacturer.as_deref(),
+        Some("https://maker.example")
+    );
+    let by_email = creators(&json!({
+        "type": "library",
+        "name": "b",
+        "supplier": { "contact": contact },
+        "manufacturer": { "contact": [{ "email": "maker@example.com" }] },
+    }));
+    assert_eq!(by_email.supplier.as_deref(), Some("sec@example.com"));
+    assert_eq!(by_email.manufacturer.as_deref(), Some("maker@example.com"));
+}
+
+// spec: SBR-5
+#[test]
+fn an_organization_known_only_by_a_contact_name_or_phone_has_no_identity() {
+    let component = creators(&json!({
+        "type": "library",
+        "name": "a",
+        "supplier": { "contact": [{ "name": "Jane Doe", "phone": "+33 1 00 00 00 00" }] },
+    }));
+    assert_eq!(component.supplier, None);
+}
+
+// spec: SBR-5
+#[test]
+fn identifies_an_author_with_no_name_by_its_email() {
+    let component = creators(&json!({
+        "type": "library",
+        "name": "a",
+        "authors": [
+            { "email": "dev@example.com" },
+            { "name": " ", "email": "other@example.com" },
+            { "phone": "+33 1 00 00 00 00" }
+        ],
+    }));
+    assert_eq!(component.authors, ["dev@example.com", "other@example.com"]);
 }
 
 // spec: SBR-5

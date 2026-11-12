@@ -31,3 +31,43 @@ Read and check an SBOM
 # Resources
 * `specs/sbom-reading.md`, `specs/sbom-completeness.md`.
 * BSI TR-03183-2 (creator of the component: email or URL).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-12
+
+## Understanding
+The adapter falls back, when a supplier, manufacturer or author has no usable name, to its first URL or contact
+email (author: its email), so the completeness check sees the creator BSI TR-03183-2 accepts. The domain keeps a
+plain string: SBC-4 is unchanged (a supplier given by URL or email is "a supplier"). Phone numbers do not count.
+
+## Plan
+1. [x] Identity fallback in the CycloneDX adapter: name, then URL, then contact email (author: name, then email),
+   blank values skipped; verified by tests in `crates/rollcall-cyclonedx/tests/reading.rs` and one through
+   `rollcall check`; makes true SBR-5 (amended). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: ca4e148f4d6db7f30bd790f1e578eef323168e1c
+- 1 a: the name of a contact does not identify a supplier or a manufacturer; only its URLs and contact emails do.
+- 2 a: a phone number does not count.
+
+## Deliverable 1 summary
+done: the adapter carries a supplier or manufacturer by its name, else its first URL, else a contact email, and an
+author by its name, else its email, blank values skipped (SBR-5 amended, spec back to `accepted`).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | doc comments of `Component`; README n/a (unchanged wording) |
+| code review | 1 finding, fixed |
+
+red: SBR-5, SBC-4: `left: None, right: Some("https://example.com")`; `rollcall check` exited 1 instead of 0.
+
+Code review: 1 findings
+- The identity paragraph of SBR-5 split the field table in two: moved below the table.
+
+not verified: none
+decisions needed: none
