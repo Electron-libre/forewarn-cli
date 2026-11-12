@@ -32,7 +32,9 @@ forewarn match --refresh offline sbom.cdx.json    # an air-gapped CI: the cache 
 forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
 ```
 
-`forewarn match` prints the components affected by a known OSV vulnerability (its id, aliases and source), apart from
+`forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
+records hold it (a `RUSTSEC` advisory and its `GHSA` mirror): its id (its CVE when it has one), its aliases and each
+record with its source, apart from
 the components it could not evaluate (no package URL, no version, an ecosystem whose ranges are not compared yet), how
 many are clean, and how fresh the OSV data is; `--format json` and `--allow-affected` work as for `check`. Only the
 names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from the OSV bucket (`--osv-url` for a

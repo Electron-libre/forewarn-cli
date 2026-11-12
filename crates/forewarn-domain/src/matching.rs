@@ -1,6 +1,7 @@
 //! The matching of the components of an SBOM against known vulnerabilities (`specs/vulnerability-matching.md`).
 
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use semver::Version;
 
@@ -88,12 +89,23 @@ impl From<&Component> for ComponentRef {
     }
 }
 
-/// A component affected by a vulnerability.
+/// A component affected by a vulnerability, known by one record or several whose ids or aliases overlap.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Match {
     pub component: ComponentRef,
-    pub vulnerability_id: String,
+    /// The id naming the vulnerability: its first CVE, else the first id of its records (VMT-16).
+    pub id: String,
+    /// Every other id and alias of its records, in byte order (VMT-17).
     pub aliases: Vec<String>,
+    /// The records that hold it, by id (VMT-18).
+    pub records: Vec<RecordRef>,
+}
+
+/// A record of a vulnerability, as the report names it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RecordRef {
+    pub id: String,
+    /// The database the record comes from (`RUSTSEC`, `GHSA`).
     pub source: String,
 }
 
@@ -147,30 +159,119 @@ pub fn match_components(
                 continue;
             }
         };
+        let mut groups: Vec<Group> = Vec::new();
         for vulnerability in &vulnerabilities {
             match package.outcome(vulnerability) {
-                Outcome::Affected => report.matches.push(Match {
-                    component: component.into(),
-                    vulnerability_id: vulnerability.id.clone(),
-                    aliases: vulnerability.aliases.clone(),
-                    source: vulnerability.source.clone(),
-                }),
-                Outcome::NotAffected => {}
-                Outcome::NotEvaluated(reason) => report.not_evaluated.push(NotEvaluated {
-                    component: component.into(),
-                    reason: Reason::Pair {
-                        vulnerability_id: vulnerability.id.clone(),
-                        reason,
-                    },
-                }),
+                Outcome::NotNamed => {}
+                outcome => Group::add(&mut groups, vulnerability, outcome),
             }
         }
+        let (affected, unaffected): (Vec<Group>, Vec<Group>) =
+            groups.into_iter().partition(|group| group.affected);
+        let mut matches: Vec<Match> = affected
+            .into_iter()
+            .map(|group| group.into_match(component))
+            .collect();
+        matches.sort_by(|a, b| a.id.cmp(&b.id));
+        report.matches.extend(matches);
+        let mut pairs: Vec<(&Vulnerability, PairReason)> = unaffected
+            .into_iter()
+            .flat_map(|group| group.unevaluated)
+            .collect();
+        pairs.sort_by(|(a, _), (b, _)| a.id.cmp(&b.id));
+        report
+            .not_evaluated
+            .extend(
+                pairs
+                    .into_iter()
+                    .map(|(vulnerability, reason)| NotEvaluated {
+                        component: component.into(),
+                        reason: Reason::Pair {
+                            vulnerability_id: vulnerability.id.clone(),
+                            reason,
+                        },
+                    }),
+            );
     }
     report
 }
 
+/// The records naming one component whose ids or aliases overlap (VMT-15): one vulnerability, a match when one of
+/// them affects the component, whatever the others say (VMT-19, VMT-20).
+struct Group<'a> {
+    /// The ids and aliases of its records.
+    ids: BTreeSet<&'a str>,
+    records: Vec<&'a Vulnerability>,
+    /// Whether one of its records affects the component.
+    affected: bool,
+    /// Its records that could not be evaluated, with their reason.
+    unevaluated: Vec<(&'a Vulnerability, PairReason)>,
+}
+
+impl<'a> Group<'a> {
+    /// Adds a record naming the component to the groups, merging every group it overlaps into one.
+    fn add(groups: &mut Vec<Self>, record: &'a Vulnerability, outcome: Outcome) {
+        let mut merged = Self {
+            ids: std::iter::once(record.id.as_str())
+                .chain(record.aliases.iter().map(String::as_str))
+                .collect(),
+            records: vec![record],
+            affected: matches!(outcome, Outcome::Affected),
+            unevaluated: match outcome {
+                Outcome::NotEvaluated(reason) => vec![(record, reason)],
+                _ => vec![],
+            },
+        };
+        let mut index = 0;
+        while index < groups.len() {
+            if groups[index].ids.is_disjoint(&merged.ids) {
+                index += 1;
+            } else {
+                let group = groups.swap_remove(index);
+                merged.ids.extend(group.ids);
+                merged.records.extend(group.records);
+                merged.affected |= group.affected;
+                merged.unevaluated.extend(group.unevaluated);
+            }
+        }
+        groups.push(merged);
+    }
+
+    /// The match of the group: named by its first CVE, else its first record id (VMT-16, VMT-17, VMT-18).
+    fn into_match(mut self, component: &Component) -> Match {
+        self.records.sort_by(|a, b| a.id.cmp(&b.id));
+        let id = self
+            .ids
+            .iter()
+            .find(|id| id.starts_with("CVE-"))
+            .copied()
+            .unwrap_or(self.records[0].id.as_str());
+        Match {
+            component: component.into(),
+            id: id.to_owned(),
+            aliases: self
+                .ids
+                .iter()
+                .filter(|alias| **alias != id)
+                .map(|alias| (*alias).to_owned())
+                .collect(),
+            records: self
+                .records
+                .iter()
+                .map(|record| RecordRef {
+                    id: record.id.clone(),
+                    source: record.source.clone(),
+                })
+                .collect(),
+        }
+    }
+}
+
 /// What matching a component against one vulnerability gives.
+#[derive(Clone, Copy)]
 enum Outcome {
+    /// No affected package of the vulnerability names the component.
+    NotNamed,
     Affected,
     NotAffected,
     NotEvaluated(PairReason),
@@ -230,14 +331,16 @@ impl ComponentPackage {
     }
 
     /// Whether the vulnerability affects this package: affected by any listed version or range, else the first
-    /// reason a range could not be evaluated, else not affected.
+    /// reason a range could not be evaluated, else not affected, or not named by any of its affected packages.
     fn outcome(&self, vulnerability: &Vulnerability) -> Outcome {
+        let mut named = false;
         let mut unevaluated = None;
         for affected in vulnerability
             .affected
             .iter()
             .filter(|a| self.is_named_by(a))
         {
+            named = true;
             if affected.versions.iter().any(|v| v.trim() == self.version) {
                 return Outcome::Affected;
             }
@@ -254,7 +357,11 @@ impl ComponentPackage {
                 }
             }
         }
-        unevaluated.map_or(Outcome::NotAffected, Outcome::NotEvaluated)
+        match unevaluated {
+            Some(reason) => Outcome::NotEvaluated(reason),
+            None if named => Outcome::NotAffected,
+            None => Outcome::NotNamed,
+        }
     }
 
     fn is_named_by(&self, affected: &AffectedPackage) -> bool {

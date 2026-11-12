@@ -1,7 +1,7 @@
 //! The matching of the components of an SBOM against known vulnerabilities (`specs/vulnerability-matching.md`).
 
 use forewarn_domain::matching::{
-    ComponentReason, ComponentRef, Match, MatchReport, NotEvaluated, PairReason, Reason,
+    ComponentReason, ComponentRef, Match, MatchReport, NotEvaluated, PairReason, Reason, RecordRef,
     match_components,
 };
 use forewarn_domain::sbom::Component;
@@ -73,11 +73,31 @@ fn affects(events: &[Event], version: &str) -> bool {
     !report.matches().is_empty()
 }
 
+fn record(id: &str, source: &str) -> RecordRef {
+    RecordRef {
+        id: id.into(),
+        source: source.into(),
+    }
+}
+
+/// A record of `crates.io` `time` with its aliases and source, affecting every version from `introduced`.
+fn time_record(id: &str, source: &str, aliases: &[&str], introduced_at: &str) -> Vulnerability {
+    let mut record = vulnerability(
+        id,
+        "crates.io",
+        "time",
+        vec![range(RangeKind::Semver, &[introduced(introduced_at)])],
+    );
+    record.source = source.into();
+    record.aliases = aliases.iter().map(|alias| (*alias).into()).collect();
+    record
+}
+
 fn ids(report: &MatchReport) -> Vec<(&str, &str)> {
     report
         .matches()
         .iter()
-        .map(|m| (m.component.name.as_str(), m.vulnerability_id.as_str()))
+        .map(|m| (m.component.name.as_str(), m.id.as_str()))
         .collect()
 }
 
@@ -96,9 +116,9 @@ fn reports_a_crate_in_a_vulnerable_range() {
                 version: None,
                 purl: Some("pkg:cargo/time@0.1.43".into()),
             },
-            vulnerability_id: "RUSTSEC-2020-0071".into(),
-            aliases: vec!["CVE-2020-26235".into(), "GHSA-wcg3-cvx6-7396".into()],
-            source: "RUSTSEC".into(),
+            id: "CVE-2020-26235".into(),
+            aliases: vec!["GHSA-wcg3-cvx6-7396".into(), "RUSTSEC-2020-0071".into()],
+            records: vec![record("RUSTSEC-2020-0071", "RUSTSEC")],
         }]
     );
     assert_eq!(report.not_evaluated(), []);
@@ -146,8 +166,11 @@ fn reports_each_pair_with_the_component_and_the_vulnerability() {
         ("time", Some("0.1.43"), Some("pkg:cargo/time@0.1.43"))
     );
     assert_eq!(
-        (found.vulnerability_id.as_str(), found.source.as_str()),
-        ("RUSTSEC-0000-0001", "RUSTSEC")
+        (found.id.as_str(), found.records.as_slice()),
+        (
+            "RUSTSEC-0000-0001",
+            [record("RUSTSEC-0000-0001", "RUSTSEC")].as_slice()
+        )
     );
 }
 
@@ -488,5 +511,150 @@ fn leaves_a_git_range_aside_when_another_range_is_evaluated() {
     );
     let report = match_components(&[component("pkg:cargo/time@2.0.0")], &[both]);
     assert_eq!(report.matches(), []);
+    assert_eq!(report.not_evaluated(), []);
+}
+
+// spec: VMT-H3
+#[test]
+fn reports_a_vulnerability_known_under_several_records_once() {
+    let rustsec = time_record(
+        "RUSTSEC-2020-0071",
+        "RUSTSEC",
+        &["CVE-2020-26235", "GHSA-wcg3-cvx6-7396"],
+        "0",
+    );
+    let ghsa = time_record("GHSA-wcg3-cvx6-7396", "GHSA", &["RUSTSEC-2020-0071"], "0");
+    let report = match_components(&[component("pkg:cargo/time@0.1.43")], &[rustsec, ghsa]);
+    assert_eq!(
+        report.matches(),
+        [Match {
+            component: ComponentRef {
+                name: "time".into(),
+                version: None,
+                purl: Some("pkg:cargo/time@0.1.43".into()),
+            },
+            id: "CVE-2020-26235".into(),
+            aliases: vec!["GHSA-wcg3-cvx6-7396".into(), "RUSTSEC-2020-0071".into()],
+            records: vec![
+                record("GHSA-wcg3-cvx6-7396", "GHSA"),
+                record("RUSTSEC-2020-0071", "RUSTSEC"),
+            ],
+        }]
+    );
+}
+
+// spec: VMT-15
+#[test]
+fn groups_records_through_another_record() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[
+            time_record("A-1", "A", &["B-1"], "0"),
+            time_record("B-1", "B", &[], "0"),
+            time_record("C-1", "C", &["B-1"], "0"),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "A-1")]);
+    assert_eq!(
+        report.matches()[0].records,
+        [record("A-1", "A"), record("B-1", "B"), record("C-1", "C")]
+    );
+}
+
+// spec: VMT-15
+#[test]
+fn groups_records_of_one_component_only() {
+    let time = time_record("A-1", "A", &["CVE-1"], "0");
+    let mut regex = time_record("B-1", "B", &["CVE-1"], "0");
+    regex.affected[0].name = "regex".into();
+    let report = match_components(
+        &[
+            component("pkg:cargo/time@0.1.43"),
+            component("pkg:cargo/regex@1.0.0"),
+        ],
+        &[time, regex],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-1"), ("regex", "CVE-1")]);
+    assert_eq!(report.matches()[0].records, [record("A-1", "A")]);
+    assert_eq!(report.matches()[1].records, [record("B-1", "B")]);
+}
+
+// spec: VMT-16, VMT-17
+#[test]
+fn names_a_group_without_a_cve_by_its_first_record_id() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[
+            time_record(
+                "RUSTSEC-2021-0001",
+                "RUSTSEC",
+                &["GHSA-aaaa-bbbb-cccc"],
+                "0",
+            ),
+            time_record("GHSA-aaaa-bbbb-cccc", "GHSA", &["RUSTSEC-2021-0001"], "0"),
+        ],
+    );
+    assert_eq!(report.matches()[0].id, "GHSA-aaaa-bbbb-cccc");
+    assert_eq!(report.matches()[0].aliases, ["RUSTSEC-2021-0001"]);
+}
+
+// spec: VMT-16, VMT-17
+#[test]
+fn names_a_group_by_its_first_cve_and_lists_every_other_id_once() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[
+            time_record("B-1", "B", &["CVE-2", "A-1", "CVE-1"], "0"),
+            time_record("A-1", "A", &["CVE-2", "B-1"], "0"),
+        ],
+    );
+    assert_eq!(report.matches()[0].id, "CVE-1");
+    assert_eq!(report.matches()[0].aliases, ["A-1", "B-1", "CVE-2"]);
+}
+
+// spec: VMT-18
+#[test]
+fn lists_the_records_of_a_match_by_id_with_their_source() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[
+            time_record("Z-1", "ZED", &["A-1"], "0"),
+            time_record("A-1", "AYE", &[], "0"),
+        ],
+    );
+    assert_eq!(
+        report.matches()[0].records,
+        [record("A-1", "AYE"), record("Z-1", "ZED")]
+    );
+}
+
+// spec: VMT-19
+#[test]
+fn groups_records_that_disagree_on_the_affected_versions() {
+    let rustsec = time_record("RUSTSEC-2020-0071", "RUSTSEC", &["GHSA-1"], "0");
+    let mut ghsa = time_record("GHSA-1", "GHSA", &["RUSTSEC-2020-0071"], "0");
+    ghsa.affected[0].ranges = vec![range(
+        RangeKind::Semver,
+        &[introduced("0"), fixed("0.1.40")],
+    )];
+    let report = match_components(&[component("pkg:cargo/time@0.1.43")], &[rustsec, ghsa]);
+    assert_eq!(ids(&report), [("time", "GHSA-1")]);
+    assert_eq!(
+        report.matches()[0].records,
+        [
+            record("GHSA-1", "GHSA"),
+            record("RUSTSEC-2020-0071", "RUSTSEC")
+        ]
+    );
+}
+
+// spec: VMT-20
+#[test]
+fn drops_a_pair_not_evaluated_of_a_record_grouped_into_a_match() {
+    let rustsec = time_record("RUSTSEC-2020-0071", "RUSTSEC", &["GHSA-1"], "0");
+    let mut ghsa = time_record("GHSA-1", "GHSA", &["RUSTSEC-2020-0071"], "0");
+    ghsa.affected[0].ranges = vec![range(RangeKind::Git, &[introduced("abc")])];
+    let report = match_components(&[component("pkg:cargo/time@0.1.43")], &[rustsec, ghsa]);
+    assert_eq!(report.matches().len(), 1);
     assert_eq!(report.not_evaluated(), []);
 }

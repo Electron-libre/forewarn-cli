@@ -177,7 +177,7 @@ fn a_ci_job_fetches_the_archive_of_its_ecosystem_and_reads_the_affected_componen
     assert_eq!(run.stderr, "");
     assert_eq!(mirror.requests(), ["/crates.io/all.zip"]);
     let report = json_report(&run);
-    assert_eq!(report["affected"][0]["id"], json!("RUSTSEC-2020-0071"));
+    assert_eq!(report["affected"][0]["id"], json!("CVE-2020-26235"));
     assert_eq!(report["affected"].as_array().map(Vec::len), Some(1));
     let at = downloaded_at(&run);
     assert!(before <= at && at <= after, "{before} <= {at} <= {after}");

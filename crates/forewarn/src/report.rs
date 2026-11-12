@@ -213,14 +213,21 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
     for found in matching.matches() {
         push_component_ref(&mut text, &found.component);
         text.push_str(": ");
-        push_escaped(&mut text, &found.vulnerability_id);
+        push_escaped(&mut text, &found.id);
         if !found.aliases.is_empty() {
             text.push_str(" (");
             push_escaped(&mut text, &found.aliases.join(", "));
             text.push(')');
         }
-        text.push_str(", source ");
-        push_escaped(&mut text, &found.source);
+        text.push_str(", records ");
+        for (i, record) in found.records.iter().enumerate() {
+            if i > 0 {
+                text.push_str(", ");
+            }
+            push_escaped(&mut text, &record.id);
+            text.push_str(" from ");
+            push_escaped(&mut text, &record.source);
+        }
         text.push('\n');
     }
     let _ = writeln!(text, "Not evaluated ({}):", matching.not_evaluated().len());
@@ -283,9 +290,13 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
                 "name": found.component.name,
                 "version": found.component.version,
                 "purl": found.component.purl,
-                "id": found.vulnerability_id,
+                "id": found.id,
                 "aliases": found.aliases,
-                "source": found.source,
+                "records": found
+                    .records
+                    .iter()
+                    .map(|record| json!({"id": record.id, "source": record.source}))
+                    .collect::<Vec<Value>>(),
             })
         })
         .collect();

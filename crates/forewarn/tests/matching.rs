@@ -73,8 +73,8 @@ fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1
         format!(
             "SBOM: CycloneDX 1.6, 3 components\n\
              OSV records:\n  {}: 4 records, local\n\
-             Affected (1):\n  time 0.1.43 (pkg:cargo/time@0.1.43): RUSTSEC-2020-0071 \
-             (CVE-2020-26235, GHSA-wcg3-cvx6-7396), source RUSTSEC\n\
+             Affected (1):\n  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 \
+             (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), records RUSTSEC-2020-0071 from RUSTSEC\n\
              Not evaluated (1):\n  bare 1.0: no package URL\n\
              Clean: 1 of 3 components\n",
             osv.display()
@@ -102,9 +102,9 @@ fn prints_the_same_result_as_json() {
                 "name": "time",
                 "version": "0.1.43",
                 "purl": "pkg:cargo/time@0.1.43",
-                "id": "RUSTSEC-2020-0071",
-                "aliases": ["CVE-2020-26235", "GHSA-wcg3-cvx6-7396"],
-                "source": "RUSTSEC",
+                "id": "CVE-2020-26235",
+                "aliases": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
+                "records": [{"id": "RUSTSEC-2020-0071", "source": "RUSTSEC"}],
             }],
             "notEvaluated": [{
                 "name": "bare",
@@ -155,7 +155,7 @@ fn reads_several_osv_paths_files_or_directories_in_order() {
         .as_array()
         .expect("an array")
         .iter()
-        .map(|m| &m["id"])
+        .map(|m| &m["records"][0]["id"])
         .collect();
     assert_eq!(
         ids,
@@ -372,10 +372,59 @@ fn escapes_the_control_characters_of_the_sbom_and_the_records() {
     assert_eq!(run.code, 1, "{}", run.stderr);
     assert!(
         run.stdout.contains(
-            "  time 0.1.43 (pkg:cargo/time@0.1.43): EVIL-1\\u{1b}[2J (CVE\\nfake), source EVIL\n"
+            "  time 0.1.43 (pkg:cargo/time@0.1.43): EVIL-1\\u{1b}[2J (CVE\\nfake), \
+             records EVIL-1\\u{1b}[2J from EVIL\n"
         ),
         "{}",
         run.stdout
+    );
+}
+
+// spec: MCH-1, MCH-16
+#[test]
+fn lists_a_vulnerability_held_by_two_records_once_with_both() {
+    let mirror = json!({
+        "id": "GHSA-wcg3-cvx6-7396",
+        "aliases": ["RUSTSEC-2020-0071"],
+        "affected": [{
+            "package": {"ecosystem": "crates.io", "name": "time"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0.2.23"}]}],
+        }],
+    });
+    let rustsec: Value = serde_json::from_slice(
+        &fs::read(osv_fixture("RUSTSEC-2020-0071.json")).expect("the fixture"),
+    )
+    .expect("the fixture is JSON");
+    let osv = records(&[rustsec, mirror]);
+    let input = three_components();
+    let human = run(&["match", "--osv", path(osv.path()), "-"], Some(&input));
+    assert_eq!(human.code, 1, "{}", human.stderr);
+    assert!(
+        human.stdout.contains(
+            "Affected (1):\n  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 \
+             (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), records GHSA-wcg3-cvx6-7396 from GHSA, \
+             RUSTSEC-2020-0071 from RUSTSEC\n"
+        ),
+        "{}",
+        human.stdout
+    );
+    let report = json_report(&run(
+        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        Some(&input),
+    ));
+    assert_eq!(
+        report["affected"],
+        json!([{
+            "name": "time",
+            "version": "0.1.43",
+            "purl": "pkg:cargo/time@0.1.43",
+            "id": "CVE-2020-26235",
+            "aliases": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
+            "records": [
+                {"id": "GHSA-wcg3-cvx6-7396", "source": "GHSA"},
+                {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC"},
+            ],
+        }])
     );
 }
 
