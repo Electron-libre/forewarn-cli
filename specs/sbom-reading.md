@@ -47,6 +47,7 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
 
   | Cause | Error |
   |---|---|
+  | the input cannot be read (an I/O error) | cannot read the input, with the system's reason |
   | the input is not JSON | not JSON |
   | `bomFormat` is absent or is not `CycloneDX` | not a CycloneDX SBOM |
   | `specVersion` is absent or is not a string | missing spec version |
@@ -58,9 +59,9 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
 
 ## Scenarios
 
-- **SBR-H1** (happy; SBR-1, SBR-4, SBR-5, SBR-6) Given an SBOM a vendor generated with `syft` in CycloneDX 1.6, when
-  `rollcall` reads it, then it gets every component with its name, version, package URL, supplier, licenses and
-  hashes, and spec version 1.6 with no flag.
+- **SBR-H1** (happy; SBR-1, SBR-4, SBR-5) Given an SBOM a vendor generated with `syft` in CycloneDX 1.6, when
+  `rollcall` reads it, then it gets every component with the name, version, package URL and hashes `syft` wrote, and
+  spec version 1.6 with no flag.
 - **SBR-H2** (happy; SBR-2) Given an SBOM in CycloneDX 1.5, when `rollcall` reads it, then it gets its components and
   the warning that 1.5 is below the BSI TR-03183-2 minimum.
 - (SBR-7) Given a CycloneDX 1.2 JSON file, when it is read, then it fails with "unsupported spec version" quoting `1.2`.
@@ -70,6 +71,7 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
 - (SBR-7) Given a 1.6 document whose `components` is a string, when it is read, then it fails with "invalid SBOM".
 - (SBR-5) Given a component with no supplier, no licenses and no hashes, when it is read, then it is returned with
   those fields absent or empty, not refused.
+- (SBR-1) Given a valid 1.6 SBOM preceded by a UTF-8 byte-order mark, when it is read, then it is read as without it.
 - (SBR-1) Given a valid 1.6 SBOM with no `components`, when it is read, then it returns an empty list.
 
 ## Non-goals

@@ -1,6 +1,6 @@
 # 0002. Parse CycloneDX with the `cyclonedx-bom` crate
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-12
 
 ## Context
@@ -15,7 +15,7 @@ Measured on version 0.9.0:
 - it parses spec versions 1.3, 1.4, 1.5, 1.6 and 1.7 (JSON and XML), reading `specVersion` first, and refuses older
   versions as unsupported;
 - it tolerates fields it does not know and keeps unknown enumeration values (a hash algorithm, for instance);
-- it parses the output of `syft` 1.57 in CycloneDX 1.6 (and the same file relabelled 1.7) and of `cdxgen` in
+- it parses the output of `cargo-cyclonedx` 0.5.10 and `syft` 1.57 in CycloneDX 1.6, and of `cdxgen` 13.2 in
   CycloneDX 1.7;
 - it is licensed `Apache-2.0`, and every crate it pulls in is permissive (`MIT`, `Apache-2.0`, `MIT-0`, `Unlicense`,
   `Unicode-3.0`, or a choice including one of them);

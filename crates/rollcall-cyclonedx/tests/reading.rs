@@ -232,6 +232,10 @@ fn refuses_an_unsupported_spec_version_quoting_it() {
             error.to_string().contains(&format!("\"{text}\"")),
             "{error}"
         );
+        assert!(
+            error.to_string().ends_with("1.3 to 1.7 are read"),
+            "{error}"
+        );
     }
 }
 
@@ -248,4 +252,31 @@ fn refuses_a_document_that_does_not_match_its_spec_version() {
 fn checks_the_format_before_the_spec_version() {
     let error = refused(json!({ "specVersion": "9.9" }).to_string().as_bytes());
     assert_eq!(error, ReadError::NotCycloneDx(None));
+}
+
+// spec: SBR-1
+#[test]
+fn reads_an_sbom_preceded_by_a_utf8_byte_order_mark() {
+    let document = bom("1.6", &json!([{ "type": "library", "name": "serde" }]));
+    let mut bytes = b"\xEF\xBB\xBF".to_vec();
+    bytes.extend(document.to_string().into_bytes());
+    let sbom = read_json(bytes.as_slice()).expect("readable");
+    assert_eq!(sbom.components, vec![named("serde")]);
+}
+
+/// A reader that fails, as a directory or a broken pipe does.
+struct FailingReader;
+
+impl std::io::Read for FailingReader {
+    fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+        Err(std::io::Error::other("disk on fire"))
+    }
+}
+
+// spec: SBR-3, SBR-7
+#[test]
+fn reports_an_input_that_cannot_be_read() {
+    let error = read_json(FailingReader).expect_err("refused");
+    assert_eq!(error, ReadError::Io("disk on fire".into()));
+    assert_eq!(error.to_string(), "cannot read the input: disk on fire");
 }

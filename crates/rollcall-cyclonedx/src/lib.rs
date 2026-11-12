@@ -12,6 +12,8 @@ use serde_json::Value;
 /// Why an input is not a readable CycloneDX JSON SBOM (`specs/sbom-reading.md`, SBR-7).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReadError {
+    /// The input cannot be read; the system's reason.
+    Io(String),
     /// The input is not JSON; the parser's reason.
     NotJson(String),
     /// `bomFormat` is absent, or holds this other value (as JSON).
@@ -27,6 +29,7 @@ pub enum ReadError {
 impl fmt::Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Io(reason) => write!(f, "cannot read the input: {reason}"),
             Self::NotJson(reason) => write!(f, "not JSON: {reason}"),
             Self::NotCycloneDx(None) => write!(f, "not a CycloneDX SBOM: no `bomFormat`"),
             Self::NotCycloneDx(Some(format)) => {
@@ -34,9 +37,10 @@ impl fmt::Display for ReadError {
             }
             Self::MissingSpecVersion => write!(f, "missing spec version"),
             Self::UnsupportedSpecVersion(version) => {
+                let (first, last) = (READ_VERSIONS[0].1, READ_VERSIONS[READ_VERSIONS.len() - 1].1);
                 write!(
                     f,
-                    "unsupported spec version {version:?}: 1.3 to 1.7 are read"
+                    "unsupported spec version {version:?}: {first} to {last} are read"
                 )
             }
             Self::Invalid(reason) => write!(f, "invalid SBOM: {reason}"),
@@ -52,9 +56,14 @@ impl std::error::Error for ReadError {}
 ///
 /// A [`ReadError`] naming why the input is not a readable CycloneDX JSON SBOM, the first that applies in the order
 /// of its variants.
-pub fn read_json(reader: impl Read) -> Result<Sbom, ReadError> {
+pub fn read_json(mut reader: impl Read) -> Result<Sbom, ReadError> {
+    let mut bytes = Vec::new();
+    reader
+        .read_to_end(&mut bytes)
+        .map_err(|e| ReadError::Io(e.to_string()))?;
+    let json = bytes.strip_prefix(UTF8_BOM).unwrap_or(&bytes);
     let document: Value =
-        serde_json::from_reader(reader).map_err(|e| ReadError::NotJson(e.to_string()))?;
+        serde_json::from_slice(json).map_err(|e| ReadError::NotJson(e.to_string()))?;
     match document.get("bomFormat") {
         Some(Value::String(format)) if format == "CycloneDX" => {}
         other => return Err(ReadError::NotCycloneDx(other.map(Value::to_string))),
@@ -76,17 +85,24 @@ pub fn read_json(reader: impl Read) -> Result<Sbom, ReadError> {
     })
 }
 
-/// The versions this reader parses: those of `cyclonedx-bom`, named here so that a new one is a decision.
+/// The byte-order mark some Windows tools write before UTF-8 JSON.
+const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
+
+/// The versions this reader parses, oldest first: those of `cyclonedx-bom`, listed here so that a new one is a
+/// decision.
+const READ_VERSIONS: [(CdxSpecVersion, SpecVersion); 5] = [
+    (CdxSpecVersion::V1_3, SpecVersion::new(1, 3)),
+    (CdxSpecVersion::V1_4, SpecVersion::new(1, 4)),
+    (CdxSpecVersion::V1_5, SpecVersion::new(1, 5)),
+    (CdxSpecVersion::V1_6, SpecVersion::new(1, 6)),
+    (CdxSpecVersion::V1_7, SpecVersion::new(1, 7)),
+];
+
 fn spec_version(text: &str) -> Result<(CdxSpecVersion, SpecVersion), ReadError> {
-    let (cdx, minor) = match text {
-        "1.3" => (CdxSpecVersion::V1_3, 3),
-        "1.4" => (CdxSpecVersion::V1_4, 4),
-        "1.5" => (CdxSpecVersion::V1_5, 5),
-        "1.6" => (CdxSpecVersion::V1_6, 6),
-        "1.7" => (CdxSpecVersion::V1_7, 7),
-        _ => return Err(ReadError::UnsupportedSpecVersion(text.to_owned())),
-    };
-    Ok((cdx, SpecVersion::new(1, minor)))
+    READ_VERSIONS
+        .into_iter()
+        .find(|(cdx, _)| cdx.to_string() == text)
+        .ok_or_else(|| ReadError::UnsupportedSpecVersion(text.to_owned()))
 }
 
 /// Pushes each component, then its nested ones, depth first.

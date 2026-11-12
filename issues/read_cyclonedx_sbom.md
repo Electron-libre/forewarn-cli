@@ -59,6 +59,9 @@ Means: option 1 of the issue (`cyclonedx-bom` 0.9.0 parses 1.3–1.7, measured),
 2. [x] Fixtures of real tools: one small SBOM each from `cargo-cyclonedx`, `syft` and `cdxgen` (generated on a tiny
    sample project, committed with the command that produced them); verified by tests reading each; makes true SBR-4,
    SBR-H1; sets the spec `accepted`. (autonomous)
+3. [x] Fixes of the `high` review of the issue and docs: I/O errors named, input buffered, UTF-8 BOM accepted,
+   version table single-sourced, no `Default` spec version, SBR-H1 narrowed to what `syft` writes, ADR 0002 accepted;
+   verified by tests in `reading.rs`; makes true SBR-1, SBR-7 (amended). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -70,6 +73,8 @@ Means: option 1 of the issue (`cyclonedx-bom` 0.9.0 parses 1.3–1.7, measured),
   produced them.
 - Deliverable 2 found that 1.6 tools write `authors` (a list) rather than the deprecated `author`: SBR-5 reads both
   into `authors`, and `manufacturer.name` (1.6) beside `supplier`, so the completeness check can weigh them.
+- The `high` review amended SBR-7 with a row for an input that cannot be read (I/O error), and SBR-1 with a scenario
+  accepting a UTF-8 byte-order mark.
 
 ## Deliverable 1 summary
 done: domain `sbom` module (`Sbom`, `Component`, `Hash`, `SpecVersion` with the BSI 1.6 minimum); `read_json` in
@@ -113,3 +118,27 @@ Code review: no findings
 
 not verified: none.
 decisions needed: none.
+
+## Deliverable 3 summary
+done: the 7 findings of the `high` review: `ReadError::Io` for an unreadable input; the input read whole then parsed
+from a slice (buffered); a leading UTF-8 BOM stripped; one `READ_VERSIONS` table for the versions and the message;
+`Default` dropped from `SpecVersion` and `Sbom`; SBR-H1 narrowed to the fields `syft` writes; ADR 0002 `accepted`
+with the measured tool versions.
+
+| check | result |
+|---|---|
+| tests | 18 adapter tests + 1 domain test pass |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean, spec `accepted` (SBR-7 row and SBR-1 scenario added) |
+| docs | ADR 0002 |
+| code review | see below |
+
+red: SBR-3, SBR-7: `ReadError::Io` did not exist (compile error); the BOM test was written with it and passes only
+with the stripping.
+
+Code review: no findings
+
+not verified: a real SBOM with a UTF-8 BOM (only a synthetic one).
+decisions needed: none.
+
+Issue done: every deliverable committed, spec `sbom-reading` accepted.

@@ -3,7 +3,7 @@
 use std::fmt;
 
 /// An SBOM read by an adapter.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sbom {
     /// The version of the SBOM specification the document follows.
     pub spec_version: SpecVersion,
@@ -12,7 +12,7 @@ pub struct Sbom {
 }
 
 /// The version of a CycloneDX specification, `major.minor`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SpecVersion {
     major: u8,
     minor: u8,
