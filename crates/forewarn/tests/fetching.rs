@@ -189,11 +189,12 @@ fn a_ci_job_fetches_the_archive_of_its_ecosystem_and_reads_the_affected_componen
             "url": format!("{}/crates.io/all.zip", mirror.base),
             "downloadedAt": report["osv"][0]["downloadedAt"],
             "lastModified": LAST_MODIFIED,
+            "recordCount": 1,
         }])
     );
 }
 
-// spec: MCH-4
+// spec: MCH-4, MCH-22
 #[test]
 fn the_human_report_gives_the_freshness_of_each_archive() {
     let cache = TempDir::new().expect("a cache");
@@ -215,8 +216,8 @@ fn the_human_report_gives_the_freshness_of_each_archive() {
     assert_eq!(human.code, 1, "{}", human.stderr);
     assert!(
         human.stdout.contains(&format!(
-            "OSV records:\n  crates.io: downloaded {at} from {base}/crates.io/all.zip, Last-Modified {LAST_MODIFIED}\n  \
-             npm: downloaded {npm_at} from {base}/npm/all.zip\n",
+            "OSV records:\n  crates.io: 1 record, downloaded {at} from {base}/crates.io/all.zip, \
+             Last-Modified {LAST_MODIFIED}\n  npm: 1 record, downloaded {npm_at} from {base}/npm/all.zip\n",
             base = mirror.base
         )),
         "{}",
@@ -440,6 +441,7 @@ fn no_cache_directory_is_an_invalid_argument_unless_osv_paths_are_given() {
     assert_eq!(run.code, 2, "{}", run.stderr);
     assert_eq!(run.stdout, "");
     assert!(run.stderr.contains("--cache"), "{}", run.stderr);
+    assert!(run.stderr.contains("forewarn match"), "{}", run.stderr);
     assert_eq!(mirror.requests(), Vec::<String>::new());
     let osv = Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-osv/tests/fixtures");
     let local = run_with(
@@ -448,4 +450,33 @@ fn no_cache_directory_is_an_invalid_argument_unless_osv_paths_are_given() {
         &unset,
     );
     assert_eq!(local.code, 1, "{}", local.stderr);
+}
+
+// spec: MCH-12
+#[test]
+fn a_relative_xdg_cache_home_is_ignored() {
+    let mirror = crates_io_mirror();
+    let home = TempDir::new().expect("a directory");
+    let work = TempDir::new().expect("a directory");
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_forewarn"));
+    let output = command
+        .args(["match", "--osv-url", &mirror.base, "-"])
+        .current_dir(work.path())
+        .env("XDG_CACHE_HOME", ".cache")
+        .env("HOME", home.path())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .and_then(|mut child| {
+            child
+                .stdin
+                .take()
+                .expect("stdin is piped")
+                .write_all(&crates())?;
+            child.wait_with_output()
+        })
+        .expect("the binary runs");
+    assert_eq!(output.status.code(), Some(1));
+    assert!(home.path().join(".cache/forewarn/osv/crates.io").is_dir());
+    assert!(!work.path().join(".cache").exists());
 }

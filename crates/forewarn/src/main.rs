@@ -3,11 +3,11 @@
 
 mod report;
 
+use std::collections::HashSet;
 use std::env;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{self, ErrorKind, Write};
-use std::mem;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{Duration, SystemTime};
@@ -113,30 +113,36 @@ fn run_check(args: &CheckArgs) -> Result<ExitCode, u8> {
 
 fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
-    let archives = if args.osv.is_empty() {
-        Some(archives(args))
-    } else {
-        None
-    };
+    let archives = args.osv.is_empty().then(|| archives(args));
     let sbom = read_sbom(&args.sbom)?;
-    let mut vulnerabilities = Vec::new();
-    let mut snapshots = Vec::new();
+    let mut records = Records::default();
+    let mut fetched = Vec::new();
     if let Some(archives) = archives {
-        snapshots = archives
+        let snapshots = archives
             .fetch(&ecosystems(&sbom), SystemTime::now)
             .map_err(|error| no_records(&error))?;
-        for snapshot in &mut snapshots {
-            vulnerabilities.append(&mut mem::take(&mut snapshot.vulnerabilities));
+        for snapshot in snapshots {
+            let count = records.add(snapshot.vulnerabilities);
+            fetched.push((snapshot.ecosystem, snapshot.freshness, count));
         }
     }
+    let mut local = Vec::new();
     for path in &args.osv {
-        vulnerabilities.extend(read_osv(path).map_err(|error| no_records(&error))?);
+        let read = read_osv(path).map_err(|error| no_records(&error))?;
+        local.push((path, records.add(read)));
     }
-    let matching = match_components(&sbom.components, &vulnerabilities);
-    let sources: Vec<Source> = snapshots
+    let matching = match_components(&sbom.components, &records.vulnerabilities);
+    let sources: Vec<Source> = fetched
         .iter()
-        .map(Source::Archive)
-        .chain(args.osv.iter().map(|path| Source::Local(path)))
+        .map(|(ecosystem, freshness, records)| Source::Archive {
+            ecosystem,
+            freshness,
+            records: *records,
+        })
+        .chain(local.iter().map(|(path, records)| Source::Local {
+            path,
+            records: *records,
+        }))
         .collect();
     write_report(&match args.format {
         Format::Human => report::matching_human(&sbom, &sources, &matching),
@@ -148,7 +154,11 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
 /// The archives of OSV the arguments name; exits with 2 when no cache directory can be found (MCH-12).
 fn archives(args: &MatchArgs) -> Archives {
     let Some(cache) = args.cache.clone().or_else(default_cache) else {
-        Cli::command()
+        let mut cli = Cli::command();
+        // Builds the names of the subcommands, so that the usage printed is that of `forewarn match`.
+        cli.build();
+        cli.find_subcommand_mut("match")
+            .expect("the match subcommand")
             .error(
                 clap::error::ErrorKind::MissingRequiredArgument,
                 "no cache directory: give --cache, or set XDG_CACHE_HOME or HOME",
@@ -165,12 +175,17 @@ fn archives(args: &MatchArgs) -> Archives {
 /// The refresh policy without `--refresh`: an archive older than a day is downloaded again (MCH-11).
 const DEFAULT_REFRESH: Refresh = Refresh::OlderThan(Duration::from_secs(24 * 60 * 60));
 
-/// `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`, a variable set to nothing counting as unset.
+/// `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`; a relative `XDG_CACHE_HOME` is ignored, as the
+/// XDG Base Directory specification says, and a variable set to nothing counts as unset.
 fn default_cache() -> Option<PathBuf> {
-    let set = |name| env::var_os(name).filter(|value| !value.is_empty());
-    set("XDG_CACHE_HOME")
+    env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
-        .or_else(|| set("HOME").map(|home| Path::new(&home).join(".cache")))
+        .filter(|cache| cache.is_absolute())
+        .or_else(|| {
+            env::var_os("HOME")
+                .filter(|home| !home.is_empty())
+                .map(|home| Path::new(&home).join(".cache"))
+        })
         .map(|cache| cache.join("forewarn").join("osv"))
 }
 
@@ -227,9 +242,29 @@ fn ecosystems(sbom: &Sbom) -> Vec<&'static str> {
     ecosystems
 }
 
+/// The vulnerabilities read, each id once (MCH-21).
+#[derive(Default)]
+struct Records {
+    vulnerabilities: Vec<Vulnerability>,
+    ids: HashSet<String>,
+}
+
+impl Records {
+    /// Adds the vulnerabilities of a source whose id was not read before; returns how many the source held.
+    fn add(&mut self, read: Vec<Vulnerability>) -> usize {
+        let count = read.len();
+        for vulnerability in read {
+            if self.ids.insert(vulnerability.id.clone()) {
+                self.vulnerabilities.push(vulnerability);
+            }
+        }
+        count
+    }
+}
+
 /// Prints why the OSV records cannot be read or fetched (MCH-14).
 fn no_records(error: &dyn Display) -> u8 {
-    eprintln!("error: {error}");
+    eprintln!("error: {}", report::escaped(&error.to_string()));
     NO_RECORDS
 }
 
@@ -252,7 +287,8 @@ fn read_sbom(path: &Path) -> Result<Sbom, u8> {
             .and_then(read_json)
     };
     sbom.map_err(|error| {
-        eprintln!("error: {}: {error}", input_name(path).display());
+        let error = format!("{}: {error}", input_name(path).display());
+        eprintln!("error: {}", report::escaped(&error));
         UNREADABLE
     })
 }

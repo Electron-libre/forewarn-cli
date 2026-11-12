@@ -53,7 +53,7 @@ exit code a CI job can act on.
   positive whole number followed by `m`, `h` or `d` (minutes, hours, days), which means `older-than <age>` (OSR-13),
   and default to `1d`.
 - **MCH-12** (deterministic) The cache directory must be `--cache <dir>` when given, else `$XDG_CACHE_HOME/forewarn/osv`
-  when `XDG_CACHE_HOME` is set and not empty, else `$HOME/.cache/forewarn/osv` when `HOME` is set and not empty.
+  when `XDG_CACHE_HOME` is an absolute path, else `$HOME/.cache/forewarn/osv` when `HOME` is set and not empty.
 - **MCH-13** (deterministic) The archives must be downloaded from `--osv-url <url>` when given, else from the OSV
   bucket of OSR-14.
 - **MCH-14** (deterministic) An SBOM or OSV records that cannot be read or fetched must print nothing on standard
@@ -70,7 +70,7 @@ exit code a CI job can act on.
   | `specVersion` | the spec version of the SBOM, a string (`"1.6"`) |
   | `componentCount` | the number of components matched, nested ones included |
   | `cleanCount` | the number of clean components (MCH-3) |
-  | `osv` | an array, in the order of MCH-5 or of the `--osv` paths, of objects `{"kind": "archive", "ecosystem", "url", "downloadedAt", "lastModified"}` (`downloadedAt` in RFC 3339, UTC, to the second, ending in `Z`; `lastModified` a string or `null`) or `{"kind": "local", "path"}` |
+  | `osv` | an array, in the order of MCH-5 or of the `--osv` paths, of objects `{"kind": "archive", "ecosystem", "url", "downloadedAt", "lastModified", "recordCount"}` (`downloadedAt` in RFC 3339, UTC, to the second, ending in `Z`; `lastModified` a string or `null`) or `{"kind": "local", "path", "recordCount"}` (`recordCount` the number of MCH-22) |
   | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `source` |
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
@@ -78,6 +78,12 @@ exit code a CI job can act on.
 - **MCH-18** (deterministic) The human report must print each control character of a value read from the SBOM or the
   OSV records escaped (`\n`, `\u{1b}`), as CHK-14 does.
 - **MCH-19** (deterministic) `forewarn` with no subcommand must print its usage naming `match` beside `check`.
+- **MCH-21** (deterministic) A record whose id was already read, from another archive or another `--osv` path, must
+  not be matched again, so that a component is reported once per vulnerability id.
+- **MCH-22** (deterministic) Each source of MCH-4 must be printed with the number of records read from it, so that a
+  source holding none is never read as "no vulnerability".
+- **MCH-23** (deterministic) The line of an error on standard error must print each control character of a value read
+  from the SBOM, the OSV records, an archive or the server escaped, as MCH-18 does.
 
 ## Scenarios
 
@@ -112,6 +118,14 @@ exit code a CI job can act on.
   the command exits with 0.
 - (MCH-18) Given a record whose id holds an escape sequence, when the human report prints it, then `\u{1b}` is
   written out.
+- (MCH-12) Given `XDG_CACHE_HOME=.cache`, a relative path, when the command runs, then the cache is under
+  `$HOME/.cache`.
+- (MCH-21) Given the same record in a directory and given again as a file, when the SBOM is matched, then the
+  component it affects is reported once.
+- (MCH-22) Given `--osv` naming a directory whose records are all in subdirectories, when the SBOM is matched, then the
+  source shows 0 records.
+- (MCH-23) Given a directory holding a file that is not JSON and whose name holds a newline, when it is read, then the
+  error stays on one line.
 
 ## Non-goals
 

@@ -58,7 +58,7 @@ fn records(records: &[Value]) -> TempDir {
     directory
 }
 
-// spec: MCH-H1, MCH-1, MCH-2, MCH-3, MCH-4, MCH-6, MCH-7, MCH-10, MCH-15
+// spec: MCH-H1, MCH-1, MCH-2, MCH-3, MCH-4, MCH-6, MCH-7, MCH-10, MCH-15, MCH-22
 #[test]
 fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1() {
     let osv = osv_fixtures();
@@ -72,7 +72,7 @@ fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1
         run.stdout,
         format!(
             "SBOM: CycloneDX 1.6, 3 components\n\
-             OSV records:\n  {}: local records\n\
+             OSV records:\n  {}: 4 records, local\n\
              Affected (1):\n  time 0.1.43 (pkg:cargo/time@0.1.43): RUSTSEC-2020-0071 \
              (CVE-2020-26235, GHSA-wcg3-cvx6-7396), source RUSTSEC\n\
              Not evaluated (1):\n  bare 1.0: no package URL\n\
@@ -97,7 +97,7 @@ fn prints_the_same_result_as_json() {
             "specVersion": "1.6",
             "componentCount": 3,
             "cleanCount": 1,
-            "osv": [{"kind": "local", "path": path(&osv)}],
+            "osv": [{"kind": "local", "path": path(&osv), "recordCount": 4}],
             "affected": [{
                 "name": "time",
                 "version": "0.1.43",
@@ -147,8 +147,8 @@ fn reads_several_osv_paths_files_or_directories_in_order() {
     assert_eq!(
         report["osv"],
         json!([
-            {"kind": "local", "path": path(&lodash)},
-            {"kind": "local", "path": path(&time)},
+            {"kind": "local", "path": path(&lodash), "recordCount": 1},
+            {"kind": "local", "path": path(&time), "recordCount": 1},
         ])
     );
     let ids: Vec<&Value> = report["affected"]
@@ -408,4 +408,70 @@ fn a_report_that_cannot_be_written_is_named_and_exits_with_4() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(stderr.lines().count(), 1, "{stderr}");
     assert!(stderr.contains("standard output"), "{stderr}");
+}
+
+// spec: MCH-21
+#[test]
+fn a_record_read_twice_is_matched_once() {
+    let osv = osv_fixtures();
+    let time = osv_fixture("RUSTSEC-2020-0071.json");
+    let run = run(
+        &[
+            "match",
+            "--format",
+            "json",
+            "--osv",
+            path(&osv),
+            "--osv",
+            path(&time),
+            "-",
+        ],
+        Some(&three_components()),
+    );
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    let report = json_report(&run);
+    assert_eq!(report["affected"].as_array().map(Vec::len), Some(1));
+    assert_eq!(report["osv"][1]["recordCount"], json!(1));
+}
+
+// spec: MCH-22
+#[test]
+fn a_directory_whose_records_are_in_subdirectories_shows_0_records() {
+    let osv = TempDir::new().expect("a temporary directory");
+    fs::create_dir(osv.path().join("crates.io")).expect("a subdirectory");
+    fs::copy(
+        osv_fixture("RUSTSEC-2020-0071.json"),
+        osv.path().join("crates.io/RUSTSEC-2020-0071.json"),
+    )
+    .expect("the record is copied");
+    let run = run(
+        &["match", "--osv", path(osv.path()), "-"],
+        Some(&three_components()),
+    );
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert!(
+        run.stdout
+            .contains(&format!("  {}: 0 records, local\n", osv.path().display())),
+        "{}",
+        run.stdout
+    );
+}
+
+// spec: MCH-14, MCH-23
+#[cfg(unix)]
+#[test]
+fn an_error_naming_a_file_with_a_newline_stays_on_one_line() {
+    let osv = TempDir::new().expect("a temporary directory");
+    fs::write(osv.path().join("a\n\u{1b}[2Jb.json"), "not json").expect("the file is written");
+    let run = run(
+        &["match", "--osv", path(osv.path()), "-"],
+        Some(&three_components()),
+    );
+    assert_eq!(run.code, 5);
+    assert_eq!(run.stderr.lines().count(), 1, "{}", run.stderr);
+    assert!(
+        run.stderr.contains("a\\n\\u{1b}[2Jb.json"),
+        "{}",
+        run.stderr
+    );
 }

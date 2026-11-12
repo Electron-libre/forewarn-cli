@@ -47,7 +47,8 @@ ecosystems the SBOM uses. Out of scope: grouping aliases, the OSV API, KEV/EUVD.
 2. [x] Fetch the archives: ecosystems derived from the SBOM, `--cache` and its default, `--refresh`, `--osv-url`, the
    freshness of each archive (RFC 3339 through `time`); verified by end-to-end tests against a loopback server and an
    `offline` cache; makes true MCH-4 (archives), MCH-5, MCH-11 to MCH-13, sets the spec `accepted` (~700 lines). (autonomous)
-3. [ ] Docs of the whole issue (README usage and exit codes, CLAUDE.md status) and the fixes of the `high` review.
+3. [x] Docs of the whole issue (README usage and exit codes, CLAUDE.md status) and the fixes of the `high` review;
+   makes true MCH-21 to MCH-23, MCH-12 amended. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -72,3 +73,17 @@ ecosystems the SBOM uses. Out of scope: grouping aliases, the OSV API, KEV/EUVD.
 - red: MCH-H2, MCH-4, MCH-5, MCH-8, MCH-9, MCH-13, MCH-16: `error: unexpected argument '--cache' found`
 - Code review: 1 findings: `--refresh 1é` panicked on a byte split; fixed (split on the last character), cases added.
 - not verified: a download from the real OSV bucket (MCH-13 is proven by an internal test, without the network).
+
+## Deliverable 3 summary
+- done: the docs were updated with each deliverable; fixes of the `high` review: a record id read twice is matched
+  once (MCH-21), each source shows its record count (MCH-22), error lines escaped (MCH-23), a relative
+  `XDG_CACHE_HOME` ignored (MCH-12), the missing-cache error shows the usage of `forewarn match`, a damaged download
+  time prints `unknown` instead of panicking, `run_match` simplified.
+- red: MCH-12, MCH-14, MCH-21, MCH-22, MCH-23: the record counted twice, `local records` without a count, the error on
+  two lines, the cache under the working directory.
+- Code review (high): 10 findings: 8 fixed as above; the concurrent use of the shared cache and the cross product of the
+  matching filed as `issues/lock_the_osv_cache_against_concurrent_runs.md` and
+  `issues/match_large_archives_without_the_cross_product.md` (the clean count goes with the latter, which may move it
+  to the domain).
+- Code review (low): no findings.
+- not verified: the `unknown` download time (a damaged cache file) has no test.

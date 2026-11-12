@@ -7,7 +7,9 @@ use std::path::Path;
 use forewarn_domain::completeness::{CompletenessReport, Field};
 use forewarn_domain::matching::{ComponentReason, ComponentRef, MatchReport, PairReason, Reason};
 use forewarn_domain::sbom::{Sbom, SpecVersion};
-use forewarn_osv::fetch::{Freshness, Snapshot};
+use std::time::SystemTime;
+
+use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
 use time::OffsetDateTime;
 use time::macros::format_description;
@@ -87,6 +89,13 @@ fn push_escaped(text: &mut String, value: &str) {
     }
 }
 
+/// A value with its control characters escaped, for a line of standard error (MCH-23).
+pub fn escaped(value: &str) -> String {
+    let mut text = String::with_capacity(value.len());
+    push_escaped(&mut text, value);
+    text
+}
+
 /// The JSON report for a machine: one object whose members CHK-10 lists, ending with a newline.
 pub fn json(sbom: &Sbom, completeness: &CompletenessReport) -> String {
     let incomplete: Vec<Value> = completeness
@@ -122,19 +131,36 @@ fn field_name(field: Field) -> &'static str {
 
 /// Where the OSV records matched against came from (MCH-4).
 pub enum Source<'a> {
-    /// The archive of an ecosystem, fetched into the cache; its vulnerabilities may have been taken out.
-    Archive(&'a Snapshot),
-    /// A record file or a directory the user gave with `--osv`.
-    Local(&'a Path),
+    /// The archive of an ecosystem, fetched into the cache, and the number of records it held.
+    Archive {
+        ecosystem: &'a str,
+        freshness: &'a Freshness,
+        records: usize,
+    },
+    /// A record file or a directory the user gave with `--osv`, and the number of records it held.
+    Local { path: &'a Path, records: usize },
 }
 
-/// The time of a download in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`).
+/// The time of a download in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time a damaged
+/// cache could hold that the calendar of `time` cannot write (before 1970 or after the year 9999).
 fn utc(freshness: &Freshness) -> String {
-    OffsetDateTime::from(freshness.downloaded_at)
-        .format(format_description!(
-            "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
-        ))
-        .unwrap_or_default()
+    freshness
+        .downloaded_at
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .ok()
+        .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
+        .and_then(|seconds| OffsetDateTime::from_unix_timestamp(seconds).ok())
+        .and_then(|time| {
+            time.format(format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+            ))
+            .ok()
+        })
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+fn records(count: usize) -> &'static str {
+    if count == 1 { "record" } else { "records" }
 }
 
 /// The text report of `forewarn match` for a person: the SBOM, the sources of the records, the matches, the
@@ -153,11 +179,19 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
     }
     for source in sources {
         match source {
-            Source::Archive(snapshot) => {
-                let freshness = &snapshot.freshness;
+            Source::Archive {
+                ecosystem,
+                freshness,
+                records: count,
+            } => {
                 text.push_str("  ");
-                push_escaped(&mut text, &snapshot.ecosystem);
-                let _ = write!(text, ": downloaded {} from ", utc(freshness));
+                push_escaped(&mut text, ecosystem);
+                let _ = write!(
+                    text,
+                    ": {count} {}, downloaded {} from ",
+                    records(*count),
+                    utc(freshness)
+                );
                 push_escaped(&mut text, &freshness.url);
                 if let Some(last_modified) = &freshness.last_modified {
                     text.push_str(", Last-Modified ");
@@ -165,10 +199,13 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
                 }
                 text.push('\n');
             }
-            Source::Local(path) => {
+            Source::Local {
+                path,
+                records: count,
+            } => {
                 text.push_str("  ");
                 push_escaped(&mut text, &path.to_string_lossy());
-                text.push_str(": local records\n");
+                let _ = writeln!(text, ": {count} {}, local", records(*count));
             }
         }
     }
@@ -221,14 +258,21 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
     let sources: Vec<Value> = sources
         .iter()
         .map(|source| match source {
-            Source::Archive(snapshot) => json!({
+            Source::Archive {
+                ecosystem,
+                freshness,
+                records,
+            } => json!({
                 "kind": "archive",
-                "ecosystem": snapshot.ecosystem,
-                "url": snapshot.freshness.url,
-                "downloadedAt": utc(&snapshot.freshness),
-                "lastModified": snapshot.freshness.last_modified,
+                "ecosystem": ecosystem,
+                "url": freshness.url,
+                "downloadedAt": utc(freshness),
+                "lastModified": freshness.last_modified,
+                "recordCount": records,
             }),
-            Source::Local(path) => json!({"kind": "local", "path": path.to_string_lossy()}),
+            Source::Local { path, records } => {
+                json!({"kind": "local", "path": path.to_string_lossy(), "recordCount": records})
+            }
         })
         .collect();
     let affected: Vec<Value> = matching
