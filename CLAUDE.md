@@ -21,7 +21,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `rollcall` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
 `publish = false` for now: the names `rollcall`, `rollcall-cli` and `rollcall-core` are taken on crates.io by another
-project, so the package names are provisional. `crates/rollcall/tests/workspace_policy.rs` checks that every member
+project, so the package names are provisional. `crates/forewarn/tests/workspace_policy.rs` checks that every member
 inherits the license and the lints, and that the domain depends on no other crate of the workspace.
 
 ## What this is

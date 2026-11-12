@@ -31,3 +31,56 @@ Proof-of-concept demo
 
 # Hints
 * The hosted service carries the same brand: the name decision is the user's, not the agent's.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-12
+
+## Understanding
+Pick a product name free of the CRA/SBOM `rollcall` project, then rename the packages, the binary, the docs and the
+repository references to it. The choice of the name is the user's; the rename of the GitHub repository and of the
+hosted service are the user's actions, outside this repository's diff.
+
+Candidates checked on 2026-11-12 (crates.io API, `gh search repos`; EU trademark not checked, to verify on TMview):
+
+| Name | crates.io | GitHub (top hits) |
+|---|---|---|
+| `forewarn` | free | unrelated (CMU robotics, a testdouble lib) |
+| `tocsin` | taken (the bare name); `cra-tocsin`, `sbom-tocsin` free | — |
+| `musterroll` | free | `cloudfleet/musterroll` (LDAP, dormant) |
+| `cravat` | free | `KarchinLab/open-cravat` (genomics) |
+| `picket` | free | `picketlink` (Java auth) |
+| `herald`, `beacon`, `vigil`, `muster`, `roster`, `vedette`, `bellwether` | taken | — |
+
+## Plan
+1. [x] Move the crate directories to the new names (`git mv`, plus the member paths of the workspace `Cargo.toml`
+   only); verified by `cardinal run project-check`; ~10 lines. (autonomous)
+2. [ ] Rename the packages, the binary, the crate imports, the docs, the specs, the ADRs, `CLAUDE.md`, `README.md`,
+   `ROADMAP.md` and the `repository` URL; drop `publish = false` and its comment once the names are free on
+   crates.io; verified by `cardinal run project-check` and the `check.rs` tests run through the new binary name;
+   ~150 lines. The `.cdx.json` fixtures keep the name the tools recorded when generated.
+
+## Deliverable 1
+done: the crate directories moved to `crates/forewarn`, `crates/forewarn-cyclonedx`, `crates/forewarn-domain`; the
+workspace members, the path dependencies, one fixture path of `check.rs` and the paths cited by `CLAUDE.md`,
+`README.md` and ADR 0001 follow; the package names are unchanged.
+
+| check | result |
+|---|---|
+| tests, fmt, clippy, specs | `cardinal run project-check` green |
+| size | 858 changed lines (a move counts twice), within |
+
+red: none (a move, no new behaviour; the existing tests prove it).
+
+Code review: no findings
+
+not verified: nothing.
+
+decisions needed: none.
+
+## Decisions
+- Mode: autonomous
+- Repository rename: the agent runs `gh repo rename` after the user agrees, once deliverable 2 is committed (answer 3b).
+- Name: `forewarn`; crates `forewarn` (binary), `forewarn-domain`, `forewarn-cyclonedx`, all free on crates.io on 2026-11-12 (answer 1a).
+- Scope: the product, the crates, the binary and the repository are renamed (answer 2a).
+- Base commit: 759ab36b8926c59f18d39bdbfbc696aea0673b22

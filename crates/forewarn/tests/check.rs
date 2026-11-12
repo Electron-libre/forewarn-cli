@@ -46,7 +46,7 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 fn syft_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../rollcall-cyclonedx/tests/fixtures/syft.cdx.json")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-cyclonedx/tests/fixtures/syft.cdx.json")
 }
 
 fn bom(spec_version: &str, components: &Value) -> Vec<u8> {
