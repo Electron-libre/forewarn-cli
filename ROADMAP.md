@@ -51,6 +51,8 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Goal: a 20-second demo shows the whole run (SBOM, matching, exploited flag, draft early warning) on a real project.
 - Why: completes the proof of concept and shows what the tool does without reading the docs.
 - State: idea
+- Issues:
+  - [choose_a_distinct_product_name](issues/choose_a_distinct_product_name.md)
 
 ## Upload from CI
 
