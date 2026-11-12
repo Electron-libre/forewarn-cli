@@ -49,7 +49,7 @@ architecture = "CLAUDE.md"
 # Where the rules for writing tests are (issue-workflow, step "test first").
 test_conventions = "CLAUDE.md"
 # What must never be named in an issue or a committed file (create-issue); generic wording only.
-confidential = "this repository is public: nothing from the private Rollcall service repository (code, internal URLs, business documents) may appear in a committed file or an issue"
+confidential = "this repository is public: nothing from the private Forewarn service repository (code, internal URLs, business documents) may appear in a committed file or an issue"
 # Language of the conversation with the user (skills, code, docs and issues stay in English); each person may override
 # it in the `[project]` table of `.claude/cardinal.local.toml`, which git ignores.
 user_language = "French"

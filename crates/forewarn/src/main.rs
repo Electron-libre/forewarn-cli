@@ -1,4 +1,4 @@
-//! The `rollcall` command line: parses the arguments and wires the adapters to the domain (`specs/cli-check.md`).
+//! The `forewarn` command line: parses the arguments and wires the adapters to the domain (`specs/cli-check.md`).
 
 mod report;
 
@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use rollcall_cyclonedx::{ReadError, read_json};
-use rollcall_domain::completeness::check;
-use rollcall_domain::sbom::Sbom;
+use forewarn_cyclonedx::{ReadError, read_json};
+use forewarn_domain::completeness::check;
+use forewarn_domain::sbom::Sbom;
 
 /// Check a CycloneDX SBOM for the fields the EU Cyber Resilience Act expects.
 #[derive(Parser)]
@@ -70,7 +70,7 @@ fn run_check(args: &CheckArgs) -> ExitCode {
         Format::Json => report::json(&sbom, &completeness),
     };
     match io::stdout().lock().write_all(text.as_bytes()) {
-        // A closed pipe (`rollcall check sbom.json | head`) is not an error of the check.
+        // A closed pipe (`forewarn check sbom.json | head`) is not an error of the check.
         Err(error) if error.kind() != ErrorKind::BrokenPipe => {
             eprintln!("error: cannot write the report to standard output: {error}");
             return ExitCode::from(UNWRITABLE);

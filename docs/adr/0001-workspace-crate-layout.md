@@ -5,7 +5,7 @@
 
 ## Context
 
-`rollcall` must keep its domain (matching, completeness, reporting deadlines) apart from its adapters (CycloneDX
+`forewarn` must keep its domain (matching, completeness, reporting deadlines) apart from its adapters (CycloneDX
 parsing, vulnerability feeds, report formats, HTTP upload), so that a change of regulatory format only touches an
 adapter. A hosted service, kept elsewhere, may reuse the domain and the CycloneDX handling, never the reverse.
 
@@ -15,7 +15,7 @@ One Cargo workspace with crates under `crates/`:
 
 - a domain crate: domain types and rules, no I/O dependency;
 - a CycloneDX adapter crate: parses an SBOM into domain types, depends on the domain crate;
-- the CLI binary crate `rollcall`: argument parsing and wiring, depends on the others.
+- the CLI binary crate `forewarn`: argument parsing and wiring, depends on the others.
 
 Later adapters (feeds, report formats, upload) start as modules of a crate and become crates when another consumer
 needs them alone. The domain crate never depends on an adapter crate.

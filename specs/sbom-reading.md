@@ -64,9 +64,9 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
 ## Scenarios
 
 - **SBR-H1** (happy; SBR-1, SBR-4, SBR-5) Given an SBOM a vendor generated with `syft` in CycloneDX 1.6, when
-  `rollcall` reads it, then it gets every component with the name, version, package URL and hashes `syft` wrote, and
+  `forewarn` reads it, then it gets every component with the name, version, package URL and hashes `syft` wrote, and
   spec version 1.6 with no flag.
-- **SBR-H2** (happy; SBR-2) Given an SBOM in CycloneDX 1.5, when `rollcall` reads it, then it gets its components and
+- **SBR-H2** (happy; SBR-2) Given an SBOM in CycloneDX 1.5, when `forewarn` reads it, then it gets its components and
   the warning that 1.5 is below the BSI TR-03183-2 minimum.
 - (SBR-7) Given a CycloneDX 1.2 JSON file, when it is read, then it fails with "unsupported spec version" quoting `1.2`.
 - (SBR-7) Given a JSON file with `bomFormat` `CycloneDX` and no `specVersion`, when it is read, then it fails with

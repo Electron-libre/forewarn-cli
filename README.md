@@ -1,4 +1,4 @@
-# rollcall
+# forewarn
 
 An open-source CLI that checks a CycloneDX SBOM against actively exploited vulnerabilities and drafts the reports the
 EU Cyber Resilience Act (article 14) requires.
@@ -8,12 +8,12 @@ Work in progress, not published yet: build it from a clone with `cargo install -
 ## Usage
 
 ```sh
-rollcall check sbom.cdx.json                  # `-` reads the SBOM from standard input (`./-` for a file named -)
-rollcall check --format json sbom.cdx.json    # one JSON document, for a CI job or a script
-syft scan . -o cyclonedx-json | rollcall check --allow-incomplete -   # report gaps without failing the job
+forewarn check sbom.cdx.json                  # `-` reads the SBOM from standard input (`./-` for a file named -)
+forewarn check --format json sbom.cdx.json    # one JSON document, for a CI job or a script
+syft scan . -o cyclonedx-json | forewarn check --allow-incomplete -   # report gaps without failing the job
 ```
 
-`rollcall check` prints the CycloneDX spec version of the SBOM, flagged when it is below 1.6 (the BSI TR-03183-2
+`forewarn check` prints the CycloneDX spec version of the SBOM, flagged when it is below 1.6 (the BSI TR-03183-2
 minimum), and each component missing a supplier, a license or a hash. The JSON report holds `specVersion`,
 `belowBsiMinimum`, `componentCount`, `complete` and `incomplete` (each component's `name`, `version`, `purl` and
 `missing` fields); the text report's layout may change, scripts read the JSON one. It exits with:

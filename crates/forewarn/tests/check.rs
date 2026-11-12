@@ -1,4 +1,4 @@
-//! The `rollcall check` command, driven through the binary (`specs/cli-check.md`).
+//! The `forewarn check` command, driven through the binary (`specs/cli-check.md`).
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -14,7 +14,7 @@ struct Run {
 }
 
 fn run(args: &[&str], stdin: Option<&[u8]>) -> Run {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_rollcall"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_forewarn"))
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -355,7 +355,7 @@ fn a_path_that_is_not_utf8_is_read_not_refused() {
     let path = fixture("missing-\u{e9}.json").into_os_string();
     let mut bytes = path.as_bytes().to_vec();
     bytes.retain(|&b| b != 0xC3);
-    let output = Command::new(env!("CARGO_BIN_EXE_rollcall"))
+    let output = Command::new(env!("CARGO_BIN_EXE_forewarn"))
         .arg("check")
         .arg(OsStr::from_bytes(&bytes))
         .output()
@@ -374,7 +374,7 @@ fn a_report_that_cannot_be_written_is_named_and_exits_with_4() {
         .open("/dev/full")
         .expect("/dev/full opens");
     let path = fixture("complete-1.5.cdx.json");
-    let output = Command::new(env!("CARGO_BIN_EXE_rollcall"))
+    let output = Command::new(env!("CARGO_BIN_EXE_forewarn"))
         .arg("check")
         .arg(path)
         .stdout(full)

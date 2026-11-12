@@ -55,10 +55,10 @@ Candidates checked on 2026-11-12 (crates.io API, `gh search repos`; EU trademark
 ## Plan
 1. [x] Move the crate directories to the new names (`git mv`, plus the member paths of the workspace `Cargo.toml`
    only); verified by `cardinal run project-check`; ~10 lines. (autonomous)
-2. [ ] Rename the packages, the binary, the crate imports, the docs, the specs, the ADRs, `CLAUDE.md`, `README.md`,
+2. [x] Rename the packages, the binary, the crate imports, the docs, the specs, the ADRs, `CLAUDE.md`, `README.md`,
    `ROADMAP.md` and the `repository` URL; drop `publish = false` and its comment once the names are free on
    crates.io; verified by `cardinal run project-check` and the `check.rs` tests run through the new binary name;
-   ~150 lines. The `.cdx.json` fixtures keep the name the tools recorded when generated.
+   ~150 lines. The `.cdx.json` fixtures keep the name the tools recorded when generated. (autonomous)
 
 ## Deliverable 1
 done: the crate directories moved to `crates/forewarn`, `crates/forewarn-cyclonedx`, `crates/forewarn-domain`; the
@@ -75,6 +75,31 @@ red: none (a move, no new behaviour; the existing tests prove it).
 Code review: no findings
 
 not verified: nothing.
+
+decisions needed: none.
+
+## Deliverable 2
+done: the packages `forewarn`, `forewarn-cyclonedx`, `forewarn-domain`, the binary `forewarn`, the crate imports, the
+doc comments, `README.md`, `CLAUDE.md`, `ROADMAP.md`, the specs, the ADRs, `LICENSE-MIT`, `.claude/cardinal.toml` and
+the `repository` URL (`forewarn-cli`) use the new name; `publish = false` and its comment are gone; `CLAUDE.md` says
+why the product was renamed; the fixture sample keeps `rollcall-fixture-sample`, which the generated SBOMs record.
+
+| check | result |
+|---|---|
+| tests, fmt, clippy, specs | `cardinal run project-check` green |
+| binary | `cargo run -p forewarn -- check <syft fixture>` prints the report |
+| docs | `skill:update-docs`: README, CLAUDE.md, ROADMAP, specs, ADRs updated; no stale `rollcall` left but the history note and the fixture sample |
+| size | 160 changed lines; the issue total reads 3,488 because `deliverable-size <base>` counts each moved and edited file twice |
+
+red: none traced (a rename, no new behaviour); `check.rs` failed to build on `CARGO_BIN_EXE_forewarn` until the package was renamed.
+
+Code review: 1 findings
+- `publish = false` dropped and path dependencies without `version`: not fixed. The names were checked free on
+  crates.io (`## Decisions`) and the issue asks to drop the guard; a `cargo publish` of `forewarn` still fails on the
+  versionless path dependencies, so nothing can be published by accident. Making the crates publishable (versions
+  on the path dependencies, metadata) belongs to the first publication: follow-up.
+
+not verified: the EU trademark of `forewarn` (TMview).
 
 decisions needed: none.
 

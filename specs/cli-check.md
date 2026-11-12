@@ -4,7 +4,7 @@ status: accepted
 adrs: [0001]
 ---
 
-# The `rollcall check` command
+# The `forewarn check` command
 
 ## Intent
 
@@ -16,17 +16,17 @@ job can act on.
 
 ### Behaviour
 
-- **CHK-1** (deterministic) `rollcall check <sbom>` must print the spec version of the SBOM and, when it is below the
+- **CHK-1** (deterministic) `forewarn check <sbom>` must print the spec version of the SBOM and, when it is below the
   BSI TR-03183-2 minimum (1.6), a flag saying so.
-- **CHK-2** (deterministic) `rollcall check <sbom>` must print each incomplete component of the completeness check
+- **CHK-2** (deterministic) `forewarn check <sbom>` must print each incomplete component of the completeness check
   (`specs/sbom-completeness.md`) with its name, its version and package URL when it has them, and its missing fields.
-- **CHK-3** (deterministic) `rollcall check <sbom>` must print how many components were checked and how many are
+- **CHK-3** (deterministic) `forewarn check <sbom>` must print how many components were checked and how many are
   incomplete, or that the SBOM is complete.
-- **CHK-4** (deterministic) `rollcall check -` must read the SBOM from standard input, so that the output of an SBOM
+- **CHK-4** (deterministic) `forewarn check -` must read the SBOM from standard input, so that the output of an SBOM
   generator can be piped into it.
-- **CHK-5** (deterministic) `rollcall check --format json <sbom>` must print the same result as one JSON document, for
+- **CHK-5** (deterministic) `forewarn check --format json <sbom>` must print the same result as one JSON document, for
   a machine to read.
-- **CHK-6** (deterministic) `rollcall check --allow-incomplete <sbom>` must exit with the code of a complete SBOM when
+- **CHK-6** (deterministic) `forewarn check --allow-incomplete <sbom>` must exit with the code of a complete SBOM when
   the SBOM is incomplete, the report printed unchanged, so that a CI job can report gaps without failing.
 
 ### Contract
@@ -56,9 +56,9 @@ job can act on.
   | `incomplete` | an array, in SBOM order, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `missing` (an array of `"supplier"`, `"license"`, `"hash"`, in that order) |
 
 - **CHK-11** (deterministic) `--format` must accept `human`, the default, and `json`.
-- **CHK-12** (deterministic) `rollcall` with no subcommand must print its usage, naming `check`, and exit with code 2.
+- **CHK-12** (deterministic) `forewarn` with no subcommand must print its usage, naming `check`, and exit with code 2.
 - **CHK-13** (deterministic) A report that cannot be written to standard output must print one line on standard error
-  naming the cause, unless standard output is a closed pipe (`rollcall check sbom.json | head`), which is not an
+  naming the cause, unless standard output is a closed pipe (`forewarn check sbom.json | head`), which is not an
   error.
 - **CHK-14** (deterministic) The human report must print each control character of a component's name, version or
   package URL escaped (`\n`, `\u{1b}`), so that an SBOM cannot forge report lines or terminal sequences.
@@ -66,19 +66,19 @@ job can act on.
 ## Scenarios
 
 - **CHK-H1** (happy; CHK-1, CHK-2, CHK-3, CHK-7) Given an SBOM a vendor generated with `syft` in CycloneDX 1.6, whose
-  components lack a supplier and a license, when they run `rollcall check sbom.json`, then they see `CycloneDX 1.6`
+  components lack a supplier and a license, when they run `forewarn check sbom.json`, then they see `CycloneDX 1.6`
   with no flag, each component with its missing fields, the count of incomplete components, and the command exits
   with 1.
 - **CHK-H2** (happy; CHK-4, CHK-5, CHK-10, CHK-6) Given a CI job that pipes an SBOM generator into
-  `rollcall check --format json --allow-incomplete -`, when the SBOM is incomplete, then the job reads a JSON report
+  `forewarn check --format json --allow-incomplete -`, when the SBOM is incomplete, then the job reads a JSON report
   listing the incomplete components and the command exits with 0.
 - **CHK-H3** (happy; CHK-1, CHK-3, CHK-7) Given a CycloneDX 1.5 SBOM whose every component has a supplier, a license
-  and a hash, when the vendor runs `rollcall check`, then they see `CycloneDX 1.5` flagged as below the BSI TR-03183-2
+  and a hash, when the vendor runs `forewarn check`, then they see `CycloneDX 1.5` flagged as below the BSI TR-03183-2
   minimum, that the SBOM is complete, and the command exits with 0.
 - (CHK-7) Given an SBOM below the BSI minimum, when it is checked, then the flag alone does not change the exit code.
 - (CHK-7, CHK-8) Given a path that does not exist, when it is checked, then standard error names the path and "cannot
   read the input", and the command exits with 3.
-- (CHK-7, CHK-8) Given a CycloneDX 1.2 file piped into `rollcall check -`, when it is checked, then standard error
+- (CHK-7, CHK-8) Given a CycloneDX 1.2 file piped into `forewarn check -`, when it is checked, then standard error
   names `standard input` and "unsupported spec version", and the command exits with 3.
 - (CHK-7) Given a path that is not valid UTF-8, when it is checked, then it is read like any other path, not
   refused as an invalid argument.

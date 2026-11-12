@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project status
 
 Early proof of concept. The CycloneDX adapter reads a JSON SBOM into the domain types (`specs/sbom-reading.md`); the
-domain lists the components missing a supplier, a license or a hash (`specs/sbom-completeness.md`); `rollcall check`
+domain lists the components missing a supplier, a license or a hash (`specs/sbom-completeness.md`); `forewarn check`
 prints both (`specs/cli-check.md`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
@@ -16,17 +16,17 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 
 | Crate | Role | Scope |
 |---|---|---|
-| `rollcall-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
-| `rollcall-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
-| `rollcall` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
+| `forewarn-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
+| `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
+| `forewarn` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
-`publish = false` for now: the names `rollcall`, `rollcall-cli` and `rollcall-core` are taken on crates.io by another
-project, so the package names are provisional. `crates/forewarn/tests/workspace_policy.rs` checks that every member
+The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`
+crates. `crates/forewarn/tests/workspace_policy.rs` checks that every member
 inherits the license and the lints, and that the domain depends on no other crate of the workspace.
 
 ## What this is
 
-`rollcall`, an open-source Rust CLI that helps software vendors meet the EU Cyber Resilience Act (CRA) vulnerability
+`forewarn`, an open-source Rust CLI that helps software vendors meet the EU Cyber Resilience Act (CRA) vulnerability
 reporting obligation (article 14: early warning within 24 h, notification within 72 h, final report within 14 days).
 
 First milestone (proof of concept), CLI only:
@@ -35,11 +35,11 @@ First milestone (proof of concept), CLI only:
 - Output: the affected components, a draft CRA early warning for each, and an SBOM completeness check (missing
   supplier, license, hashes: fields the CRA expects but raw scans often leave empty).
 
-The CLI can later upload SBOMs from CI to a hosted Rollcall service through its HTTP API.
+The CLI can later upload SBOMs from CI to a hosted Forewarn service through its HTTP API.
 
 ## Public repository
 
-This repository is public. A hosted Rollcall service lives in a separate private repository: nothing from it (code,
+This repository is public. A hosted Forewarn service lives in a separate private repository: nothing from it (code,
 internal URLs, business documents) belongs here. The dependency goes one way only: the service may depend on crates of
 this repository (matching logic, CycloneDX handling, API types shared with the service), never the reverse.
 

@@ -1,7 +1,7 @@
 //! Reading a CycloneDX JSON SBOM into the domain (`specs/sbom-reading.md`).
 
-use rollcall_cyclonedx::{ReadError, read_json};
-use rollcall_domain::sbom::{Component, Hash, Sbom, SpecVersion};
+use forewarn_cyclonedx::{ReadError, read_json};
+use forewarn_domain::sbom::{Component, Hash, Sbom, SpecVersion};
 use serde_json::{Value, json};
 
 fn bom(spec_version: &str, components: &Value) -> Value {

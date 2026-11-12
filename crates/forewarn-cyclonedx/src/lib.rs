@@ -1,4 +1,4 @@
-//! The CycloneDX adapter of `rollcall`: reads an SBOM produced by an existing tool into the types of the domain.
+//! The CycloneDX adapter of `forewarn`: reads an SBOM produced by an existing tool into the types of the domain.
 
 use std::fmt;
 use std::io::Read;
@@ -7,7 +7,7 @@ use cyclonedx_bom::models::bom::{Bom, SpecVersion as CdxSpecVersion};
 use cyclonedx_bom::models::component::Component as CdxComponent;
 use cyclonedx_bom::models::license::{LicenseChoice, LicenseIdentifier};
 use cyclonedx_bom::models::organization::{OrganizationalContact, OrganizationalEntity};
-use rollcall_domain::sbom::{Component, Hash, Sbom, SpecVersion};
+use forewarn_domain::sbom::{Component, Hash, Sbom, SpecVersion};
 use serde_json::Value;
 
 /// Why an input is not a readable CycloneDX JSON SBOM (`specs/sbom-reading.md`, SBR-7).

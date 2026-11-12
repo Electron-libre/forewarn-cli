@@ -7,7 +7,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 
 ## Read and check an SBOM
 
-- Goal: `rollcall` reads a CycloneDX SBOM (JSON), accepts 1.6 and 1.7, flags older versions, and reports the components
+- Goal: `forewarn` reads a CycloneDX SBOM (JSON), accepts 1.6 and 1.7, flags older versions, and reports the components
   missing the fields the CRA expects (supplier, license, hashes).
 - Why: every later step works on the parsed components, and an incomplete SBOM is the first gap a vendor must close.
 - State: done
@@ -42,7 +42,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 
 ## Draft the CRA early warning
 
-- Goal: for each affected component, `rollcall` writes a draft CRA early warning with its deadlines, in a format an
+- Goal: for each affected component, `forewarn` writes a draft CRA early warning with its deadlines, in a format an
   adapter owns so that a change of the regulatory format only touches it.
 - Why: a vendor should not write the report from scratch under pressure.
 - State: idea
@@ -57,13 +57,13 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 
 ## Upload from CI
 
-- Goal: `rollcall` uploads the SBOM and AI-BOM with product, version and date to a Rollcall service, whose URL is set
+- Goal: `forewarn` uploads the SBOM and AI-BOM with product, version and date to a Forewarn service, whose URL is set
   by `--endpoint` or an environment variable.
 - Why: keeps a vendor's inventory up to date without manual work; only inventories leave the CI, never source code.
 - State: idea
 
 ## CI integration templates
 
-- Goal: ready-to-use examples run `rollcall` at each release in GitHub Actions and GitLab CI.
+- Goal: ready-to-use examples run `forewarn` at each release in GitHub Actions and GitLab CI.
 - Why: lowers the cost of adoption to a copy-paste.
 - State: idea

@@ -1,9 +1,9 @@
-//! The report formats of `rollcall check`: adapters from the domain's results to text or JSON (`specs/cli-check.md`).
+//! The report formats of `forewarn check`: adapters from the domain's results to text or JSON (`specs/cli-check.md`).
 
 use std::fmt::Write;
 
-use rollcall_domain::completeness::{CompletenessReport, Field};
-use rollcall_domain::sbom::{Sbom, SpecVersion};
+use forewarn_domain::completeness::{CompletenessReport, Field};
+use forewarn_domain::sbom::{Sbom, SpecVersion};
 use serde_json::{Value, json};
 
 /// The text report for a person: the spec version, then the incomplete components or that the SBOM is complete.

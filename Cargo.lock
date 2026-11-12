@@ -199,6 +199,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "forewarn"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "forewarn-cyclonedx",
+ "forewarn-domain",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
+name = "forewarn-cyclonedx"
+version = "0.0.0"
+dependencies = [
+ "cyclonedx-bom",
+ "forewarn-domain",
+ "serde_json",
+]
+
+[[package]]
+name = "forewarn-domain"
+version = "0.0.0"
+
+[[package]]
 name = "futures-core"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -433,30 +457,6 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
-
-[[package]]
-name = "rollcall"
-version = "0.0.0"
-dependencies = [
- "clap",
- "rollcall-cyclonedx",
- "rollcall-domain",
- "serde_json",
- "toml",
-]
-
-[[package]]
-name = "rollcall-cyclonedx"
-version = "0.0.0"
-dependencies = [
- "cyclonedx-bom",
- "rollcall-domain",
- "serde_json",
-]
-
-[[package]]
-name = "rollcall-domain"
-version = "0.0.0"
 
 [[package]]
 name = "rustversion"

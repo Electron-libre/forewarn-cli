@@ -44,10 +44,10 @@ TR-03183-2 and is kept as data so that it can grow.
 ## Scenarios
 
 - **SBC-H1** (happy; SBC-1, SBC-4, SBC-6) Given an SBOM a vendor generated with `syft`, whose components have no
-  supplier and no license and only some a hash, when `rollcall` checks it, then each component is reported with
+  supplier and no license and only some a hash, when `forewarn` checks it, then each component is reported with
   supplier and license missing, and those with no hash also with hash missing.
 - **SBC-H2** (happy; SBC-2, SBC-3) Given an SBOM whose every component has a supplier, a license and a SHA-256 hash,
-  when `rollcall` checks it, then no component is reported and the SBOM is complete.
+  when `forewarn` checks it, then no component is reported and the SBOM is complete.
 - (SBC-4) Given a component whose only creator is an `author`, when it is checked, then its supplier is present.
 - (SBC-4) Given a component whose only license is the expression `MIT OR Apache-2.0`, when it is checked, then its
   license is present.
@@ -66,4 +66,4 @@ TR-03183-2 and is kept as data so that it can grow.
 - Checking that a hash value is well formed for its algorithm (hexadecimal, length).
 - Judging whether a license is valid SPDX, or whether a supplier name is real.
 - Checking the SBOM's own metadata (`metadata.component`, `metadata.supplier`, timestamp).
-- Rendering the report for a human or a CI job: the `rollcall check` command does (`specs/cli-check.md`).
+- Rendering the report for a human or a CI job: the `forewarn check` command does (`specs/cli-check.md`).

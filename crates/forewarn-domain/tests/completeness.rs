@@ -1,7 +1,7 @@
 //! The completeness check of the components of an SBOM (`specs/sbom-completeness.md`).
 
-use rollcall_domain::completeness::{Field, IncompleteComponent, check};
-use rollcall_domain::sbom::{Component, Hash};
+use forewarn_domain::completeness::{Field, IncompleteComponent, check};
+use forewarn_domain::sbom::{Component, Hash};
 
 fn hash(algorithm: &str, value: &str) -> Hash {
     Hash {

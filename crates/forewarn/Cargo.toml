@@ -1,17 +1,16 @@
 [package]
-name = "rollcall"
+name = "forewarn"
 description = "Match a CycloneDX SBOM against actively exploited vulnerabilities and draft the CRA early warning"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-publish.workspace = true
 
 [dependencies]
 clap = { version = "4.6", features = ["derive"] }
-rollcall-cyclonedx = { path = "../forewarn-cyclonedx" }
-rollcall-domain = { path = "../forewarn-domain" }
+forewarn-cyclonedx = { path = "../forewarn-cyclonedx" }
+forewarn-domain = { path = "../forewarn-domain" }
 serde_json = "1"
 
 [dev-dependencies]

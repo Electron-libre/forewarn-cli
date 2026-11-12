@@ -3,8 +3,8 @@
 use std::fs::File;
 use std::path::Path;
 
-use rollcall_cyclonedx::read_json;
-use rollcall_domain::sbom::{Component, Hash, Sbom, SpecVersion};
+use forewarn_cyclonedx::read_json;
+use forewarn_domain::sbom::{Component, Hash, Sbom, SpecVersion};
 
 fn read_fixture(name: &str) -> Sbom {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

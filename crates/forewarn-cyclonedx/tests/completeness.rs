@@ -3,8 +3,8 @@
 use std::fs::File;
 use std::path::Path;
 
-use rollcall_cyclonedx::read_json;
-use rollcall_domain::completeness::{CompletenessReport, Field, check};
+use forewarn_cyclonedx::read_json;
+use forewarn_domain::completeness::{CompletenessReport, Field, check};
 
 const ALL: &[Field] = &[Field::Supplier, Field::License, Field::Hash];
 const NO_HASH_GAP: &[Field] = &[Field::Supplier, Field::License];

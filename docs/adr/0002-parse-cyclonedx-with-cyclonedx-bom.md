@@ -5,7 +5,7 @@
 
 ## Context
 
-`rollcall` reads CycloneDX JSON SBOMs of spec versions 1.6 and 1.7, and accepts older ones with a flag. Writing a
+`forewarn` reads CycloneDX JSON SBOMs of spec versions 1.6 and 1.7, and accepts older ones with a flag. Writing a
 `serde` model of the subset of fields the domain needs is possible, but each spec version and each later field (VEX,
 services, `metadata.component`) would grow it. The CycloneDX project maintains a Rust model, `cyclonedx-bom`, in the
 `cyclonedx-rust-cargo` repository.

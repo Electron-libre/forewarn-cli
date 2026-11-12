@@ -10,5 +10,5 @@ publish = false
 itoa = "1"
 semver = "1"
 
-# Its own workspace root, outside the rollcall workspace.
+# Its own workspace root, outside the forewarn workspace.
 [workspace]
