@@ -26,7 +26,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   exploited lists only name CVEs.
 - State: in issues
 - Issues:
-  - [match_components_against_vulnerabilities](issues/match_components_against_vulnerabilities.md)
+  - [match_components_against_vulnerabilities](issues/done/match_components_against_vulnerabilities.md)
   - [read_osv_records](issues/read_osv_records.md)
   - [fetch_osv_records](issues/fetch_osv_records.md)
   - [cli_list_affected_components](issues/cli_list_affected_components.md)
