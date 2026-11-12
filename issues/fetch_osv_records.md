@@ -33,3 +33,41 @@ Match known vulnerabilities (OSV)
 * Sending package URLs to the OSV API sends part of the inventory out of the CI: say so in the docs, and keep a mode
   that sends nothing.
 * `querybatch` returns only ids and paginates; the full records need further requests.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Download the OSV archive `<ecosystem>/all.zip` of each ecosystem the caller names into a cache, read it with
+`read_directory`, and return each ecosystem's freshness (download time, URL, `Last-Modified`), under a refresh policy.
+Out of scope: the OSV API (sends package URLs out; a follow-up issue if wanted), the CLI flags, the default cache
+directory and the local-directory option (wired by `cli_list_affected_components`, `read_directory` already reads one).
+
+## Plan
+1. [x] Download and extract: `forewarn-osv` fetches the archives (`ureq`, `zip`) into the cache under `if-missing` and
+   `always`, refuses bad names, unsafe entries and failed downloads without touching the former snapshot; verified by
+   tests against a loopback HTTP server; makes true OSR-10, OSR-11, OSR-14, OSR-16, OSR-17, OSR-18. ADR 0004 accepted.
+   (autonomous)
+2. [ ] Read the cache: the policies `offline` and `older-than <age>`, the snapshot read back with its freshness;
+   verified by tests on a cache filled by deliverable 1, the server counting the requests; makes true OSR-12, OSR-13,
+   OSR-15; the spec `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 06194ece51aedb5cda048b2812c65fd1916435bc
+- Source: the archive of each ecosystem into a cache; the OSV API, which sends package URLs out, is a follow-up issue
+  of its own, opt-in.
+- An unreadable record of an archive fails the fetch of its ecosystem, the former snapshot kept.
+- TLS: `rustls` with `webpki-roots`, no system dependency.
+- An archive entry in a subdirectory is skipped, as `read_directory` skips subdirectories; only an absolute name, a
+  `\` or a `..` component is refused as unsafe (OSR-18, settled at deliverable 1).
+- `zip`: the latest version compatible with the workspace `rust-version` 1.86.
+
+## Summary of deliverable 1
+- done: module `forewarn_osv::fetch` (`Archives::fetch`, policies `if-missing` and `always`), `ureq` 3 with `rustls`,
+  `zip` 7 with `zlib-rs`; ADR 0004 accepted; CLAUDE.md updated.
+- checks: tests pass (13 new, loopback server), clippy pedantic clean, `check-specs` passes.
+- red: OSR-H3, OSR-10, OSR-11, OSR-14, OSR-16, OSR-17, OSR-18: `unresolved import forewarn_osv::fetch`.
+- Code review: no findings
+- not verified: a download of a real OSV archive (tests use no network).

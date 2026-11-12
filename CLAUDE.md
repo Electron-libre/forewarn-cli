@@ -9,7 +9,10 @@ domain lists the components missing a supplier, a license or a hash (`specs/sbom
 prints both (`specs/cli-check.md`). The domain also matches components against OSV-shaped vulnerabilities by package
 URL and version (`specs/vulnerability-matching.md`); the OSV adapter reads an OSV record file, or a directory of them
 (an extracted ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
-[0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)); no command uses them yet.
+[0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)), and fetches the archive of each ecosystem
+(`<ecosystem>/all.zip`) into a cache under a refresh policy, recording when it was downloaded (ADR
+[0004](docs/adr/0004-fetch-osv-ecosystem-archives-into-a-cache.md)): only ecosystem names leave the CI. No command uses
+them yet.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
@@ -21,7 +24,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 |---|---|---|
 | `forewarn-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
 | `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
-| `forewarn-osv` | OSV adapter: vulnerability records into domain types | `feeds` |
+| `forewarn-osv` | OSV adapter: vulnerability records, read or fetched into a cache, into domain types | `feeds` |
 | `forewarn` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`

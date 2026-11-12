@@ -1,5 +1,8 @@
 //! The OSV adapter of `forewarn`: reads vulnerability records in the OSV JSON format into the types of the domain
-//! (`specs/osv-reading.md`). The `serde` model of the record stays in this crate (ADR 0003).
+//! (`specs/osv-reading.md`). The `serde` model of the record stays in this crate (ADR 0003). The module [`fetch`]
+//! downloads the archive of each ecosystem into a cache (ADR 0004).
+
+pub mod fetch;
 
 use std::fmt;
 use std::fs;
