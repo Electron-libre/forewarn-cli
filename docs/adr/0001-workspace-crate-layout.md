@@ -23,5 +23,7 @@ needs them alone. The domain crate never depends on an adapter crate.
 ## Consequences
 
 - The hosted service can depend on the domain and adapter crates without the CLI.
-- The dependency direction is checked by the manifests: an adapter type cannot leak into the domain.
+- The dependency direction is checked: `crates/rollcall/tests/workspace_policy.rs` fails when the domain crate
+  depends on another crate of the workspace, so an adapter type cannot leak into the domain. Third-party I/O
+  dependencies of the domain are left to review.
 - More manifests to keep in step; the workspace inheritance (`license.workspace`, `[lints] workspace`) keeps them short.

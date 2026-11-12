@@ -52,6 +52,11 @@ so that `just check` passes. No SBOM parsing nor CLI argument yet (later issues)
    layout ADR; verified by `cardinal run project-check` and a test asserting each manifest inherits the license and
    the lints. (autonomous)
 
+2. [x] Review fixes of the whole issue: the policy test lists the members through `cargo metadata` (globs), reads
+   the manifests without panicking before its message, and checks that the domain depends on no workspace crate; ADR
+   0001 and `CLAUDE.md` (check command) corrected; verified by `cardinal run project-check` and the new test failing
+   on a domain → adapter dependency. (autonomous)
+
 ## Deliverable 1 summary
 - done: workspace with `rollcall-domain`, `rollcall-cyclonedx`, `rollcall` (empty), license and pedantic lints
   inherited, `clippy.toml` accepting `CycloneDX` in doc comments, `.gitignore`, ADR 0001, `CLAUDE.md` layout, scope
@@ -60,6 +65,21 @@ so that `just check` passes. No SBOM parsing nor CLI argument yet (later issues)
   missing`.
 - Code review: no findings
 - not verified: no CI job runs `cargo` yet (`.github/workflows/cardinal.yml` runs the Cardinal checks only).
+
+## Deliverable 2 summary
+- done: fixes of the `high` review (5 of 6 findings).
+- red: none (no spec); the new test failed first with `rollcall-domain depends on rollcall-cyclonedx in
+  [dependencies]: the domain must not depend on an adapter` on a temporary manifest.
+- Code review: no findings
+- High review of the issue: 6 findings. Fixed: indexing panics, glob members, unchecked dependency direction, wrong
+  check command in `CLAUDE.md`. Not fixed: the plan named a version print and a placeholder test per crate; dropped,
+  since a CLI behaviour needs a spec and an empty test proves nothing (the policy test runs instead). Not fixed:
+  `rust-version = "1.85"` is not verified by any check; follow-up below.
+- not verified: the MSRV 1.85 (no 1.85 toolchain run).
+
+## Follow-ups
+- Verify the declared `rust-version` in CI (`cargo +1.85 check` or `cargo msrv verify`), with a CI job running
+  `just check`.
 
 ## Decisions
 - Mode: autonomous

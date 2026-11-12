@@ -4,8 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Skeleton. A Cargo workspace with empty crates; `just check` (i.e. `cardinal run project-check`) runs `cargo fmt
---check`, `cargo clippy -D warnings` and `cargo test` (`check_command` in `.claude/cardinal.toml`).
+Skeleton. A Cargo workspace with empty crates; `just check` (i.e. `cardinal run project-check`) runs the
+`check_command` of `.claude/cardinal.toml`: `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and
+`cargo test`.
 
 ## Layout
 
@@ -19,7 +20,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 
 `publish = false` for now: the names `rollcall`, `rollcall-cli` and `rollcall-core` are taken on crates.io by another
 project, so the package names are provisional. `crates/rollcall/tests/workspace_policy.rs` checks that every member
-inherits the license and the lints.
+inherits the license and the lints, and that the domain depends on no other crate of the workspace.
 
 ## What this is
 
