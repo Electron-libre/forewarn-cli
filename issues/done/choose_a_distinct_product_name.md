@@ -127,7 +127,7 @@ Code review: no findings
 
 not verified: the EU trademark of `forewarn` (TMview).
 
-decisions needed: the GitHub rename `rollcall-cli` -> `forewarn-cli` (answer 3b).
+decisions needed: none; the GitHub repository was renamed to `forewarn-cli` on 2026-11-12 (answer 3b).
 
 ## Decisions
 - Deviation from step 3 of the Approach: `publish = false` is kept although the names are free; the first

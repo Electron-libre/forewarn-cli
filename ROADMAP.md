@@ -53,7 +53,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Why: completes the proof of concept and shows what the tool does without reading the docs.
 - State: idea
 - Issues:
-  - [choose_a_distinct_product_name](issues/choose_a_distinct_product_name.md)
+  - [choose_a_distinct_product_name](issues/done/choose_a_distinct_product_name.md)
 
 ## Upload from CI
 
