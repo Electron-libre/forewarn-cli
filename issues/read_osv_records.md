@@ -38,6 +38,8 @@ Match known vulnerabilities (OSV)
 
 # Tracking
 
+Done: every deliverable is committed.
+
 Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-12
 
 ## Understanding
@@ -51,7 +53,7 @@ out of scope. Own `serde` model rather than the `osv` crate (measured: closed ec
    verified by tests in `crates/forewarn-osv/tests/`; makes true OSR-1, OSR-4, OSR-5, OSR-6, OSR-8, OSR-9 and OSR-H1. (autonomous)
 2. [x] Read a directory: the `.json` files of a directory in file-name order, errors naming the file; verified by
    tests on temp directories; makes true OSR-2, OSR-3, OSR-7 and OSR-H2, spec `accepted`. (autonomous)
-3. [ ] Docs and the fixes of the `high` review of the whole issue (CLAUDE.md layout, README, ADR 0003 accepted).
+3. [x] Docs and the fixes of the `high` review of the whole issue (CLAUDE.md layout, README, ADR 0003 accepted). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -73,6 +75,20 @@ out of scope. Own `serde` model rather than the `osv` crate (measured: closed ec
 - done: `read_directory(path)` reads the `.json` files of a directory in file-name byte order, errors naming the file;
   spec `accepted`.
 - red: OSR-H2, OSR-2, OSR-3, OSR-7, OSR-9: `unresolved import forewarn_osv::read_directory`.
+- Code review: no findings.
+- not verified: none.
+- decisions needed: none.
+
+## Deliverable 3: docs and the fixes of the high review
+- done: ADR 0003 accepted; OSR-4 and OSR-9 amended (a null `withdrawn`, an empty prefix, a repeated field, an event
+  of no known kind); the record parsed once (a `Value` only on a shape error); a dangling link fails naming it; the
+  domain tests use a database prefix as source.
+- red: OSR-3, OSR-4, OSR-5, OSR-8, OSR-9: 7 tests failed (an unknown event read as an open range, a duplicate `id`
+  accepted, a shape error without position, a `limit` number or `schema_version` number refused, an id `-2099-1`
+  with an empty source, a dangling link skipped).
+- Code review (high, whole issue): 10 findings; 9 fixed (unknown events, `withdrawn` type, `limit` and
+  `schema_version` types, dangling link, double parse and duplicate keys, `source` in the domain tests, empty prefix,
+  redundant sort); not fixed: the `fixture` helper repeated in two test files (four lines, a shared module costs more).
 - Code review: no findings.
 - not verified: none.
 - decisions needed: none.

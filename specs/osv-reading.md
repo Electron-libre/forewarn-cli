@@ -30,8 +30,8 @@ the vulnerabilities of the domain, so that the matching (`specs/vulnerability-ma
   |---|---|
   | id | `id` |
   | aliases | `aliases`, in order |
-  | source | the database prefix of `id`: the text before its first `-` (`RUSTSEC`, `GHSA`), or the whole `id` when it has none |
-  | withdrawn | set when `withdrawn` is present |
+  | source | the database prefix of `id`: the text before its first `-` (`RUSTSEC`, `GHSA`), or the whole `id` when it has none or that text is empty |
+  | withdrawn | set when `withdrawn` is present and not `null` |
   | affected packages | each entry of `affected` that has a `package`, in order |
   | ecosystem of a package | `package.ecosystem`, as written |
   | name of a package | `package.name`, as written |
@@ -55,7 +55,7 @@ the vulnerabilities of the domain, so that the matching (`specs/vulnerability-ma
   | the file or the directory cannot be read (an I/O error) | cannot read the input, with the system's reason |
   | the file is not JSON | not JSON |
   | `schema_version` names a major version other than 1 | unsupported schema version, quoting it |
-  | `id` is absent or not a string, a field of the table of OSR-4 has the wrong type, or a range `type` is not one of the three | invalid OSV record, with the parser's reason |
+  | `id` is absent or not a string, a field of the table of OSR-4 has the wrong type or appears twice, a range `type` is not one of the three, or an event holds none of `introduced`, `fixed`, `last_affected` and `limit` | invalid OSV record, with the parser's reason |
 
 ## Scenarios
 
@@ -74,6 +74,12 @@ the vulnerabilities of the domain, so that the matching (`specs/vulnerability-ma
 - (OSR-8, OSR-9) Given a record with `schema_version` `2.0.0`, when it is read, then it fails with "unsupported
   schema version" quoting `2.0.0`; with `1.7.4`, it is read.
 - (OSR-9) Given a record whose range `type` is `CALVER`, when it is read, then it fails with "invalid OSV record".
+- (OSR-9) Given a range whose events hold `introduced` `0` and `fixed_in` `1.2.0`, when it is read, then it fails with
+  "invalid OSV record", rather than read as a range open to every version.
+- (OSR-5, OSR-8) Given a record whose `schema_version` is the number `1` and whose `limit` event is a number, when it
+  is read, then it is read.
+- (OSR-3) Given a directory holding a symbolic link `GHSA-x.json` to a file that does not exist, when it is read, then
+  it fails with "cannot read the input" naming `GHSA-x.json`.
 - (OSR-3, OSR-9) Given a directory with a valid record and a file `broken.json` that is not JSON, when it is read,
   then it fails with "not JSON" naming `broken.json`.
 - (OSR-2) Given an empty directory, when it is read, then no vulnerability is returned.

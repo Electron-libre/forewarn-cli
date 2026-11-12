@@ -1,6 +1,6 @@
 # 0003. An OSV adapter crate with its own `serde` model
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-12
 
 ## Context

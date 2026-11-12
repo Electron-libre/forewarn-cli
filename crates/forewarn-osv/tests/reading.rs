@@ -300,7 +300,7 @@ fn a_field_of_the_wrong_type_is_an_invalid_record() {
         json!({ "id": "A-1", "aliases": "CVE-1" }),
         json!({ "id": "A-1", "affected": [{ "package": { "ecosystem": "npm", "name": 3 } }] }),
         json!({ "id": "A-1", "affected": [package("npm", "a", &json!([{ "type": "SEMVER", "events": [{ "fixed": 1 }] }]))] }),
-        json!({ "id": "A-1", "schema_version": 1 }),
+        json!({ "id": "A-1", "withdrawn": 5 }),
     ] {
         let error = read_value(&document).expect_err("the record is refused");
 
@@ -337,4 +337,92 @@ fn a_missing_file_cannot_be_read_and_is_named() {
     let message = error.to_string();
     assert!(message.contains("absent.json"), "{message}");
     assert!(message.contains("cannot read the input"), "{message}");
+}
+
+// spec: OSR-9
+#[test]
+fn an_event_of_an_unknown_kind_is_an_invalid_record() {
+    for events in [
+        json!([{ "introduced": "0" }, { "fixed_in": "1.2.0" }]),
+        json!([{ "introduced": "0" }, {}]),
+    ] {
+        let error = read_value(&record(&json!([package(
+            "crates.io",
+            "a",
+            &json!([{ "type": "SEMVER", "events": events }]),
+        )])))
+        .expect_err("the record is refused");
+
+        assert!(
+            matches!(error.cause, Cause::Invalid(_)),
+            "{events}: {error}"
+        );
+    }
+}
+
+// spec: OSR-9
+#[test]
+fn a_field_that_appears_twice_is_an_invalid_record() {
+    let (_dir, path) = file("record.json", r#"{"id":"A-1","id":"B-2"}"#);
+
+    let error = read_record(&path).expect_err("the record is refused");
+
+    assert!(matches!(error.cause, Cause::Invalid(_)), "{error}");
+}
+
+// spec: OSR-9
+#[test]
+fn a_shape_error_reports_its_position() {
+    let (_dir, path) = file("record.json", r#"{"id":"A-1","aliases":"CVE-1"}"#);
+
+    let error = read_record(&path).expect_err("the record is refused");
+
+    assert!(error.to_string().contains("column"), "{error}");
+}
+
+// spec: OSR-8, OSR-9
+#[test]
+fn an_unsupported_schema_version_comes_before_a_shape_error() {
+    let error = read_value(&json!({ "id": 7, "schema_version": "2.0.0" }))
+        .expect_err("the record is refused");
+
+    assert_eq!(
+        error.cause,
+        Cause::UnsupportedSchemaVersion("2.0.0".to_owned())
+    );
+}
+
+// spec: OSR-5, OSR-8
+#[test]
+fn a_schema_version_or_a_limit_that_is_not_a_string_is_ignored() {
+    let mut document = record(&json!([package(
+        "crates.io",
+        "a",
+        &json!([{ "type": "SEMVER", "events": [{ "introduced": "0" }, { "limit": 7 }] }]),
+    )]));
+    document["schema_version"] = json!(1);
+
+    let vulnerability = read_value(&document).expect("the record is read");
+
+    assert_eq!(
+        vulnerability.affected[0].ranges,
+        [semver(vec![introduced("0")])]
+    );
+}
+
+// spec: OSR-4
+#[test]
+fn a_null_withdrawn_is_not_withdrawn() {
+    let mut document = record(&json!([]));
+    document["withdrawn"] = Value::Null;
+
+    assert!(!read_value(&document).expect("the record is read").withdrawn);
+}
+
+// spec: OSR-4
+#[test]
+fn an_id_opening_with_a_dash_is_its_own_source() {
+    let vulnerability = read_value(&json!({ "id": "-2099-1" })).expect("the record is read");
+
+    assert_eq!(vulnerability.source, "-2099-1");
 }

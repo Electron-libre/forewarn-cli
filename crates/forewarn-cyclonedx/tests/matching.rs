@@ -16,7 +16,7 @@ fn matches_the_crates_of_a_cargo_cyclonedx_sbom() {
     let itoa = Vulnerability {
         id: "TEST-0001".into(),
         aliases: vec!["CVE-0000-0001".into()],
-        source: "OSV".into(),
+        source: "RUSTSEC".into(),
         withdrawn: false,
         affected: vec![AffectedPackage {
             ecosystem: "crates.io".into(),

@@ -105,3 +105,18 @@ fn a_missing_directory_cannot_be_read_and_is_named() {
         "{error}"
     );
 }
+
+// spec: OSR-3
+#[cfg(unix)]
+#[test]
+fn a_dangling_link_fails_the_directory_naming_it() {
+    let dir = TempDir::new().expect("a temporary directory");
+    copy_fixture(&dir, "RUSTSEC-2020-0071.json");
+    let link = dir.path().join("GHSA-x.json");
+    std::os::unix::fs::symlink(dir.path().join("absent"), &link).expect("linked");
+
+    let error = read_directory(dir.path()).expect_err("the directory is refused");
+
+    assert!(matches!(error.cause, Cause::Io(_)), "{error}");
+    assert_eq!(error.path, link);
+}

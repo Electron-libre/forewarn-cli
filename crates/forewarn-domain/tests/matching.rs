@@ -43,7 +43,7 @@ fn vulnerability(id: &str, ecosystem: &str, name: &str, ranges: Vec<Range>) -> V
     Vulnerability {
         id: id.into(),
         aliases: vec![],
-        source: "OSV".into(),
+        source: "RUSTSEC".into(),
         withdrawn: false,
         affected: vec![AffectedPackage {
             ecosystem: ecosystem.into(),
@@ -98,7 +98,7 @@ fn reports_a_crate_in_a_vulnerable_range() {
             },
             vulnerability_id: "RUSTSEC-2020-0071".into(),
             aliases: vec!["CVE-2020-26235".into(), "GHSA-wcg3-cvx6-7396".into()],
-            source: "OSV".into(),
+            source: "RUSTSEC".into(),
         }]
     );
     assert_eq!(report.not_evaluated(), []);
@@ -147,7 +147,7 @@ fn reports_each_pair_with_the_component_and_the_vulnerability() {
     );
     assert_eq!(
         (found.vulnerability_id.as_str(), found.source.as_str()),
-        ("RUSTSEC-0000-0001", "OSV")
+        ("RUSTSEC-0000-0001", "RUSTSEC")
     );
 }
 

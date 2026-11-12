@@ -58,16 +58,30 @@ pub fn read_record(path: &Path) -> Result<Vulnerability, ReadError> {
         cause,
     };
     let bytes = fs::read(path).map_err(|e| error(Cause::Io(e.to_string())))?;
-    let document: Value =
-        serde_json::from_slice(&bytes).map_err(|e| error(Cause::NotJson(e.to_string())))?;
-    if let Some(Value::String(version)) = document.get("schema_version")
-        && version.split('.').next() != Some("1")
-    {
-        return Err(error(Cause::UnsupportedSchemaVersion(version.clone())));
+    match serde_json::from_slice::<Record>(&bytes) {
+        Ok(record) => {
+            check_schema_version(record.schema_version.as_ref()).map_err(error)?;
+            Ok(record.into())
+        }
+        // A shape error: the schema version, when the document is JSON, is the cause that comes first.
+        Err(shape) if shape.is_data() => {
+            let document: Value =
+                serde_json::from_slice(&bytes).map_err(|e| error(Cause::NotJson(e.to_string())))?;
+            check_schema_version(document.get("schema_version")).map_err(error)?;
+            Err(error(Cause::Invalid(shape.to_string())))
+        }
+        Err(syntax) => Err(error(Cause::NotJson(syntax.to_string()))),
     }
-    let record: Record =
-        serde_json::from_value(document).map_err(|e| error(Cause::Invalid(e.to_string())))?;
-    Ok(record.into())
+}
+
+/// Refuses a `schema_version` string whose major is not 1; any other value is not read.
+fn check_schema_version(version: Option<&Value>) -> Result<(), Cause> {
+    match version {
+        Some(Value::String(version)) if version.split('.').next() != Some("1") => {
+            Err(Cause::UnsupportedSchemaVersion(version.clone()))
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Reads the OSV records of a directory laid out as an OSV ecosystem archive: each file directly in it whose name
@@ -87,11 +101,20 @@ pub fn read_directory(path: &Path) -> Result<Vec<Vulnerability>, ReadError> {
         let is_json = file
             .file_name()
             .is_some_and(|name| name.as_encoded_bytes().ends_with(b".json"));
-        if is_json && file.is_file() {
+        if !is_json {
+            continue;
+        }
+        // Follows a link, so that a dangling one fails naming its file rather than being skipped.
+        let metadata = fs::metadata(&file).map_err(|e| ReadError {
+            path: file.clone(),
+            cause: Cause::Io(e.to_string()),
+        })?;
+        if metadata.is_file() {
             files.push(file);
         }
     }
-    files.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+    // The files share one parent: ordering the paths orders their names.
+    files.sort();
     files.iter().map(|file| read_record(file)).collect()
 }
 
@@ -99,13 +122,9 @@ pub fn read_directory(path: &Path) -> Result<Vec<Vulnerability>, ReadError> {
 #[derive(Deserialize)]
 struct Record {
     id: String,
-    #[expect(
-        dead_code,
-        reason = "read for its type only: its major is checked on the JSON value"
-    )]
-    schema_version: Option<String>,
+    schema_version: Option<Value>,
     aliases: Option<Vec<String>>,
-    withdrawn: Option<Value>,
+    withdrawn: Option<String>,
     affected: Option<Vec<Affected>>,
 }
 
@@ -137,17 +156,39 @@ enum OsvRangeKind {
     Git,
 }
 
-/// An event holds one of these keys; `limit` is read only to be ignored.
+/// The domain events of an OSV event: none for a `limit` event, which the domain does not read.
 #[derive(Deserialize)]
-struct OsvEvent {
+#[serde(try_from = "RawEvent")]
+struct OsvEvent(Vec<Event>);
+
+#[derive(Deserialize)]
+struct RawEvent {
     introduced: Option<String>,
     fixed: Option<String>,
     last_affected: Option<String>,
-    #[expect(
-        dead_code,
-        reason = "read for its type only: a `limit` event is skipped"
-    )]
-    limit: Option<String>,
+    limit: Option<Value>,
+}
+
+impl TryFrom<RawEvent> for OsvEvent {
+    type Error = &'static str;
+
+    /// Refuses an event of no known kind: dropped, it could leave a range open to every later version.
+    fn try_from(raw: RawEvent) -> Result<Self, Self::Error> {
+        let events: Vec<Event> = [
+            raw.introduced.map(Event::Introduced),
+            raw.fixed.map(Event::Fixed),
+            raw.last_affected.map(Event::LastAffected),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        if events.is_empty() && raw.limit.is_none() {
+            return Err(
+                "an event holds none of `introduced`, `fixed`, `last_affected` and `limit`",
+            );
+        }
+        Ok(Self(events))
+    }
 }
 
 impl From<Record> for Vulnerability {
@@ -155,7 +196,9 @@ impl From<Record> for Vulnerability {
         let source = record
             .id
             .split_once('-')
-            .map_or(record.id.as_str(), |(prefix, _)| prefix)
+            .map(|(prefix, _)| prefix)
+            .filter(|prefix| !prefix.is_empty())
+            .unwrap_or(&record.id)
             .to_owned();
         Self {
             source,
@@ -197,14 +240,7 @@ fn range(range: OsvRange) -> Range {
         .events
         .unwrap_or_default()
         .into_iter()
-        .flat_map(|event| {
-            [
-                event.introduced.map(Event::Introduced),
-                event.fixed.map(Event::Fixed),
-                event.last_affected.map(Event::LastAffected),
-            ]
-        })
-        .flatten()
+        .flat_map(|OsvEvent(events)| events)
         .collect();
     Range { kind, events }
 }
