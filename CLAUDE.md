@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Early proof of concept. The CycloneDX adapter reads a JSON SBOM into the domain types (`specs/sbom-reading.md`); the
 domain lists the components missing a supplier, a license or a hash (`specs/sbom-completeness.md`); `forewarn check`
 prints both (`specs/cli-check.md`). The domain also matches components against OSV-shaped vulnerabilities by package
-URL and version (`specs/vulnerability-matching.md`); the OSV adapter reads OSV record files into those vulnerabilities
-(`specs/osv-reading.md`, ADR [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)); no command uses them
-yet.
+URL and version (`specs/vulnerability-matching.md`); the OSV adapter reads an OSV record file, or a directory of them
+(an extracted ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
+[0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)); no command uses them yet.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 

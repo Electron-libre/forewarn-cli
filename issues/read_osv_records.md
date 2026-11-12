@@ -49,8 +49,8 @@ out of scope. Own `serde` model rather than the `osv` crate (measured: closed ec
 1. [x] Read one record: crate `forewarn-osv` (workspace member, ADR 0003, spec draft), `serde` model and mapping,
    real fixtures (crates.io and npm advisories with a CVE alias, a withdrawn record, a `last_affected` record);
    verified by tests in `crates/forewarn-osv/tests/`; makes true OSR-1, OSR-4, OSR-5, OSR-6, OSR-8, OSR-9 and OSR-H1. (autonomous)
-2. [ ] Read a directory: the `.json` files of a directory in file-name order, errors naming the file; verified by
-   tests on temp directories; makes true OSR-2, OSR-3, OSR-7 and OSR-H2, spec `accepted`.
+2. [x] Read a directory: the `.json` files of a directory in file-name order, errors naming the file; verified by
+   tests on temp directories; makes true OSR-2, OSR-3, OSR-7 and OSR-H2, spec `accepted`. (autonomous)
 3. [ ] Docs and the fixes of the `high` review of the whole issue (CLAUDE.md layout, README, ADR 0003 accepted).
 
 ## Decisions
@@ -66,5 +66,13 @@ out of scope. Own `serde` model rather than the `osv` crate (measured: closed ec
 - red: OSR-H1, OSR-1, OSR-4, OSR-5, OSR-6, OSR-8, OSR-9: `unresolved imports forewarn_osv::Cause,
   forewarn_osv::ReadError, forewarn_osv::read_record`.
 - Code review: 1 finding: directory reading (OSR-2, OSR-3, OSR-7) is missing; not fixed here, it is deliverable 2.
+- not verified: none.
+- decisions needed: none.
+
+## Deliverable 2: read a directory
+- done: `read_directory(path)` reads the `.json` files of a directory in file-name byte order, errors naming the file;
+  spec `accepted`.
+- red: OSR-H2, OSR-2, OSR-3, OSR-7, OSR-9: `unresolved import forewarn_osv::read_directory`.
+- Code review: no findings.
 - not verified: none.
 - decisions needed: none.

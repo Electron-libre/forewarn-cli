@@ -70,6 +70,31 @@ pub fn read_record(path: &Path) -> Result<Vulnerability, ReadError> {
     Ok(record.into())
 }
 
+/// Reads the OSV records of a directory laid out as an OSV ecosystem archive: each file directly in it whose name
+/// ends in `.json`, in the byte order of the file names; its subdirectories and its other files are ignored.
+///
+/// # Errors
+///
+/// A [`ReadError`] naming the directory when it cannot be listed, else the first file whose record cannot be read.
+pub fn read_directory(path: &Path) -> Result<Vec<Vulnerability>, ReadError> {
+    let io_error = |e: std::io::Error| ReadError {
+        path: path.to_path_buf(),
+        cause: Cause::Io(e.to_string()),
+    };
+    let mut files = Vec::new();
+    for entry in fs::read_dir(path).map_err(io_error)? {
+        let file = entry.map_err(io_error)?.path();
+        let is_json = file
+            .file_name()
+            .is_some_and(|name| name.as_encoded_bytes().ends_with(b".json"));
+        if is_json && file.is_file() {
+            files.push(file);
+        }
+    }
+    files.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+    files.iter().map(|file| read_record(file)).collect()
+}
+
 /// The fields of an OSV record the domain reads; every other field is ignored.
 #[derive(Deserialize)]
 struct Record {

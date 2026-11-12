@@ -1,6 +1,6 @@
 ---
 id: OSR
-status: draft
+status: accepted
 adrs: [0001, 0003]
 ---
 
