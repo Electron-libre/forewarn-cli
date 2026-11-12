@@ -31,6 +31,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [fetch_osv_records](issues/done/fetch_osv_records.md)
   - [cli_list_affected_components](issues/cli_list_affected_components.md)
   - [group_matches_of_one_vulnerability](issues/group_matches_of_one_vulnerability.md)
+  - [query_the_osv_api](issues/query_the_osv_api.md)
 
 ## Flag actively exploited vulnerabilities (KEV, EUVD)
 
