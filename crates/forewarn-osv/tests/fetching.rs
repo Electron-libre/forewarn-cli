@@ -22,6 +22,8 @@ struct Response {
     status: u16,
     headers: Vec<(&'static str, &'static str)>,
     body: Vec<u8>,
+    /// How long the server waits before answering.
+    delay: Duration,
 }
 
 fn ok(body: Vec<u8>) -> Response {
@@ -29,6 +31,7 @@ fn ok(body: Vec<u8>) -> Response {
         status: 200,
         headers: Vec::new(),
         body,
+        delay: Duration::ZERO,
     }
 }
 
@@ -67,7 +70,9 @@ impl Server {
                     status: 404,
                     headers: Vec::new(),
                     body: b"not found".to_vec(),
+                    delay: Duration::ZERO,
                 });
+                thread::sleep(response.delay);
                 let mut reply = format!(
                     "HTTP/1.1 {} X\r\nContent-Length: {}\r\nConnection: close\r\n",
                     response.status,
@@ -148,6 +153,7 @@ fn archives(cache: &Path, server: &Server, refresh: Refresh) -> Archives {
         cache: cache.to_path_buf(),
         base_url: server.base.clone(),
         refresh,
+        lock_wait: Duration::from_secs(60),
     }
 }
 
@@ -301,6 +307,7 @@ fn a_failed_download_keeps_the_former_snapshot() {
             status: 503,
             headers: Vec::new(),
             body: b"unavailable".to_vec(),
+            delay: Duration::ZERO,
         },
     );
 
@@ -362,6 +369,7 @@ fn an_unreachable_server_fails_with_cannot_download() {
         // A port nothing listens on: the connection is refused.
         base_url: "http://127.0.0.1:1".to_owned(),
         refresh: Refresh::IfMissing,
+        lock_wait: Duration::from_secs(60),
     };
 
     let error = unreachable
@@ -660,7 +668,7 @@ fn what_a_stopped_download_left_is_cleared() {
         .map(|entry| entry.expect("an entry").file_name())
         .collect();
     left.sort();
-    assert_eq!(left, ["crates.io"]);
+    assert_eq!(left, [".lock-crates.io", "crates.io"]);
 }
 
 // spec: OSR-11
@@ -682,4 +690,206 @@ fn each_download_records_the_time_it_started() {
 
     assert_eq!(snapshots[0].freshness.downloaded_at, at(1_000));
     assert_eq!(snapshots[1].freshness.downloaded_at, at(2_000));
+}
+
+/// Locks the lock file of an ecosystem as another run would, until the returned file is dropped.
+fn hold_lock(cache: &Path, ecosystem: &str) -> fs::File {
+    fs::create_dir_all(cache).expect("the cache");
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(cache.join(format!(".lock-{ecosystem}")))
+        .expect("the lock file");
+    file.lock().expect("the lock");
+    file
+}
+
+/// Waits until the server has received `count` requests.
+fn wait_for_requests(server: &Server, count: usize) {
+    for _ in 0..500 {
+        if server.requests().len() >= count {
+            return;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    panic!("{count} requests expected, got {:?}", server.requests());
+}
+
+// spec: OSR-H5, OSR-19
+#[test]
+fn a_second_run_waits_for_the_first_and_reads_its_snapshot() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route(
+        "/crates.io/all.zip",
+        Response {
+            delay: Duration::from_millis(500),
+            ..ok(crates_io_archive())
+        },
+    );
+    let (first, second) = (
+        archives(cache.path(), &server, Refresh::IfMissing),
+        archives(cache.path(), &server, Refresh::IfMissing),
+    );
+
+    let first = thread::spawn(move || first.fetch(&["crates.io"], || at(1_000)));
+    wait_for_requests(&server, 1);
+    let second = thread::spawn(move || second.fetch(&["crates.io"], || at(2_000)));
+    let first = first.join().expect("the first run").expect("fetched");
+    let second = second.join().expect("the second run").expect("fetched");
+
+    assert_eq!(server.requests(), ["GET /crates.io/all.zip"]);
+    assert_eq!(second, first);
+}
+
+// spec: OSR-20
+#[test]
+fn runs_fetching_different_ecosystems_do_not_wait_for_each_other() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/npm/all.zip", ok(npm_archive()));
+    let _crates_io = hold_lock(cache.path(), "crates.io");
+    let npm = Archives {
+        lock_wait: Duration::ZERO,
+        ..archives(cache.path(), &server, Refresh::IfMissing)
+    };
+
+    let snapshots = npm
+        .fetch(&["npm"], || at(1_000))
+        .expect("npm does not wait for crates.io");
+
+    assert_eq!(ids(&snapshots[0]), ["GHSA-35jh-r3h4-6jhm"]);
+}
+
+/// The variable naming the lock file the helper process below locks before it waits to be killed.
+const HOLDER_LOCK: &str = "FOREWARN_TEST_HOLD_LOCK";
+
+/// Not a test of its own: run as a child process by the test of OSR-21, it holds a lock until it is killed.
+#[test]
+fn lock_holder_process() {
+    let Some(path) = std::env::var_os(HOLDER_LOCK) else {
+        return;
+    };
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(path)
+        .expect("the lock file");
+    file.lock().expect("the lock");
+    println!("locked");
+    std::io::stdout().flush().expect("flushed");
+    thread::sleep(Duration::from_secs(600));
+}
+
+// spec: OSR-21
+#[test]
+fn a_lock_left_by_a_killed_run_does_not_block() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    let mut holder = std::process::Command::new(std::env::current_exe().expect("the test binary"))
+        .args([
+            "--exact",
+            "lock_holder_process",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(HOLDER_LOCK, cache.path().join(".lock-crates.io"))
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("the holder starts");
+    let mut output = std::io::BufReader::new(holder.stdout.take().expect("its output"));
+    let mut line = String::new();
+    while !line.contains("locked") {
+        line.clear();
+        assert_ne!(
+            std::io::BufRead::read_line(&mut output, &mut line).expect("a line"),
+            0,
+            "the holder ended before locking"
+        );
+    }
+    holder.kill().expect("the holder is killed");
+    holder.wait().expect("the holder ends");
+    let after = Archives {
+        lock_wait: Duration::ZERO,
+        ..archives(cache.path(), &server, Refresh::IfMissing)
+    };
+
+    let snapshots = after
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the lock of the killed run does not block");
+
+    assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
+}
+
+// spec: OSR-22, OSR-18
+#[test]
+fn a_run_waiting_longer_than_its_bound_fails_with_cache_locked() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    let before = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    let held = hold_lock(cache.path(), "crates.io");
+    let waiting = Archives {
+        lock_wait: Duration::from_millis(300),
+        ..archives(cache.path(), &server, Refresh::Always)
+    };
+
+    let error = waiting
+        .fetch(&["crates.io"], || at(2_000))
+        .expect_err("the fetch gives up");
+
+    assert_eq!(
+        error,
+        FetchError {
+            ecosystem: "crates.io".to_owned(),
+            cause: FetchCause::Locked {
+                waited: Duration::from_millis(300)
+            },
+        }
+    );
+    assert!(
+        error.to_string().contains("cache locked by another run"),
+        "{error}"
+    );
+    assert_eq!(server.requests().len(), 1);
+    drop(held);
+    let after = archives(cache.path(), &server, Refresh::Offline)
+        .fetch(&["crates.io"], || at(3_000))
+        .expect("the snapshot is kept");
+    assert_eq!(after, before);
+}
+
+// spec: OSR-22
+#[test]
+fn the_default_wait_is_40_minutes() {
+    let archives = Archives::new(PathBuf::from("cache"), Refresh::IfMissing);
+
+    assert_eq!(archives.lock_wait, Duration::from_secs(40 * 60));
+}
+
+// spec: OSR-23
+#[cfg(unix)]
+#[test]
+fn an_offline_run_reads_a_cache_it_cannot_write_in() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    let filled = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    fs::remove_file(cache.path().join(".lock-crates.io")).expect("no lock file");
+    fs::set_permissions(cache.path(), fs::Permissions::from_mode(0o555)).expect("read-only");
+
+    let read =
+        archives(cache.path(), &server, Refresh::Offline).fetch(&["crates.io"], || at(2_000));
+
+    fs::set_permissions(cache.path(), fs::Permissions::from_mode(0o755)).expect("writable");
+    assert_eq!(read.expect("the snapshot is read"), filled);
 }

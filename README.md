@@ -38,7 +38,8 @@ record with its source, apart from the components it could not evaluate (no pack
 whose ranges are not compared yet), how many are clean, and how fresh the OSV data is; `--format json` and `--allow-affected` work as for `check`. Only the
 names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from the OSV bucket (`--osv-url` for a
 mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--cache` for another), again once a day
-(`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). It exits with 1 when a component is
+(`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). Two runs that share a cache on one machine
+wait for each other, at most 40 minutes per ecosystem. It exits with 1 when a component is
 affected, 5 when the OSV records cannot be read or fetched, and otherwise as `check` does.
 
 ## License

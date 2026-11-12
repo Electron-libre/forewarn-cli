@@ -1,7 +1,7 @@
 ---
 id: OSR
 status: accepted
-adrs: [0001, 0003, 0004]
+adrs: [0001, 0003, 0004, 0005]
 ---
 
 # OSV reading
@@ -28,6 +28,11 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
   archive was downloaded, the URL it was downloaded from, and the `Last-Modified` header of that download when the
   server sent one.
 - **OSR-12** (deterministic) Fetching under the policy `offline` must send no request.
+- **OSR-19** (deterministic) A fetch of an ecosystem that another fetch into the same cache is handling must wait
+  until that fetch is done with the ecosystem, then read its snapshot or download its archive as OSR-13 says.
+- **OSR-20** (deterministic) Fetches of two different ecosystems into the same cache must not wait for each other.
+- **OSR-21** (deterministic) A fetch stopped before it was done with an ecosystem (a killed process) must not make a
+  later fetch of that ecosystem wait.
 
 ### Contract
 
@@ -90,11 +95,16 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
   |---|---|
   | the ecosystem name is refused (OSR-17) | invalid ecosystem name, quoting it |
   | the policy is `offline` and the cache holds no snapshot of the ecosystem | not cached |
+  | another fetch still handles the ecosystem once the wait of OSR-22 is over | cache locked by another run, with the time waited |
   | the server cannot be reached, or answers with a status other than 200 | cannot download, with the URL and the reason or the status |
   | the archive is not a zip archive | not a zip archive, with the reason |
   | an entry of the archive has an absolute name, a name holding `\`, or a name with a `..` component | unsafe archive entry, quoting its name |
   | a record of the archive cannot be read (OSR-9) | the error of OSR-9, naming the entry |
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
+- **OSR-22** (deterministic) A fetch must wait for another fetch of the same ecosystem (OSR-19) at most the time the
+  caller gives, 40 minutes unless the caller gives another, then fail with the error of OSR-18.
+- **OSR-23** (deterministic) Fetching under `offline` must read the snapshots of a cache in which it cannot write,
+  without waiting for another fetch.
 
 ## Scenarios
 
@@ -109,6 +119,9 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
   returned, and each ecosystem carries its download time and URL, `crates.io` its `Last-Modified`.
 - **OSR-H4** (happy; OSR-12, OSR-15) Given a cache filled by a fetch of `crates.io`, when `crates.io` is fetched
   under `offline`, then no request is sent and the same vulnerabilities and freshness are returned.
+- **OSR-H5** (happy; OSR-19, OSR-13) Given a run fetching `crates.io` into a cache, when a second run fetches
+  `crates.io` into it under `if-missing` at the same time, then the second sends no request until the first is done,
+  and returns the snapshot the first stored without downloading it again.
 - (OSR-4) Given a GitHub advisory `GHSA-…` of an npm package, when it is read, then its source is `GHSA`.
 - (OSR-4) Given a record with a `last_affected` event, when it is read, then the range carries that event.
 - (OSR-5) Given a record with an affected entry holding only `ranges` of type `GIT` and no `package`, when it is
@@ -136,6 +149,14 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
   taken as no snapshot and the archive is downloaded again.
 - (OSR-16) Given a run stopped after setting the former snapshot aside and before putting the new one in place, when
   the ecosystem is fetched again, then the former snapshot is put back first.
+- (OSR-20) Given a run fetching `crates.io` into a cache, when a second run fetches `npm` into it, then the second
+  does not wait for the first.
+- (OSR-21) Given a run killed while it fetched `crates.io`, when `crates.io` is fetched again, then it does not wait.
+- (OSR-22, OSR-18) Given a run fetching `crates.io` for longer than the wait the caller gives, when a second run
+  fetches `crates.io`, then it fails with "cache locked by another run" naming `crates.io`, and the cache keeps its
+  snapshot.
+- (OSR-23) Given a snapshot of `crates.io` in a cache directory the run cannot write in, when `crates.io` is fetched
+  under `offline`, then its snapshot is returned.
 - (OSR-13, OSR-18) Given an empty cache, when `npm` is fetched under `offline`, then it fails with "not cached"
   naming `npm`.
 - (OSR-16, OSR-18) Given a snapshot of `crates.io` in the cache and a server answering 503, when it is fetched under
@@ -158,7 +179,10 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
   CI; the archives send only ecosystem names.
 - The command-line flags, the default cache directory and the default refresh policy: the CLI wires them.
 - Conditional requests (`If-None-Match`, `If-Modified-Since`) and resumed downloads.
-- Sharing one cache between runs that fetch the same ecosystem at the same time.
+- Waiting for a fetch of another machine through a cache on a network file system, where the advisory locks of
+  ADR 0005 are not guaranteed.
+- Saying that a fetch waits: the caller decides whether to tell the user.
+- An `offline` fetch reading a snapshot that a writing fetch replaces at that moment, in a cache it cannot write in.
 - Reading a zip archive other than one fetched: a local archive is extracted by the user and read as a directory.
 - The fields the matching does not use (`summary`, `details`, `severity`, `references`, `credits`,
   `database_specific`, `ecosystem_specific`, `published`, `modified`, `related`, `upstream`).

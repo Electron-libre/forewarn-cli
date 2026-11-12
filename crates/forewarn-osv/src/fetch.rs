@@ -2,10 +2,11 @@
 //! snapshot it holds (`specs/osv-reading.md`, ADR 0004). A request names only the ecosystem, never a package.
 
 use std::fmt;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime};
 
 use forewarn_domain::vulnerability::Vulnerability;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,13 @@ pub const OSV_ARCHIVES: &str = "https://osv-vulnerabilities.storage.googleapis.c
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(60);
 const BODY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
+/// How long a fetch waits by default for another fetch of the same ecosystem: longer than the timeouts of a download
+/// allow, so that it outlasts any live download (OSR-22, ADR 0005).
+pub const DEFAULT_LOCK_WAIT: Duration = Duration::from_secs(40 * 60);
+
+/// How often a waiting fetch tries the lock again.
+const LOCK_POLL: Duration = Duration::from_millis(200);
 
 /// The file of a snapshot directory holding its freshness; its name does not end in `.json`, so reading the records
 /// skips it.
@@ -45,6 +53,9 @@ pub struct Archives {
     /// The URL the archives are downloaded from, [`OSV_ARCHIVES`] by default.
     pub base_url: String,
     pub refresh: Refresh,
+    /// How long a fetch waits for another fetch of the same ecosystem into this cache, [`DEFAULT_LOCK_WAIT`] by
+    /// default (OSR-22).
+    pub lock_wait: Duration,
 }
 
 /// The records of one ecosystem and how fresh they are.
@@ -80,6 +91,8 @@ pub enum FetchCause {
     InvalidName,
     /// The policy is [`Refresh::Offline`] and the cache holds no snapshot of the ecosystem.
     NotCached,
+    /// Another fetch still handles the ecosystem in this cache once the wait is over (OSR-22).
+    Locked { waited: Duration },
     /// The server cannot be reached or does not answer 200.
     Download { url: String, reason: String },
     /// The download is not a zip archive; the reason of the reader.
@@ -102,6 +115,9 @@ impl fmt::Display for FetchError {
                 self.ecosystem
             ),
             FetchCause::NotCached => write!(f, "not cached, and the refresh policy is offline"),
+            FetchCause::Locked { waited } => {
+                write!(f, "cache locked by another run, waited {waited:?}")
+            }
             FetchCause::Download { url, reason } => write!(f, "cannot download {url}: {reason}"),
             FetchCause::NotZip(reason) => write!(f, "not a zip archive: {reason}"),
             FetchCause::UnsafeEntry(name) => write!(f, "unsafe archive entry {name:?}"),
@@ -121,6 +137,7 @@ impl Archives {
             cache,
             base_url: OSV_ARCHIVES.to_owned(),
             refresh,
+            lock_wait: DEFAULT_LOCK_WAIT,
         }
     }
 
@@ -166,6 +183,8 @@ impl Archives {
         if !is_valid_name(ecosystem) {
             return Err(FetchCause::InvalidName);
         }
+        // Held until the fetch is done with the ecosystem: a second run waits for it (OSR-19).
+        let _lock = self.lock(ecosystem)?;
         let directory = self.cache.join(ecosystem);
         let scratch = |kind: &str| self.cache.join(format!(".{kind}-{ecosystem}"));
         let former = scratch("former");
@@ -197,7 +216,7 @@ impl Archives {
                     staging: Scratch(scratch("staging")),
                     former: Scratch(former),
                 };
-                let (freshness, vulnerabilities) = download.run(&self.cache, &directory, now)?;
+                let (freshness, vulnerabilities) = download.run(&directory, now)?;
                 return Ok(Snapshot {
                     ecosystem: ecosystem.to_owned(),
                     freshness,
@@ -211,11 +230,48 @@ impl Archives {
             freshness,
         })
     }
+
+    /// Takes the lock of an ecosystem, `.lock-<ecosystem>` in the cache, waiting at most `lock_wait` for another
+    /// fetch to release it (ADR 0005); the system releases it when the returned file is closed or the process ends.
+    /// Under `offline`, a cache the lock file cannot be created in is read without it (OSR-23).
+    fn lock(&self, ecosystem: &str) -> Result<Option<File>, FetchCause> {
+        let path = self.cache.join(format!(".lock-{ecosystem}"));
+        let offline = self.refresh == Refresh::Offline;
+        if !offline {
+            fs::create_dir_all(&self.cache).map_err(|e| cache_error(&e))?;
+        }
+        let opened = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(&path);
+        let file = match opened {
+            Ok(file) => file,
+            Err(_) if offline => return Ok(None),
+            Err(e) => return Err(cache_error(&e)),
+        };
+        let deadline = Instant::now() + self.lock_wait;
+        loop {
+            match file.try_lock() {
+                Ok(()) => return Ok(Some(file)),
+                Err(TryLockError::WouldBlock) => {
+                    let left = deadline.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        return Err(FetchCause::Locked {
+                            waited: self.lock_wait,
+                        });
+                    }
+                    thread::sleep(left.min(LOCK_POLL));
+                }
+                Err(TryLockError::Error(e)) => return Err(cache_error(&e)),
+            }
+        }
+    }
 }
 
 /// The download of the archive of an ecosystem, and the paths of the cache it goes through. Their names start with
-/// `.`, which no ecosystem name does; one run at a time uses them (concurrent runs are a non-goal), so that a run
-/// clears what a stopped one left.
+/// `.`, which no ecosystem name does; the lock of the ecosystem keeps them to one run at a time (ADR 0005), so that a
+/// run clears what a stopped one left.
 struct Download<'a> {
     agent: &'a ureq::Agent,
     url: String,
@@ -229,11 +285,9 @@ impl Download<'_> {
     /// `now` is the time recorded for the download.
     fn run(
         self,
-        cache: &Path,
         directory: &Path,
         now: SystemTime,
     ) -> Result<(Freshness, Vec<Vulnerability>), FetchCause> {
-        fs::create_dir_all(cache).map_err(|e| cache_error(&e))?;
         self.staging.clear()?;
         fs::create_dir(&self.staging.0).map_err(|e| cache_error(&e))?;
         let last_modified = get(self.agent, &self.url, &self.archive.0)?;

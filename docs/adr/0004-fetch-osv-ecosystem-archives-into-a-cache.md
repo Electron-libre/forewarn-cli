@@ -42,7 +42,8 @@ The OSV API is not used; querying it, which sends the package URLs out, would be
   connect, 60 s for the response and 30 min for the body, so that a stalled server fails the fetch rather than the CI
   job hanging.
 - One run at a time uses a cache: the scratch paths of a download are named after the ecosystem only, so that a run
-  clears what a stopped one left and puts back a snapshot it left aside.
+  clears what a stopped one left and puts back a snapshot it left aside. ADR 0005 locks each ecosystem so that
+  concurrent runs wait for each other.
 - One unreadable record of an archive fails the fetch of its ecosystem, as `read_directory` does: the former snapshot
   stays usable.
 - The domain stays free of I/O: the CLI derives the ecosystems from the SBOM and passes the vulnerabilities to the
