@@ -10,13 +10,13 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Goal: `rollcall` reads a CycloneDX SBOM (JSON), accepts 1.6 and 1.7, flags older versions, and reports the components
   missing the fields the CRA expects (supplier, license, hashes).
 - Why: every later step works on the parsed components, and an incomplete SBOM is the first gap a vendor must close.
-- State: in issues
+- State: done
 - Issues:
   - [bootstrap_cargo_workspace](issues/done/bootstrap_cargo_workspace.md)
   - [read_cyclonedx_sbom](issues/done/read_cyclonedx_sbom.md)
   - [check_sbom_completeness](issues/done/check_sbom_completeness.md)
   - [cli_check_command](issues/done/cli_check_command.md)
-  - [count_a_supplier_given_without_a_name](issues/count_a_supplier_given_without_a_name.md)
+  - [count_a_supplier_given_without_a_name](issues/done/count_a_supplier_given_without_a_name.md)
 
 ## Match known vulnerabilities (OSV)
 

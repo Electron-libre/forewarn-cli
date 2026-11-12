@@ -91,7 +91,7 @@ red: SBC-4, SBC-5: `noassertion` counted as a license (left [] right [License]);
 High review findings:
 1. Streebog-256/512 missing from the 1.7 enumeration: fixed (checked on the official 1.7 schema).
 2. Supplier or author with only a URL or an email is dropped by the adapter: outside SBC, filed as
-   `issues/count_a_supplier_given_without_a_name.md`.
+   `issues/done/count_a_supplier_given_without_a_name.md`.
 3. `NOASSERTION` compared with case: fixed.
 4. Algorithm list duplicated as strings rather than a typed domain enum: not fixed, SBR-5 keeps the algorithm as
    written and the list is one constant.
