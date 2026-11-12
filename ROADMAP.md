@@ -24,7 +24,12 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   components are listed with the vulnerability, its aliases (CVE) and its source.
 - Why: OSV indexes vulnerabilities by package and version range, which makes exact matching on an SBOM possible; the
   exploited lists only name CVEs.
-- State: idea
+- State: in issues
+- Issues:
+  - [match_components_against_vulnerabilities](issues/match_components_against_vulnerabilities.md)
+  - [read_osv_records](issues/read_osv_records.md)
+  - [fetch_osv_records](issues/fetch_osv_records.md)
+  - [cli_list_affected_components](issues/cli_list_affected_components.md)
 
 ## Flag actively exploited vulnerabilities (KEV, EUVD)
 
