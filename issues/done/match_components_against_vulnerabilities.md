@@ -125,7 +125,7 @@ red: VMT-5: `splits_the_version_before_the_path` failed on the former parser; VM
 High review findings (9):
 - fixed: NuGet case, Maven/Composer namespace, purl version split, equal-version event order, `GIT` range hiding a
   result, duplicated component fields and split `impl`.
-- issue: one vulnerability under several ids reported once per record → `issues/group_matches_of_one_vulnerability.md`.
+- issue: one vulnerability under several ids reported once per record → `issues/done/group_matches_of_one_vulnerability.md`.
 - not fixed: matching every component against every record (no performance requirement in the proof of concept;
   `fetch_osv_records` narrows the records to the SBOM's packages); the `purl` crate instead of the parser (settled
   at the plan validation).
@@ -140,4 +140,4 @@ decisions needed: none
 
 ## Result
 Done: the domain matches components against OSV-shaped vulnerabilities (`specs/vulnerability-matching.md` accepted).
-Left: none in this issue; grouping by alias is `issues/group_matches_of_one_vulnerability.md`.
+Left: none in this issue; grouping by alias is `issues/done/group_matches_of_one_vulnerability.md`.
