@@ -481,3 +481,109 @@ fn a_cache_that_cannot_be_written_fails_with_cannot_use_the_cache() {
         "{error}"
     );
 }
+
+// spec: OSR-H4, OSR-12, OSR-15
+#[test]
+fn a_cache_is_read_offline_without_a_request() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route(
+        "/crates.io/all.zip",
+        Response {
+            headers: vec![("Last-Modified", "Wed, 11 Nov 2026 08:00:00 GMT")],
+            ..ok(crates_io_archive())
+        },
+    );
+    let filled = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], at(1_000))
+        .expect("the archive is fetched");
+
+    let read = archives(cache.path(), &server, Refresh::Offline)
+        .fetch(&["crates.io"], at(9_000))
+        .expect("the cache is read");
+
+    assert_eq!(server.requests().len(), 1);
+    assert_eq!(read, filled);
+}
+
+// spec: OSR-12, OSR-13, OSR-18
+#[test]
+fn an_ecosystem_not_cached_fails_offline_without_a_request() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/npm/all.zip", ok(npm_archive()));
+
+    let error = fetch_error(cache.path(), &server, Refresh::Offline, "npm");
+
+    assert_eq!(error.ecosystem, "npm");
+    assert_eq!(error.cause, FetchCause::NotCached);
+    assert!(error.to_string().contains("not cached"), "{error}");
+    assert!(error.to_string().contains("npm"), "{error}");
+    assert_eq!(server.requests(), Vec::<String>::new());
+}
+
+// spec: OSR-13
+#[test]
+fn a_snapshot_older_than_the_age_is_downloaded_again() {
+    let hour = Duration::from_secs(3_600);
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], at(10_000))
+        .expect("the archive is fetched");
+    let two_hours_later = at(10_000) + 2 * hour;
+
+    let kept = archives(cache.path(), &server, Refresh::OlderThan(24 * hour))
+        .fetch(&["crates.io"], two_hours_later)
+        .expect("the snapshot is read");
+    assert_eq!(server.requests().len(), 1);
+    assert_eq!(kept[0].freshness.downloaded_at, at(10_000));
+
+    let renewed = archives(cache.path(), &server, Refresh::OlderThan(hour))
+        .fetch(&["crates.io"], two_hours_later)
+        .expect("the archive is fetched again");
+    assert_eq!(server.requests().len(), 2);
+    assert_eq!(renewed[0].freshness.downloaded_at, two_hours_later);
+}
+
+// spec: OSR-13
+#[test]
+fn an_empty_cache_is_filled_under_older_than() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+
+    let snapshots = archives(
+        cache.path(),
+        &server,
+        Refresh::OlderThan(Duration::from_secs(60)),
+    )
+    .fetch(&["crates.io"], at(1_000))
+    .expect("the archive is fetched");
+
+    assert_eq!(server.requests().len(), 1);
+    assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
+}
+
+// spec: OSR-13
+#[test]
+fn a_snapshot_dated_after_now_is_not_downloaded_again() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], at(5_000))
+        .expect("the archive is fetched");
+
+    // A clock set back: the snapshot is not older than the age.
+    archives(
+        cache.path(),
+        &server,
+        Refresh::OlderThan(Duration::from_secs(60)),
+    )
+    .fetch(&["crates.io"], at(1_000))
+    .expect("the snapshot is read");
+
+    assert_eq!(server.requests().len(), 1);
+}

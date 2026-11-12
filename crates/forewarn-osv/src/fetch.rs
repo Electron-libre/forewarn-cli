@@ -6,7 +6,7 @@ use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use forewarn_domain::vulnerability::Vulnerability;
 use serde::{Deserialize, Serialize};
@@ -23,8 +23,12 @@ const FRESHNESS_FILE: &str = "forewarn-freshness";
 /// When to download the archive of an ecosystem again (OSR-13).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refresh {
+    /// Never: the cache only, and no request.
+    Offline,
     /// When the cache holds no snapshot of it.
     IfMissing,
+    /// When the cache holds no snapshot of it, or one downloaded more than this long before now.
+    OlderThan(Duration),
     /// Always.
     Always,
 }
@@ -70,6 +74,8 @@ pub struct FetchError {
 pub enum FetchCause {
     /// The ecosystem name is not one a cache directory can be named after (OSR-17).
     InvalidName,
+    /// The policy is [`Refresh::Offline`] and the cache holds no snapshot of the ecosystem.
+    NotCached,
     /// The server cannot be reached or does not answer 200.
     Download { url: String, reason: String },
     /// The download is not a zip archive; the reason of the reader.
@@ -91,6 +97,7 @@ impl fmt::Display for FetchError {
                 "invalid ecosystem name {:?}: only ASCII letters, digits, `.`, `-` and `_`, not first `.`",
                 self.ecosystem
             ),
+            FetchCause::NotCached => write!(f, "not cached, and the refresh policy is offline"),
             FetchCause::Download { url, reason } => write!(f, "cannot download {url}: {reason}"),
             FetchCause::NotZip(reason) => write!(f, "not a zip archive: {reason}"),
             FetchCause::UnsafeEntry(name) => write!(f, "unsafe archive entry {name:?}"),
@@ -139,7 +146,16 @@ impl Archives {
         let directory = self.cache.join(ecosystem);
         let cached = read_freshness(&directory)?;
         let freshness = match (self.refresh, cached) {
-            (Refresh::IfMissing, Some(freshness)) => freshness,
+            (Refresh::Offline, None) => return Err(FetchCause::NotCached),
+            (Refresh::Offline | Refresh::IfMissing, Some(freshness)) => freshness,
+            (Refresh::OlderThan(age), Some(freshness))
+                // A snapshot dated after `now` (a clock set back) is not older than any age.
+                if now
+                    .duration_since(freshness.downloaded_at)
+                    .map_or(true, |elapsed| elapsed <= age) =>
+            {
+                freshness
+            }
             _ => self.download(ecosystem, &directory, now)?,
         };
         Ok(Snapshot {

@@ -49,9 +49,9 @@ directory and the local-directory option (wired by `cli_list_affected_components
    `always`, refuses bad names, unsafe entries and failed downloads without touching the former snapshot; verified by
    tests against a loopback HTTP server; makes true OSR-10, OSR-11, OSR-14, OSR-16, OSR-17, OSR-18. ADR 0004 accepted.
    (autonomous)
-2. [ ] Read the cache: the policies `offline` and `older-than <age>`, the snapshot read back with its freshness;
+2. [x] Read the cache: the policies `offline` and `older-than <age>`, the snapshot read back with its freshness;
    verified by tests on a cache filled by deliverable 1, the server counting the requests; makes true OSR-12, OSR-13,
-   OSR-15; the spec `accepted`.
+   OSR-15; the spec `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,3 +71,12 @@ directory and the local-directory option (wired by `cli_list_affected_components
 - red: OSR-H3, OSR-10, OSR-11, OSR-14, OSR-16, OSR-17, OSR-18: `unresolved import forewarn_osv::fetch`.
 - Code review: no findings
 - not verified: a download of a real OSV archive (tests use no network).
+
+## Summary of deliverable 2
+- done: the policies `offline` (no request, "not cached" when missing) and `older-than <age>` (a snapshot dated after
+  now counts as fresh); spec `osv-reading` accepted.
+- checks: tests pass (5 new), clippy pedantic clean, `check-specs` passes; docs: n/a (CLAUDE.md already names the
+  refresh policy).
+- red: OSR-H4, OSR-12, OSR-13: `no variant ... named Offline found for enum Refresh`.
+- Code review: no findings
+- not verified: none.
