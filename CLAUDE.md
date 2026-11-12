@@ -39,6 +39,12 @@ this repository (matching logic, CycloneDX handling, API types shared with the s
 - **Configurable endpoint** for uploads: `--endpoint` flag and an environment variable.
 - **Only inventories leave the user's CI**, never source code.
 
+## License
+
+Dual-licensed `MIT OR Apache-2.0` (the Rust ecosystem default, the easiest to integrate). Every crate declares it,
+inherited from `[workspace.package] license = "MIT OR Apache-2.0"` with `license.workspace = true`. Dependencies must
+be compatible with both: no copyleft (GPL, AGPL, LGPL-only) crate.
+
 ## Lint policy (requirement)
 
 Every crate enables Clippy at its strictest: the `pedantic` group, denied. Set it once in the workspace root
