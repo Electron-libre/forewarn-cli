@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Early proof of concept. The CycloneDX adapter reads a JSON SBOM into the domain types (`specs/sbom-reading.md`); the
 domain lists the components missing a supplier, a license or a hash (`specs/sbom-completeness.md`); `forewarn check`
 prints both (`specs/cli-check.md`). The domain also matches components against OSV-shaped vulnerabilities by package
-URL and version (`specs/vulnerability-matching.md`); no feed adapter nor command uses it yet.
+URL and version (`specs/vulnerability-matching.md`); the OSV adapter reads OSV record files into those vulnerabilities
+(`specs/osv-reading.md`, ADR [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)); no command uses them
+yet.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
@@ -19,6 +21,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 |---|---|---|
 | `forewarn-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
 | `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
+| `forewarn-osv` | OSV adapter: vulnerability records into domain types | `feeds` |
 | `forewarn` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`

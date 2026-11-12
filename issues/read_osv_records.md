@@ -35,3 +35,36 @@ Match known vulnerabilities (OSV)
 # Hints
 * A withdrawn record (`withdrawn` set) must not match.
 * Keep the record's source (the database prefix of its id, e.g. `GHSA`, `RUSTSEC`) for the report.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-12
+
+## Understanding
+A crate `forewarn-osv` reads one OSV record file, or a flat directory of them (an extracted ecosystem archive), into
+`forewarn_domain::vulnerability::Vulnerability`, with errors naming the file. Fetching, zip archives and the CLI are
+out of scope. Own `serde` model rather than the `osv` crate (measured: closed ecosystem enum, strict dates; ADR 0003).
+
+## Plan
+1. [x] Read one record: crate `forewarn-osv` (workspace member, ADR 0003, spec draft), `serde` model and mapping,
+   real fixtures (crates.io and npm advisories with a CVE alias, a withdrawn record, a `last_affected` record);
+   verified by tests in `crates/forewarn-osv/tests/`; makes true OSR-1, OSR-4, OSR-5, OSR-6, OSR-8, OSR-9 and OSR-H1. (autonomous)
+2. [ ] Read a directory: the `.json` files of a directory in file-name order, errors naming the file; verified by
+   tests on temp directories; makes true OSR-2, OSR-3, OSR-7 and OSR-H2, spec `accepted`.
+3. [ ] Docs and the fixes of the `high` review of the whole issue (CLAUDE.md layout, README, ADR 0003 accepted).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 80dbb10814b4ce6513fa50be01025b3d7706f38c
+- `modified` is not read: a non-goal of the spec, the matching does not use it (answer 1 a).
+- A withdrawn record is kept, flagged withdrawn; the domain drops it (VMT-12) (answer 2 a).
+- An unknown range `type` refuses the record as invalid (answer 3 a).
+
+## Deliverable 1: read one record
+- done: crate `forewarn-osv`, `read_record(path)` maps an OSV record to a domain `Vulnerability`; ADR 0003, spec
+  `specs/osv-reading.md` (draft), four real fixtures.
+- red: OSR-H1, OSR-1, OSR-4, OSR-5, OSR-6, OSR-8, OSR-9: `unresolved imports forewarn_osv::Cause,
+  forewarn_osv::ReadError, forewarn_osv::read_record`.
+- Code review: 1 finding: directory reading (OSR-2, OSR-3, OSR-7) is missing; not fixed here, it is deliverable 2.
+- not verified: none.
+- decisions needed: none.

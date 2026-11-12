@@ -1,0 +1,20 @@
+[package]
+name = "forewarn-osv"
+description = "OSV adapter of forewarn: reads vulnerability records into the types of the domain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+forewarn-domain = { path = "../forewarn-domain" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
