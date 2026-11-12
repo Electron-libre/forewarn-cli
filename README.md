@@ -10,6 +10,7 @@ Work in progress: nothing to install yet.
 ```sh
 rollcall check sbom.cdx.json                  # or `-` to read the SBOM from standard input
 rollcall check --format json sbom.cdx.json    # one JSON document, for a CI job or a script
+syft scan . -o cyclonedx-json | rollcall check --allow-incomplete -   # report gaps without failing the job
 ```
 
 `rollcall check` prints the CycloneDX spec version of the SBOM, flagged when it is below 1.6 (the BSI TR-03183-2
@@ -20,7 +21,7 @@ minimum), and each component missing a supplier, a license or a hash. The JSON r
 | Code | Meaning |
 |---|---|
 | 0 | the SBOM is complete |
-| 1 | at least one component is incomplete |
+| 1 | at least one component is incomplete, unless `--allow-incomplete` is given |
 | 2 | invalid arguments |
 | 3 | the SBOM cannot be read |
 

@@ -273,3 +273,35 @@ fn an_unreadable_sbom_prints_no_json() {
     assert_eq!(run.stdout, "");
     assert!(run.stderr.contains("standard input"), "{}", run.stderr);
 }
+
+// spec: CHK-H2, CHK-4, CHK-5, CHK-6, CHK-10
+#[test]
+fn a_ci_job_pipes_an_sbom_and_reads_its_gaps_without_failing() {
+    let input = std::fs::read(syft_fixture()).expect("the fixture reads");
+    let run = run(
+        &["check", "--format", "json", "--allow-incomplete", "-"],
+        Some(&input),
+    );
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let report = json_report(&run);
+    assert_eq!(report["complete"], json!(false));
+    assert_eq!(report["incomplete"].as_array().map(Vec::len), Some(4));
+}
+
+// spec: CHK-6
+#[test]
+fn allow_incomplete_leaves_the_human_report_unchanged() {
+    let path = syft_fixture();
+    let path = path.to_str().expect("UTF-8 path");
+    let failing = run(&["check", path], None);
+    let allowed = run(&["check", "--allow-incomplete", path], None);
+    assert_eq!((failing.code, allowed.code), (1, 0));
+    assert_eq!(allowed.stdout, failing.stdout);
+}
+
+// spec: CHK-6, CHK-7
+#[test]
+fn allow_incomplete_still_fails_on_an_unreadable_sbom() {
+    let run = run(&["check", "--allow-incomplete", "-"], Some(b"{}"));
+    assert_eq!(run.code, 3);
+}

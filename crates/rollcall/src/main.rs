@@ -32,6 +32,9 @@ struct CheckArgs {
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
+    /// Exit with 0 when components are incomplete, so that a CI job reports the gaps without failing.
+    #[arg(long)]
+    allow_incomplete: bool,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -66,7 +69,7 @@ fn run_check(args: &CheckArgs) -> ExitCode {
     };
     // A closed standard output (`rollcall check sbom.json | head`) is not an error of the check.
     let _ = io::stdout().lock().write_all(text.as_bytes());
-    if completeness.is_complete() {
+    if completeness.is_complete() || args.allow_incomplete {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(INCOMPLETE)

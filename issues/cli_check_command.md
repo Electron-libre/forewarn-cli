@@ -45,8 +45,8 @@ adapters start as modules), `clap` derive with a `check` subcommand.
    CHK-11 (`human`), CHK-12. (autonomous)
 2. [x] JSON report adapter behind `--format json`; verified by tests through the binary parsing stdout; makes true
    CHK-5, CHK-10, CHK-11. (autonomous)
-3. [ ] `--allow-incomplete`, README usage section; verified by tests through the binary; makes true CHK-6, sets the
-   spec `accepted`.
+3. [x] `--allow-incomplete`, README usage section; verified by tests through the binary; makes true CHK-6, sets the
+   spec `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -68,5 +68,11 @@ adapters start as modules), `clap` derive with a `check` subcommand.
 - done: `--format json`, the JSON report adapter in the module `report` (members of CHK-10, `null` for an absent
   version or purl); README.
 - red: CHK-5, CHK-8, CHK-10, CHK-11: 3 tests failed, `invalid value 'json' for '--format <FORMAT>'` (exit 2).
+- Code review: no findings
+- not verified: none. Decisions needed: none.
+
+## Deliverable 3
+- done: `--allow-incomplete` (exit 0 on gaps, still 3 on an unreadable SBOM); README; spec `cli-check` accepted.
+- red: CHK-H2, CHK-4, CHK-5, CHK-6, CHK-7, CHK-10: 3 tests failed, `unexpected argument '--allow-incomplete' found`.
 - Code review: no findings
 - not verified: none. Decisions needed: none.
