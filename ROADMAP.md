@@ -13,7 +13,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - State: in issues
 - Issues:
   - [bootstrap_cargo_workspace](issues/done/bootstrap_cargo_workspace.md)
-  - [read_cyclonedx_sbom](issues/read_cyclonedx_sbom.md)
+  - [read_cyclonedx_sbom](issues/done/read_cyclonedx_sbom.md)
   - [check_sbom_completeness](issues/check_sbom_completeness.md)
   - [cli_check_command](issues/cli_check_command.md)
 
