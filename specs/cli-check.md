@@ -37,6 +37,7 @@ job can act on.
   |---|---|
   | the arguments are invalid (unknown option, unknown format, no SBOM given) | 2 |
   | the SBOM cannot be read (any error of SBR-7) | 3 |
+  | the report cannot be written to standard output, a closed pipe aside (CHK-13) | 4 |
   | the SBOM is incomplete, without `--allow-incomplete` | 1 |
   | the SBOM is complete, or incomplete with `--allow-incomplete` | 0 |
 
@@ -56,6 +57,11 @@ job can act on.
 
 - **CHK-11** (deterministic) `--format` must accept `human`, the default, and `json`.
 - **CHK-12** (deterministic) `rollcall` with no subcommand must print its usage, naming `check`, and exit with code 2.
+- **CHK-13** (deterministic) A report that cannot be written to standard output must print one line on standard error
+  naming the cause, unless standard output is a closed pipe (`rollcall check sbom.json | head`), which is not an
+  error.
+- **CHK-14** (deterministic) The human report must print each control character of a component's name, version or
+  package URL escaped (`\n`, `\u{1b}`), so that an SBOM cannot forge report lines or terminal sequences.
 
 ## Scenarios
 
@@ -74,6 +80,13 @@ job can act on.
   read the input", and the command exits with 3.
 - (CHK-7, CHK-8) Given a CycloneDX 1.2 file piped into `rollcall check -`, when it is checked, then standard error
   names `standard input` and "unsupported spec version", and the command exits with 3.
+- (CHK-7) Given a path that is not valid UTF-8, when it is checked, then it is read like any other path, not
+  refused as an invalid argument.
+- (CHK-7, CHK-13) Given standard output redirected to a full device, when a report is printed, then standard error
+  names the cause and the command exits with 4.
+- (CHK-14) Given a component named `evil` followed by a newline and an escape sequence, when the human report prints
+  it, then it stays on one line with `\n` and `\u{1b}` written out.
+- (CHK-4) Given a file named `-`, when the user means that file, then they write `./-`: `-` alone is standard input.
 - (CHK-7, CHK-11) Given `--format xml`, when the command runs, then it exits with 2 before reading the SBOM.
 - (CHK-3, CHK-10) Given a valid SBOM with no component, when it is checked, then it is complete with 0 components and
   the command exits with 0.

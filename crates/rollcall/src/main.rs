@@ -3,7 +3,8 @@
 mod report;
 
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, ErrorKind, Write};
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -11,9 +12,9 @@ use rollcall_cyclonedx::{ReadError, read_json};
 use rollcall_domain::completeness::check;
 use rollcall_domain::sbom::Sbom;
 
-// The help text is the package description (`about` with no value).
+/// Check a CycloneDX SBOM for the fields the EU Cyber Resilience Act expects.
 #[derive(Parser)]
-#[command(version, about, arg_required_else_help = true)]
+#[command(version, arg_required_else_help = true)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -27,8 +28,8 @@ enum Command {
 
 #[derive(Args)]
 struct CheckArgs {
-    /// The CycloneDX JSON SBOM to check, `-` for standard input.
-    sbom: String,
+    /// The CycloneDX JSON SBOM to check, `-` for standard input (`./-` for a file named `-`).
+    sbom: PathBuf,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -48,6 +49,7 @@ enum Format {
 /// The exit codes of CHK-7; a usage error exits with 2, through `clap`.
 const INCOMPLETE: u8 = 1;
 const UNREADABLE: u8 = 3;
+const UNWRITABLE: u8 = 4;
 
 fn main() -> ExitCode {
     let Command::Check(args) = Cli::parse().command;
@@ -58,7 +60,7 @@ fn run_check(args: &CheckArgs) -> ExitCode {
     let sbom = match read_sbom(&args.sbom) {
         Ok(sbom) => sbom,
         Err(error) => {
-            eprintln!("error: {}: {error}", input_name(&args.sbom));
+            eprintln!("error: {}: {error}", input_name(&args.sbom).display());
             return ExitCode::from(UNREADABLE);
         }
     };
@@ -67,8 +69,14 @@ fn run_check(args: &CheckArgs) -> ExitCode {
         Format::Human => report::human(&sbom, &completeness),
         Format::Json => report::json(&sbom, &completeness),
     };
-    // A closed standard output (`rollcall check sbom.json | head`) is not an error of the check.
-    let _ = io::stdout().lock().write_all(text.as_bytes());
+    match io::stdout().lock().write_all(text.as_bytes()) {
+        // A closed pipe (`rollcall check sbom.json | head`) is not an error of the check.
+        Err(error) if error.kind() != ErrorKind::BrokenPipe => {
+            eprintln!("error: cannot write the report to standard output: {error}");
+            return ExitCode::from(UNWRITABLE);
+        }
+        _ => {}
+    }
     if completeness.is_complete() || args.allow_incomplete {
         ExitCode::SUCCESS
     } else {
@@ -76,8 +84,8 @@ fn run_check(args: &CheckArgs) -> ExitCode {
     }
 }
 
-fn read_sbom(path: &str) -> Result<Sbom, ReadError> {
-    if path == "-" {
+fn read_sbom(path: &Path) -> Result<Sbom, ReadError> {
+    if is_stdin(path) {
         read_json(io::stdin().lock())
     } else {
         let file = File::open(path).map_err(|e| ReadError::Io(e.to_string()))?;
@@ -85,6 +93,14 @@ fn read_sbom(path: &str) -> Result<Sbom, ReadError> {
     }
 }
 
-fn input_name(path: &str) -> &str {
-    if path == "-" { "standard input" } else { path }
+fn is_stdin(path: &Path) -> bool {
+    path.as_os_str() == "-"
+}
+
+fn input_name(path: &Path) -> &Path {
+    if is_stdin(path) {
+        Path::new("standard input")
+    } else {
+        path
+    }
 }

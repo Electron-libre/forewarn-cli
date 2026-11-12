@@ -113,7 +113,7 @@ fn reads_the_sbom_from_standard_input() {
     assert_eq!(run.code, 0, "{}", run.stderr);
     assert_eq!(
         run.stdout,
-        "SBOM: CycloneDX 1.6\nComplete: 1 components checked, none missing a supplier, a license or a hash\n"
+        "SBOM: CycloneDX 1.6\nComplete: 1 component checked, none missing a supplier, a license or a hash\n"
     );
 }
 
@@ -304,4 +304,71 @@ fn allow_incomplete_leaves_the_human_report_unchanged() {
 fn allow_incomplete_still_fails_on_an_unreadable_sbom() {
     let run = run(&["check", "--allow-incomplete", "-"], Some(b"{}"));
     assert_eq!(run.code, 3);
+}
+
+// spec: CHK-14
+#[test]
+fn escapes_the_control_characters_of_a_component_in_the_human_report() {
+    let input = bom(
+        "1.6",
+        &json!([{"type": "library", "name": "evil\n  fake: missing nothing\u{1b}[2J", "version": "1\t0"}]),
+    );
+    let run = run(&["check", "-"], Some(&input));
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    assert_eq!(
+        run.stdout.lines().nth(2),
+        Some("  evil\\n  fake: missing nothing\\u{1b}[2J 1\\t0: missing supplier, license, hash")
+    );
+}
+
+// spec: CHK-3
+#[test]
+fn counts_one_component_in_the_singular() {
+    let input = bom("1.6", &json!([{"type": "library", "name": "bare"}]));
+    let run = run(&["check", "-"], Some(&input));
+    assert_eq!(
+        run.stdout.lines().nth(1),
+        Some("1 of 1 component incomplete:")
+    );
+}
+
+// spec: CHK-7
+#[cfg(unix)]
+#[test]
+fn a_path_that_is_not_utf8_is_read_not_refused() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let path = fixture("missing-\u{e9}.json").into_os_string();
+    let mut bytes = path.as_bytes().to_vec();
+    bytes.retain(|&b| b != 0xC3);
+    let output = Command::new(env!("CARGO_BIN_EXE_rollcall"))
+        .arg("check")
+        .arg(OsStr::from_bytes(&bytes))
+        .output()
+        .expect("the binary runs");
+    assert_eq!(output.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("cannot read the input"), "{stderr}");
+}
+
+// spec: CHK-7, CHK-13
+#[cfg(target_os = "linux")]
+#[test]
+fn a_report_that_cannot_be_written_is_named_and_exits_with_4() {
+    let full = std::fs::OpenOptions::new()
+        .write(true)
+        .open("/dev/full")
+        .expect("/dev/full opens");
+    let path = fixture("complete-1.5.cdx.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_rollcall"))
+        .arg("check")
+        .arg(path)
+        .stdout(full)
+        .output()
+        .expect("the binary runs");
+    assert_eq!(output.status.code(), Some(4));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+    assert!(stderr.contains("standard output"), "{stderr}");
 }

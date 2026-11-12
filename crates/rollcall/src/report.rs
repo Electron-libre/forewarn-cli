@@ -21,29 +21,54 @@ pub fn human(sbom: &Sbom, completeness: &CompletenessReport) -> String {
     if completeness.is_complete() {
         let _ = writeln!(
             text,
-            "Complete: {checked} components checked, none missing a supplier, a license or a hash"
+            "Complete: {checked} {} checked, none missing a supplier, a license or a hash",
+            components(checked)
         );
         return text;
     }
     let incomplete = completeness.incomplete();
     let _ = writeln!(
         text,
-        "{} of {checked} components incomplete:",
-        incomplete.len()
+        "{} of {checked} {} incomplete:",
+        incomplete.len(),
+        components(checked)
     );
     for component in incomplete {
         text.push_str("  ");
-        text.push_str(&component.name);
+        push_escaped(&mut text, &component.name);
         if let Some(version) = &component.version {
-            let _ = write!(text, " {version}");
+            text.push(' ');
+            push_escaped(&mut text, version);
         }
         if let Some(purl) = &component.purl {
-            let _ = write!(text, " ({purl})");
+            text.push_str(" (");
+            push_escaped(&mut text, purl);
+            text.push(')');
         }
         let missing: Vec<&str> = component.missing.iter().copied().map(field_name).collect();
         let _ = writeln!(text, ": missing {}", missing.join(", "));
     }
     text
+}
+
+fn components(count: usize) -> &'static str {
+    if count == 1 {
+        "component"
+    } else {
+        "components"
+    }
+}
+
+/// Pushes a value read from the SBOM with its control characters escaped (`\n`, `\u{1b}`), so that it cannot
+/// forge a line of the report or a terminal sequence (CHK-14).
+fn push_escaped(text: &mut String, value: &str) {
+    for c in value.chars() {
+        if c.is_control() {
+            text.extend(c.escape_default());
+        } else {
+            text.push(c);
+        }
+    }
 }
 
 /// The JSON report for a machine: one object whose members CHK-10 lists, ending with a newline.

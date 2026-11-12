@@ -47,6 +47,8 @@ adapters start as modules), `clap` derive with a `check` subcommand.
    CHK-5, CHK-10, CHK-11. (autonomous)
 3. [x] `--allow-incomplete`, README usage section; verified by tests through the binary; makes true CHK-6, sets the
    spec `accepted`. (autonomous)
+4. [x] Fixes of the `high` review and the docs of the whole issue; verified by tests through the binary; makes true
+   CHK-13, CHK-14. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -76,3 +78,16 @@ adapters start as modules), `clap` derive with a `check` subcommand.
 - red: CHK-H2, CHK-4, CHK-5, CHK-6, CHK-7, CHK-10: 3 tests failed, `unexpected argument '--allow-incomplete' found`.
 - Code review: no findings
 - not verified: none. Decisions needed: none.
+
+## Deliverable 4 (high review of the issue)
+- done: exit code 4 and a stderr line when the report cannot be written (CHK-13, a closed pipe aside); control
+  characters of a component escaped in the human report (CHK-14); a non-UTF-8 path read, not refused; singular
+  `1 component`; `./-` documented; help text no longer claims vulnerability matching; README install line; SBC
+  non-goal links the spec instead of the issue.
+- red: CHK-3, CHK-7, CHK-13, CHK-14: 5 tests failed, e.g. `/dev/full` exited 0 instead of 4, a non-UTF-8 path exited 2.
+- High review: 8 findings; 7 fixed as above; not fixed: moving `File::open` into the adapter, as SBR's non-goals
+  leave reading from disk to the command line.
+- not verified: the closed-pipe case of CHK-13 (exit unchanged when `head` closes stdout) has no test: the report
+  fits the pipe buffer, so a test would be timing-dependent.
+- Code review: no findings
+- Decisions needed: none.

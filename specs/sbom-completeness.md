@@ -66,4 +66,4 @@ TR-03183-2 and is kept as data so that it can grow.
 - Checking that a hash value is well formed for its algorithm (hexadecimal, length).
 - Judging whether a license is valid SPDX, or whether a supplier name is real.
 - Checking the SBOM's own metadata (`metadata.component`, `metadata.supplier`, timestamp).
-- Rendering the report for a human or a CI job: the `rollcall check` command does (`issues/cli_check_command.md`).
+- Rendering the report for a human or a CI job: the `rollcall check` command does (`specs/cli-check.md`).

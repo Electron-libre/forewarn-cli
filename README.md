@@ -3,12 +3,12 @@
 An open-source CLI that checks a CycloneDX SBOM against actively exploited vulnerabilities and drafts the reports the
 EU Cyber Resilience Act (article 14) requires.
 
-Work in progress: nothing to install yet.
+Work in progress, not published yet: build it from a clone with `cargo install --path crates/rollcall`.
 
 ## Usage
 
 ```sh
-rollcall check sbom.cdx.json                  # or `-` to read the SBOM from standard input
+rollcall check sbom.cdx.json                  # `-` reads the SBOM from standard input (`./-` for a file named -)
 rollcall check --format json sbom.cdx.json    # one JSON document, for a CI job or a script
 syft scan . -o cyclonedx-json | rollcall check --allow-incomplete -   # report gaps without failing the job
 ```
@@ -24,6 +24,7 @@ minimum), and each component missing a supplier, a license or a hash. The JSON r
 | 1 | at least one component is incomplete, unless `--allow-incomplete` is given |
 | 2 | invalid arguments |
 | 3 | the SBOM cannot be read |
+| 4 | the report cannot be written to standard output |
 
 ## License
 
