@@ -201,3 +201,75 @@ fn no_subcommand_prints_the_usage_and_exits_with_2() {
     assert_eq!(run.code, 2);
     assert!(run.stderr.contains("check"), "{}", run.stderr);
 }
+
+fn json_report(run: &Run) -> Value {
+    serde_json::from_str(&run.stdout).unwrap_or_else(|e| panic!("{e}: {}", run.stdout))
+}
+
+// spec: CHK-5, CHK-10, CHK-11
+#[test]
+fn prints_the_report_of_the_sbom_of_syft_as_json() {
+    let path = syft_fixture();
+    let run = run(
+        &[
+            "check",
+            "--format",
+            "json",
+            path.to_str().expect("UTF-8 path"),
+        ],
+        None,
+    );
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    assert_eq!(run.stderr, "");
+    let all = json!(["supplier", "license", "hash"]);
+    assert_eq!(
+        json_report(&run),
+        json!({
+            "specVersion": "1.6",
+            "belowBsiMinimum": false,
+            "componentCount": 4,
+            "complete": false,
+            "incomplete": [
+                {"name": "itoa", "version": "1.0.19", "purl": "pkg:cargo/itoa@1.0.19", "missing": all},
+                {"name": "rollcall-fixture-sample", "version": "0.1.0", "purl": null, "missing": all},
+                {"name": "semver", "version": "1.0.28", "purl": "pkg:cargo/semver@1.0.28", "missing": all},
+                {"name": "/Cargo.lock", "version": null, "purl": null, "missing": ["supplier", "license"]},
+            ],
+        })
+    );
+}
+
+// spec: CHK-10
+#[test]
+fn the_json_report_of_a_complete_sbom_below_the_bsi_minimum() {
+    let path = fixture("complete-1.5.cdx.json");
+    let run = run(
+        &[
+            "check",
+            "--format",
+            "json",
+            path.to_str().expect("UTF-8 path"),
+        ],
+        None,
+    );
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(
+        json_report(&run),
+        json!({
+            "specVersion": "1.5",
+            "belowBsiMinimum": true,
+            "componentCount": 2,
+            "complete": true,
+            "incomplete": [],
+        })
+    );
+}
+
+// spec: CHK-8
+#[test]
+fn an_unreadable_sbom_prints_no_json() {
+    let run = run(&["check", "--format", "json", "-"], Some(b"not json"));
+    assert_eq!(run.code, 3);
+    assert_eq!(run.stdout, "");
+    assert!(run.stderr.contains("standard input"), "{}", run.stderr);
+}

@@ -38,6 +38,8 @@ struct CheckArgs {
 enum Format {
     /// Text for a person at a terminal.
     Human,
+    /// One JSON document for a machine.
+    Json,
 }
 
 /// The exit codes of CHK-7; a usage error exits with 2, through `clap`.
@@ -60,6 +62,7 @@ fn run_check(args: &CheckArgs) -> ExitCode {
     let completeness = check(&sbom.components);
     let text = match args.format {
         Format::Human => report::human(&sbom, &completeness),
+        Format::Json => report::json(&sbom, &completeness),
     };
     // A closed standard output (`rollcall check sbom.json | head`) is not an error of the check.
     let _ = io::stdout().lock().write_all(text.as_bytes());

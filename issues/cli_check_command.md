@@ -43,8 +43,8 @@ adapters start as modules), `clap` derive with a `check` subcommand.
 1. [x] `check` subcommand: clap parsing, path or `-`, human report, exit codes, errors on stderr; verified by tests
    through the binary (`crates/rollcall/tests/check.rs`); makes true CHK-1, CHK-2, CHK-3, CHK-4, CHK-7, CHK-8, CHK-9,
    CHK-11 (`human`), CHK-12. (autonomous)
-2. [ ] JSON report adapter behind `--format json`; verified by tests through the binary parsing stdout; makes true
-   CHK-5, CHK-10, CHK-11.
+2. [x] JSON report adapter behind `--format json`; verified by tests through the binary parsing stdout; makes true
+   CHK-5, CHK-10, CHK-11. (autonomous)
 3. [ ] `--allow-incomplete`, README usage section; verified by tests through the binary; makes true CHK-6, sets the
    spec `accepted`.
 
@@ -61,5 +61,12 @@ adapters start as modules), `clap` derive with a `check` subcommand.
   README usage, CLAUDE.md status and layout.
 - red: CHK-H1, CHK-H3, CHK-1, CHK-2, CHK-3, CHK-4, CHK-7, CHK-8, CHK-9, CHK-11, CHK-12: 10 tests failed, the empty
   binary exits with 0 and prints nothing (`left: 0, right: 1`).
+- Code review: no findings
+- not verified: none. Decisions needed: none.
+
+## Deliverable 2
+- done: `--format json`, the JSON report adapter in the module `report` (members of CHK-10, `null` for an absent
+  version or purl); README.
+- red: CHK-5, CHK-8, CHK-10, CHK-11: 3 tests failed, `invalid value 'json' for '--format <FORMAT>'` (exit 2).
 - Code review: no findings
 - not verified: none. Decisions needed: none.
