@@ -44,3 +44,45 @@ Match known vulnerabilities (OSV)
 * A purl may carry qualifiers and a subpath, and its name is percent-encoded; the version of the component may differ
   from the version in the purl, so settle which one wins at step 1.
 * Semver pre-releases and build metadata change the ordering; OSV `SEMVER` ranges follow semver 2.0.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-12
+
+## Understanding
+A pure domain module: vulnerabilities shaped after OSV, package URL reading and its OSV ecosystem, and the exact
+matching of components (explicit versions everywhere, semver ranges for crates.io and npm), with the components and
+pairs not evaluated reported apart (`specs/vulnerability-matching.md`). Out of scope: reading OSV, the CLI.
+
+## Plan
+1. [x] Vulnerability types and package URL: `forewarn_domain::vulnerability` (vulnerability, affected package,
+   range, events) and the package URL reading with its ecosystem and name, the component reasons; verified by tests in
+   `crates/forewarn-domain/tests/`; makes true VMT-4, VMT-5, VMT-6, VMT-7. (~500 lines) (autonomous)
+2. [ ] Matching: `forewarn_domain::matching` (explicit versions, semver ranges by the OSV algorithm, pair reasons,
+   withdrawn, order, one match per pair); verified by tests in `crates/forewarn-domain/tests/` and a happy path on the
+   `cargo-cyclonedx` fixture; makes true VMT-1 to VMT-3, VMT-8 to VMT-14, VMT-H1, VMT-H2. (~700
+   lines)
+
+## Decisions
+- Mode: autonomous
+- Base commit: d8501e0e91a1d137c9d12ad7471743be85d5c943
+- Package URL: read by a small parser of the domain, no dependency.
+- Semver ranges: compared with the `semver` crate (MIT OR Apache-2.0), the first dependency of the domain.
+- Version matched: the component's, else its package URL's (VMT-7).
+
+## Deliverable 1 summary
+done: `forewarn_domain::vulnerability` (OSV-shaped types), `forewarn_domain::matching::{ComponentPackage, ComponentReason, same_name}`, a private package URL parser; spec VMT draft.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (VMT draft) |
+| docs | n/a: the domain crate keeps its role; CLAUDE.md is updated when matching works (deliverable 2) |
+
+red: VMT-4, VMT-5, VMT-6, VMT-7: `unresolved import forewarn_domain::matching`
+
+Code review: no findings
+
+not verified: none
+decisions needed: none

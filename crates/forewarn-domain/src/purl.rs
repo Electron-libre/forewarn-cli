@@ -1,0 +1,120 @@
+//! A package URL read by the package URL specification, the parts matching needs: type, namespace, name, version
+//! (`specs/vulnerability-matching.md`, VMT-5).
+
+/// The parts of a package URL; its qualifiers and subpath are dropped.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PackageUrl {
+    /// The type, in lower case (`cargo`, `npm`…).
+    pub(crate) purl_type: String,
+    /// The namespace segments, percent-decoded, joined by `/`; empty when there is none.
+    pub(crate) namespace: String,
+    /// The name, percent-decoded.
+    pub(crate) name: String,
+    /// The version, percent-decoded.
+    pub(crate) version: Option<String>,
+}
+
+/// The package URL does not follow the specification.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct InvalidPackageUrl;
+
+impl PackageUrl {
+    /// Reads a package URL: `pkg:type/namespace/name@version?qualifiers#subpath`.
+    pub(crate) fn parse(purl: &str) -> Result<Self, InvalidPackageUrl> {
+        let (scheme, rest) = purl.split_once(':').ok_or(InvalidPackageUrl)?;
+        if !scheme.eq_ignore_ascii_case("pkg") {
+            return Err(InvalidPackageUrl);
+        }
+        let rest = rest.split_once('#').map_or(rest, |(before, _)| before);
+        let rest = rest.split_once('?').map_or(rest, |(before, _)| before);
+        let rest = rest.trim_matches('/');
+        let (purl_type, path) = rest.split_once('/').ok_or(InvalidPackageUrl)?;
+        if !is_valid_type(purl_type) {
+            return Err(InvalidPackageUrl);
+        }
+        let mut segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        let last = segments.pop().ok_or(InvalidPackageUrl)?;
+        let (name, version) = match last.rsplit_once('@') {
+            Some((name, version)) => (name, Some(decode(version)?)),
+            None => (last, None),
+        };
+        let name = decode(name)?;
+        if name.is_empty() {
+            return Err(InvalidPackageUrl);
+        }
+        let namespace = segments
+            .into_iter()
+            .map(decode)
+            .collect::<Result<Vec<_>, _>>()?
+            .join("/");
+        Ok(Self {
+            purl_type: purl_type.to_ascii_lowercase(),
+            namespace,
+            name,
+            version: version.filter(|v| !v.is_empty()),
+        })
+    }
+}
+
+/// A type is ASCII letters, digits, `.`, `+` and `-`, and does not start with a digit.
+fn is_valid_type(purl_type: &str) -> bool {
+    purl_type
+        .chars()
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || matches!(first, '.' | '+' | '-'))
+        && purl_type
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-'))
+}
+
+/// Percent-decodes a segment into UTF-8.
+fn decode(segment: &str) -> Result<String, InvalidPackageUrl> {
+    let bytes = segment.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let hex = bytes
+                .get(i + 1..i + 3)
+                .filter(|hex| hex.iter().all(u8::is_ascii_hexdigit))
+                .ok_or(InvalidPackageUrl)?;
+            let high = hex_value(hex[0]);
+            let low = hex_value(hex[1]);
+            decoded.push(high << 4 | low);
+            i += 3;
+        } else {
+            decoded.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(decoded).map_err(|_| InvalidPackageUrl)
+}
+
+/// The value of an ASCII hexadecimal digit.
+fn hex_value(digit: u8) -> u8 {
+    match digit {
+        b'0'..=b'9' => digit - b'0',
+        b'a'..=b'f' => digit - b'a' + 10,
+        _ => digit - b'A' + 10,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{InvalidPackageUrl, PackageUrl};
+
+    #[test]
+    fn keeps_the_namespace_segments() {
+        let purl = PackageUrl::parse("pkg:golang/github.com/foo/bar@v1.0.0").expect("valid");
+        assert_eq!(purl.purl_type, "golang");
+        assert_eq!(purl.namespace, "github.com/foo");
+        assert_eq!(purl.name, "bar");
+        assert_eq!(purl.version.as_deref(), Some("v1.0.0"));
+    }
+
+    #[test]
+    fn refuses_a_truncated_or_signed_escape() {
+        assert_eq!(PackageUrl::parse("pkg:cargo/a%4"), Err(InvalidPackageUrl));
+        assert_eq!(PackageUrl::parse("pkg:cargo/a%+4b"), Err(InvalidPackageUrl));
+    }
+}

@@ -2,4 +2,7 @@
 //! deadlines. It performs no I/O and depends on no adapter.
 
 pub mod completeness;
+pub mod matching;
+mod purl;
 pub mod sbom;
+pub mod vulnerability;
