@@ -32,7 +32,7 @@ fn matches_the_crates_of_a_cargo_cyclonedx_sbom() {
     let matched: Vec<(&str, &str)> = report
         .matches()
         .iter()
-        .map(|m| (m.name.as_str(), m.vulnerability_id.as_str()))
+        .map(|m| (m.component.name.as_str(), m.vulnerability_id.as_str()))
         .collect();
     assert_eq!(matched, [("itoa", "TEST-0001")]);
     assert_eq!(report.not_evaluated(), [], "{:?}", report.not_evaluated());

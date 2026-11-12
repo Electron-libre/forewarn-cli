@@ -62,6 +62,10 @@ pairs not evaluated reported apart (`specs/vulnerability-matching.md`). Out of s
    withdrawn, order, one match per pair); verified by tests in `crates/forewarn-domain/tests/` and a happy path on the
    `cargo-cyclonedx` fixture; makes true VMT-1 to VMT-3, VMT-8 to VMT-14, VMT-H1, VMT-H2. (~700
    lines) (autonomous)
+3. [x] High review fixes: NuGet names without regard to case, a namespace required for Maven and Composer, the
+   purl version split before the path, events of an equal version ordered by kind, a `GIT` range left aside when
+   another range is evaluated, `ComponentRef` shared by the report; spec VMT amended; verified by the domain tests;
+   makes true VMT-4, VMT-5, VMT-6, VMT-9, VMT-10. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -105,3 +109,35 @@ Code review: no findings
 
 not verified: none
 decisions needed: none
+
+## Deliverable 3 summary
+done: the fixes of the high review of the issue, spec VMT amended (VMT-4, VMT-6, VMT-9, VMT-10) and accepted again.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (VMT accepted) |
+| docs | n/a: CLAUDE.md already states the capability |
+
+red: VMT-5: `splits_the_version_before_the_path` failed on the former parser; VMT-4, VMT-6, VMT-9, VMT-10: not run red (the toolchain was being updated when the tests were written; the former code no longer compiles with `ComponentRef`)
+
+High review findings (9):
+- fixed: NuGet case, Maven/Composer namespace, purl version split, equal-version event order, `GIT` range hiding a
+  result, duplicated component fields and split `impl`.
+- issue: one vulnerability under several ids reported once per record → `issues/group_matches_of_one_vulnerability.md`.
+- not fixed: matching every component against every record (no performance requirement in the proof of concept;
+  `fetch_osv_records` narrows the records to the SBOM's packages); the `purl` crate instead of the parser (settled
+  at the plan validation).
+
+Code review: 1 findings
+- fixed: the version split took the `@` of an unencoded npm scope (`pkg:npm/@babel/core`) as the version separator;
+  an `@` opening a namespace segment is now left in the path (test `reads_an_unencoded_npm_scope_without_a_version`,
+  red before the fix).
+
+not verified: none
+decisions needed: none
+
+## Result
+Done: the domain matches components against OSV-shaped vulnerabilities (`specs/vulnerability-matching.md` accepted).
+Left: none in this issue; grouping by alias is `issues/group_matches_of_one_vulnerability.md`.

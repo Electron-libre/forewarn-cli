@@ -32,13 +32,22 @@ impl PackageUrl {
         if !is_valid_type(purl_type) {
             return Err(InvalidPackageUrl);
         }
-        let mut segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        let last = segments.pop().ok_or(InvalidPackageUrl)?;
-        let (name, version) = match last.rsplit_once('@') {
-            Some((name, version)) => (name, Some(decode(version)?)),
-            None => (last, None),
+        // The version follows the last `@` of the path, but not one opening a namespace segment: an npm scope
+        // written without percent-encoding (`@babel/core`).
+        let at = path
+            .char_indices()
+            .rev()
+            .find(|&(i, c)| {
+                let opens_segment = i == 0 || path[..i].ends_with('/');
+                c == '@' && !(opens_segment && path[i..].contains('/'))
+            })
+            .map(|(i, _)| i);
+        let (path, version) = match at {
+            Some(at) => (&path[..at], Some(decode(&path[at + 1..])?)),
+            None => (path, None),
         };
-        let name = decode(name)?;
+        let mut segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        let name = decode(segments.pop().ok_or(InvalidPackageUrl)?)?;
         if name.is_empty() {
             return Err(InvalidPackageUrl);
         }

@@ -1,7 +1,8 @@
 //! The matching of the components of an SBOM against known vulnerabilities (`specs/vulnerability-matching.md`).
 
 use forewarn_domain::matching::{
-    ComponentReason, Match, MatchReport, NotEvaluated, PairReason, Reason, match_components,
+    ComponentReason, ComponentRef, Match, MatchReport, NotEvaluated, PairReason, Reason,
+    match_components,
 };
 use forewarn_domain::sbom::Component;
 use forewarn_domain::vulnerability::{AffectedPackage, Event, Range, RangeKind, Vulnerability};
@@ -76,7 +77,7 @@ fn ids(report: &MatchReport) -> Vec<(&str, &str)> {
     report
         .matches()
         .iter()
-        .map(|m| (m.name.as_str(), m.vulnerability_id.as_str()))
+        .map(|m| (m.component.name.as_str(), m.vulnerability_id.as_str()))
         .collect()
 }
 
@@ -90,9 +91,11 @@ fn reports_a_crate_in_a_vulnerable_range() {
     assert_eq!(
         report.matches(),
         [Match {
-            name: "time".into(),
-            version: None,
-            purl: Some("pkg:cargo/time@0.1.43".into()),
+            component: ComponentRef {
+                name: "time".into(),
+                version: None,
+                purl: Some("pkg:cargo/time@0.1.43".into()),
+            },
             vulnerability_id: "RUSTSEC-2020-0071".into(),
             aliases: vec!["CVE-2020-26235".into(), "GHSA-wcg3-cvx6-7396".into()],
             source: "OSV".into(),
@@ -117,9 +120,11 @@ fn reports_nothing_affected_and_a_component_it_could_not_evaluate() {
     assert_eq!(
         report.not_evaluated(),
         [NotEvaluated {
-            name: "vendored".into(),
-            version: Some("1.0.0".into()),
-            purl: None,
+            component: ComponentRef {
+                name: "vendored".into(),
+                version: Some("1.0.0".into()),
+                purl: None,
+            },
             reason: Reason::Component(ComponentReason::NoPackageUrl),
         }]
     );
@@ -134,9 +139,9 @@ fn reports_each_pair_with_the_component_and_the_vulnerability() {
     let found = &report.matches()[0];
     assert_eq!(
         (
-            found.name.as_str(),
-            found.version.as_deref(),
-            found.purl.as_deref()
+            found.component.name.as_str(),
+            found.component.version.as_deref(),
+            found.component.purl.as_deref()
         ),
         ("time", Some("0.1.43"), Some("pkg:cargo/time@0.1.43"))
     );
@@ -224,7 +229,7 @@ fn reports_a_range_it_does_not_evaluate() {
     let reasons: Vec<(&str, Reason)> = report
         .not_evaluated()
         .iter()
-        .map(|n| (n.name.as_str(), n.reason.clone()))
+        .map(|n| (n.component.name.as_str(), n.reason.clone()))
         .collect();
     assert_eq!(
         reasons,
@@ -446,4 +451,42 @@ fn reports_a_vulnerability_once_per_component() {
     twice.affected[0].versions = vec!["1.0.0".into()];
     let report = match_components(&[component("pkg:cargo/time@1.0.0")], &[twice]);
     assert_eq!(report.matches().len(), 1);
+}
+
+// spec: VMT-9
+#[test]
+fn orders_events_of_an_equal_version_by_their_kind() {
+    assert!(!affects(
+        &[fixed("1.0.0"), introduced("1.0.0+build")],
+        "1.0.0"
+    ));
+    assert!(!affects(
+        &[introduced("1.0.0+build"), fixed("1.0.0")],
+        "1.0.0"
+    ));
+    assert!(affects(
+        &[last_affected("1.0.0"), introduced("1.0.0")],
+        "1.0.0"
+    ));
+    assert!(affects(
+        &[introduced("1.0.0"), last_affected("1.0.0")],
+        "1.0.0"
+    ));
+}
+
+// spec: VMT-10
+#[test]
+fn leaves_a_git_range_aside_when_another_range_is_evaluated() {
+    let both = vulnerability(
+        "RUSTSEC-0000-0001",
+        "crates.io",
+        "time",
+        vec![
+            range(RangeKind::Semver, &[introduced("0"), fixed("1.0.0")]),
+            range(RangeKind::Git, &[introduced("abc123")]),
+        ],
+    );
+    let report = match_components(&[component("pkg:cargo/time@2.0.0")], &[both]);
+    assert_eq!(report.matches(), []);
+    assert_eq!(report.not_evaluated(), []);
 }

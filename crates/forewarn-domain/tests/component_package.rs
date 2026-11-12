@@ -158,3 +158,47 @@ fn gives_the_component_reason_it_cannot_be_matched() {
         Err(ComponentReason::NoVersion)
     );
 }
+
+// spec: VMT-4
+#[test]
+fn refuses_a_maven_or_composer_package_url_without_a_namespace() {
+    for purl in [
+        "pkg:maven/log4j-core@2.14.1",
+        "pkg:composer/framework@10.0.0",
+    ] {
+        assert_eq!(
+            ComponentPackage::of(&component(purl, None)),
+            Err(ComponentReason::InvalidPackageUrl),
+            "{purl}"
+        );
+    }
+    assert_eq!(package("pkg:golang/stdlib@1.21.0").name, "stdlib");
+}
+
+// spec: VMT-5
+#[test]
+fn splits_the_version_before_the_path() {
+    let package = package("pkg:golang/example.com/mod@release/v1");
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("example.com/mod", "release/v1")
+    );
+}
+
+// spec: VMT-6
+#[test]
+fn compares_nuget_names_without_regard_to_case() {
+    assert!(same_name("NuGet", "newtonsoft.json", "Newtonsoft.Json"));
+    assert!(!same_name("NuGet", "newtonsoft-json", "Newtonsoft.Json"));
+}
+
+// spec: VMT-5
+#[test]
+fn reads_an_unencoded_npm_scope_without_a_version() {
+    let package =
+        ComponentPackage::of(&component("pkg:npm/@babel/core", Some("7.0.0"))).expect("a package");
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("@babel/core", "7.0.0")
+    );
+}
