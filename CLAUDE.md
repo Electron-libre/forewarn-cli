@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Skeleton. A Cargo workspace with empty crates; `just check` (i.e. `cardinal run project-check`) runs the
+Early proof of concept. The CycloneDX adapter reads a JSON SBOM into the domain types (`specs/sbom-reading.md`); no
+command yet. `just check` (i.e. `cardinal run project-check`) runs the
 `check_command` of `.claude/cardinal.toml`: `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and
 `cargo test`.
 
@@ -45,8 +46,8 @@ this repository (matching logic, CycloneDX handling, API types shared with the s
 
 - **Never build a scanner.** Consume CycloneDX produced by existing tools; do not add dependency detection.
 - **Input format:** CycloneDX 1.6 minimum, 1.7 accepted (threshold of BSI TR-03183-2); older versions are accepted but
-  flagged. VEX for exploitability verdicts. Check the 1.6/1.7 support of the CycloneDX model crate from the
-  `cyclonedx-rust-cargo` repository before relying on it.
+  flagged; 1.0 to 1.2 are refused. VEX for exploitability verdicts. Parsing goes through the `cyclonedx-bom` crate
+  (ADR [0002](docs/adr/0002-parse-cyclonedx-with-cyclonedx-bom.md)); its types never leave the adapter.
 - **Deterministic.** Exact SBOM ↔ vulnerability-list matching and deadline computation; no LLM.
 - **Hexagonal architecture.** Domain (matching, completeness, reporting deadlines) isolated from adapters
   (vulnerability feeds, report formats, HTTP upload), so regulatory format changes only touch adapters.
