@@ -3,16 +3,22 @@
 
 mod report;
 
+use std::env;
+use std::fmt::Display;
 use std::fs::File;
 use std::io::{self, ErrorKind, Write};
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::{Duration, SystemTime};
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
-use forewarn_domain::matching::match_components;
+use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
+use forewarn_domain::vulnerability::Vulnerability;
+use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
 use report::Source;
@@ -50,9 +56,21 @@ struct CheckArgs {
 struct MatchArgs {
     /// The CycloneDX JSON SBOM to match, `-` for standard input (`./-` for a file named `-`).
     sbom: PathBuf,
-    /// An OSV record file, or a directory of them (an extracted OSV archive); repeat it for several.
-    #[arg(long, required = true)]
+    /// An OSV record file, or a directory of them (an extracted OSV archive), read instead of fetching the OSV
+    /// archives; repeat it for several.
+    #[arg(long, conflicts_with_all = ["cache", "refresh", "osv_url"])]
     osv: Vec<PathBuf>,
+    /// The cache of the OSV archives [default: `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`].
+    #[arg(long)]
+    cache: Option<PathBuf>,
+    /// When to download an archive again: `offline`, `if-missing`, `always`, or when older than an age (`30m`, `12h`,
+    /// `7d`) [default: 1d].
+    #[arg(long, value_parser = parse_refresh)]
+    refresh: Option<Refresh>,
+    /// The URL the OSV archives are downloaded from (`<url>/<ecosystem>/all.zip`), a mirror for example
+    /// [default: `https://osv-vulnerabilities.storage.googleapis.com`].
+    #[arg(long)]
+    osv_url: Option<String>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -94,21 +112,125 @@ fn run_check(args: &CheckArgs) -> Result<ExitCode, u8> {
 }
 
 fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
+    // The arguments are checked before the SBOM is read (MCH-10).
+    let archives = if args.osv.is_empty() {
+        Some(archives(args))
+    } else {
+        None
+    };
     let sbom = read_sbom(&args.sbom)?;
     let mut vulnerabilities = Vec::new();
+    let mut snapshots = Vec::new();
+    if let Some(archives) = archives {
+        snapshots = archives
+            .fetch(&ecosystems(&sbom), SystemTime::now)
+            .map_err(|error| no_records(&error))?;
+        for snapshot in &mut snapshots {
+            vulnerabilities.append(&mut mem::take(&mut snapshot.vulnerabilities));
+        }
+    }
     for path in &args.osv {
-        vulnerabilities.extend(read_osv(path).map_err(|error| {
-            eprintln!("error: {error}");
-            NO_RECORDS
-        })?);
+        vulnerabilities.extend(read_osv(path).map_err(|error| no_records(&error))?);
     }
     let matching = match_components(&sbom.components, &vulnerabilities);
-    let sources: Vec<Source> = args.osv.iter().map(|path| Source::Local(path)).collect();
+    let sources: Vec<Source> = snapshots
+        .iter()
+        .map(Source::Archive)
+        .chain(args.osv.iter().map(|path| Source::Local(path)))
+        .collect();
     write_report(&match args.format {
         Format::Human => report::matching_human(&sbom, &sources, &matching),
         Format::Json => report::matching_json(&sbom, &sources, &matching),
     })?;
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
+}
+
+/// The archives of OSV the arguments name; exits with 2 when no cache directory can be found (MCH-12).
+fn archives(args: &MatchArgs) -> Archives {
+    let Some(cache) = args.cache.clone().or_else(default_cache) else {
+        Cli::command()
+            .error(
+                clap::error::ErrorKind::MissingRequiredArgument,
+                "no cache directory: give --cache, or set XDG_CACHE_HOME or HOME",
+            )
+            .exit();
+    };
+    let mut archives = Archives::new(cache, args.refresh.unwrap_or(DEFAULT_REFRESH));
+    if let Some(url) = &args.osv_url {
+        archives.base_url.clone_from(url);
+    }
+    archives
+}
+
+/// The refresh policy without `--refresh`: an archive older than a day is downloaded again (MCH-11).
+const DEFAULT_REFRESH: Refresh = Refresh::OlderThan(Duration::from_secs(24 * 60 * 60));
+
+/// `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`, a variable set to nothing counting as unset.
+fn default_cache() -> Option<PathBuf> {
+    let set = |name| env::var_os(name).filter(|value| !value.is_empty());
+    set("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| set("HOME").map(|home| Path::new(&home).join(".cache")))
+        .map(|cache| cache.join("forewarn").join("osv"))
+}
+
+/// Reads a refresh policy: `offline`, `if-missing`, `always`, or an age, a positive whole number of `m`, `h` or `d`.
+fn parse_refresh(text: &str) -> Result<Refresh, String> {
+    match text {
+        "offline" => return Ok(Refresh::Offline),
+        "if-missing" => return Ok(Refresh::IfMissing),
+        "always" => return Ok(Refresh::Always),
+        _ => {}
+    }
+    let refused = || {
+        format!(
+            "`offline`, `if-missing`, `always`, or a positive age such as `30m`, `12h`, `7d`, not {text:?}"
+        )
+    };
+    // The unit is the last character, which may not be ASCII (`1é`).
+    let Some((count, unit)) = text
+        .char_indices()
+        .last()
+        .map(|(at, unit)| (&text[..at], unit))
+    else {
+        return Err(refused());
+    };
+    let seconds = match unit {
+        'm' => 60,
+        'h' => 60 * 60,
+        'd' => 24 * 60 * 60,
+        _ => return Err(refused()),
+    };
+    if count.is_empty() || !count.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(refused());
+    }
+    match count
+        .parse::<u64>()
+        .ok()
+        .and_then(|n| n.checked_mul(seconds))
+    {
+        Some(age) if age > 0 => Ok(Refresh::OlderThan(Duration::from_secs(age))),
+        _ => Err(refused()),
+    }
+}
+
+/// The OSV ecosystem of each component that maps to one, each once, in the order of its first component (MCH-5).
+fn ecosystems(sbom: &Sbom) -> Vec<&'static str> {
+    let mut ecosystems = Vec::new();
+    for component in &sbom.components {
+        if let Ok(package) = ComponentPackage::of(component)
+            && !ecosystems.contains(&package.ecosystem)
+        {
+            ecosystems.push(package.ecosystem);
+        }
+    }
+    ecosystems
+}
+
+/// Prints why the OSV records cannot be read or fetched (MCH-14).
+fn no_records(error: &dyn Display) -> u8 {
+    eprintln!("error: {error}");
+    NO_RECORDS
 }
 
 /// Code 1 when the report found what a CI job fails on, else 0.
@@ -136,9 +258,7 @@ fn read_sbom(path: &Path) -> Result<Sbom, u8> {
 }
 
 /// Reads an OSV record file, or each record of a directory.
-fn read_osv(
-    path: &Path,
-) -> Result<Vec<forewarn_domain::vulnerability::Vulnerability>, OsvReadError> {
+fn read_osv(path: &Path) -> Result<Vec<Vulnerability>, OsvReadError> {
     if path.is_dir() {
         read_directory(path)
     } else {
@@ -167,5 +287,36 @@ fn input_name(path: &Path) -> &Path {
         Path::new("standard input")
     } else {
         path
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+    use forewarn_osv::fetch::OSV_ARCHIVES;
+
+    use super::{Cli, Command, archives};
+
+    // spec: MCH-13 (internal: a download from the OSV bucket needs the network)
+    #[test]
+    fn the_archives_come_from_the_osv_bucket_unless_a_url_is_given() {
+        let base_url = |args: &[&str]| {
+            let Command::Match(args) = Cli::parse_from(args).command else {
+                panic!("a match command")
+            };
+            archives(&args).base_url
+        };
+        let default = ["forewarn", "match", "--cache", "c", "-"];
+        assert_eq!(base_url(&default), OSV_ARCHIVES);
+        let mirror = [
+            "forewarn",
+            "match",
+            "--cache",
+            "c",
+            "--osv-url",
+            "http://m",
+            "-",
+        ];
+        assert_eq!(base_url(&mirror), "http://m");
     }
 }

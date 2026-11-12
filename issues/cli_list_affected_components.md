@@ -44,9 +44,9 @@ ecosystems the SBOM uses. Out of scope: grouping aliases, the OSV API, KEV/EUVD.
 1. [x] `forewarn match --osv <path>`: the subcommand on local records, human and JSON report, exit codes, escaping;
    verified by end-to-end tests on a fixture SBOM and the OSV fixtures; makes true MCH-1 to MCH-3, MCH-4 (local),
    MCH-6 to MCH-10, MCH-14 to MCH-20 (~900 lines). (autonomous)
-2. [ ] Fetch the archives: ecosystems derived from the SBOM, `--cache` and its default, `--refresh`, `--osv-url`, the
+2. [x] Fetch the archives: ecosystems derived from the SBOM, `--cache` and its default, `--refresh`, `--osv-url`, the
    freshness of each archive (RFC 3339 through `time`); verified by end-to-end tests against a loopback server and an
-   `offline` cache; makes true MCH-4 (archives), MCH-5, MCH-11 to MCH-13, sets the spec `accepted` (~700 lines).
+   `offline` cache; makes true MCH-4 (archives), MCH-5, MCH-11 to MCH-13, sets the spec `accepted` (~700 lines). (autonomous)
 3. [ ] Docs of the whole issue (README usage and exit codes, CLAUDE.md status) and the fixes of the `high` review.
 
 ## Decisions
@@ -64,3 +64,11 @@ ecosystems the SBOM uses. Out of scope: grouping aliases, the OSV API, KEV/EUVD.
 - Code review: 1 findings: the `OSV records: none` branch is unreachable while `--osv` is required; kept, deliverable 2
   reaches it (an SBOM with no ecosystem fetches nothing).
 - not verified: `--osv` given without fetching is required until deliverable 2 (no default source yet).
+
+## Deliverable 2 summary
+- done: without `--osv`, `forewarn match` fetches the archive of each ecosystem of the SBOM into `--cache` (default
+  under `XDG_CACHE_HOME` or `HOME`) under `--refresh` (default `1d`) from `--osv-url`, and reports the freshness of
+  each archive; `--osv` excludes the three options; spec `accepted`; README and CLAUDE.md updated.
+- red: MCH-H2, MCH-4, MCH-5, MCH-8, MCH-9, MCH-13, MCH-16: `error: unexpected argument '--cache' found`
+- Code review: 1 findings: `--refresh 1é` panicked on a byte split; fixed (split on the last character), cases added.
+- not verified: a download from the real OSV bucket (MCH-13 is proven by an internal test, without the network).

@@ -12,8 +12,8 @@ URL and version (`specs/vulnerability-matching.md`); the OSV adapter reads an OS
 [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)), and fetches the archive of each ecosystem
 (`<ecosystem>/all.zip`) into a cache under a refresh policy, recording when it was downloaded (ADR
 [0004](docs/adr/0004-fetch-osv-ecosystem-archives-into-a-cache.md)): only ecosystem names leave the CI.
-`forewarn match --osv <path>` prints the affected components of an SBOM, apart from those not evaluated, matched
-against local OSV records (`specs/cli-match.md`); fetching the archives from it is in progress.
+`forewarn match` prints the affected components of an SBOM, apart from those not evaluated, matched against the cached
+OSV archives of the ecosystems it uses, or local records given with `--osv` (`specs/cli-match.md`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 

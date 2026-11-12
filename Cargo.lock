@@ -276,7 +276,9 @@ dependencies = [
  "forewarn-osv",
  "serde_json",
  "tempfile",
+ "time",
  "toml",
+ "zip",
 ]
 
 [[package]]

@@ -7,7 +7,10 @@ use std::path::Path;
 use forewarn_domain::completeness::{CompletenessReport, Field};
 use forewarn_domain::matching::{ComponentReason, ComponentRef, MatchReport, PairReason, Reason};
 use forewarn_domain::sbom::{Sbom, SpecVersion};
+use forewarn_osv::fetch::{Freshness, Snapshot};
 use serde_json::{Value, json};
+use time::OffsetDateTime;
+use time::macros::format_description;
 
 /// The text report for a person: the spec version, then the incomplete components or that the SBOM is complete.
 pub fn human(sbom: &Sbom, completeness: &CompletenessReport) -> String {
@@ -119,8 +122,19 @@ fn field_name(field: Field) -> &'static str {
 
 /// Where the OSV records matched against came from (MCH-4).
 pub enum Source<'a> {
+    /// The archive of an ecosystem, fetched into the cache; its vulnerabilities may have been taken out.
+    Archive(&'a Snapshot),
     /// A record file or a directory the user gave with `--osv`.
     Local(&'a Path),
+}
+
+/// The time of a download in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`).
+fn utc(freshness: &Freshness) -> String {
+    OffsetDateTime::from(freshness.downloaded_at)
+        .format(format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+        ))
+        .unwrap_or_default()
 }
 
 /// The text report of `forewarn match` for a person: the SBOM, the sources of the records, the matches, the
@@ -139,6 +153,18 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
     }
     for source in sources {
         match source {
+            Source::Archive(snapshot) => {
+                let freshness = &snapshot.freshness;
+                text.push_str("  ");
+                push_escaped(&mut text, &snapshot.ecosystem);
+                let _ = write!(text, ": downloaded {} from ", utc(freshness));
+                push_escaped(&mut text, &freshness.url);
+                if let Some(last_modified) = &freshness.last_modified {
+                    text.push_str(", Last-Modified ");
+                    push_escaped(&mut text, last_modified);
+                }
+                text.push('\n');
+            }
             Source::Local(path) => {
                 text.push_str("  ");
                 push_escaped(&mut text, &path.to_string_lossy());
@@ -195,6 +221,13 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
     let sources: Vec<Value> = sources
         .iter()
         .map(|source| match source {
+            Source::Archive(snapshot) => json!({
+                "kind": "archive",
+                "ecosystem": snapshot.ecosystem,
+                "url": snapshot.freshness.url,
+                "downloadedAt": utc(&snapshot.freshness),
+                "lastModified": snapshot.freshness.last_modified,
+            }),
             Source::Local(path) => json!({"kind": "local", "path": path.to_string_lossy()}),
         })
         .collect();

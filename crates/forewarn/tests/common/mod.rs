@@ -1,5 +1,8 @@
 //! What the end-to-end tests of the binary share: running it and writing an SBOM.
 
+// `expect` would fail in the test crates that use every helper.
+#![allow(dead_code, reason = "each test crate uses a part of the helpers")]
+
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
 
@@ -14,7 +17,19 @@ pub struct Run {
 
 /// Runs the binary with `args`, `stdin` on its standard input.
 pub fn run(args: &[&str], stdin: Option<&[u8]>) -> Run {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_forewarn"))
+    run_with(args, stdin, &[])
+}
+
+/// Runs the binary with `args`, `stdin` on its standard input, each variable of `env` set, or removed when `None`.
+pub fn run_with(args: &[&str], stdin: Option<&[u8]>, env: &[(&str, Option<&str>)]) -> Run {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_forewarn"));
+    for (name, value) in env {
+        match value {
+            Some(value) => command.env(name, value),
+            None => command.env_remove(name),
+        };
+    }
+    let mut child = command
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

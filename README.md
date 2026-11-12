@@ -27,13 +27,18 @@ minimum), and each component missing a supplier, a license or a hash. The JSON r
 | 4 | the report cannot be written to standard output |
 
 ```sh
+forewarn match sbom.cdx.json                      # fetch the OSV archive of each ecosystem of the SBOM into a cache
+forewarn match --refresh offline sbom.cdx.json    # an air-gapped CI: the cache only, no request
 forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability (its id, aliases and source), apart from
-the components it could not evaluate (no package URL, no version, an ecosystem whose ranges are not compared yet), and
-how many are clean; `--format json` and `--allow-affected` work as for `check`. It exits with 1 when a component is
-affected, 5 when the OSV records cannot be read, and otherwise as `check` does.
+the components it could not evaluate (no package URL, no version, an ecosystem whose ranges are not compared yet), how
+many are clean, and how fresh the OSV data is; `--format json` and `--allow-affected` work as for `check`. Only the
+names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from the OSV bucket (`--osv-url` for a
+mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--cache` for another), again once a day
+(`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). It exits with 1 when a component is
+affected, 5 when the OSV records cannot be read or fetched, and otherwise as `check` does.
 
 ## License
 
