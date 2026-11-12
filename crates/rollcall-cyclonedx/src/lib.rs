@@ -109,7 +109,23 @@ fn to_domain(component: &CdxComponent) -> Component {
             .as_ref()
             .and_then(|s| s.name.as_ref())
             .map(ToString::to_string),
-        author: component.author.as_ref().map(ToString::to_string),
+        manufacturer: component
+            .manufacturer
+            .as_ref()
+            .and_then(|m| m.name.as_ref())
+            .map(ToString::to_string),
+        authors: component
+            .author
+            .iter()
+            .chain(
+                component
+                    .authors
+                    .iter()
+                    .flatten()
+                    .filter_map(|contact| contact.name.as_ref()),
+            )
+            .map(ToString::to_string)
+            .collect(),
         publisher: component.publisher.as_ref().map(ToString::to_string),
         licenses: component
             .licenses

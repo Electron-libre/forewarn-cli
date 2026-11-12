@@ -56,9 +56,9 @@ Means: option 1 of the issue (`cyclonedx-bom` 0.9.0 parses 1.3–1.7, measured),
    SBR-7; MSRV 1.86; hand-made fixtures (1.6, 1.7, 1.5, 1.2, nested, unknown values, no specVersion, SPDX, not JSON,
    invalid); verified by tests in `crates/rollcall-cyclonedx/tests`; makes true SBR-1, SBR-2, SBR-3, SBR-5, SBR-6,
    SBR-7, SBR-8, SBR-H2. (autonomous)
-2. [ ] Fixtures of real tools: one small SBOM each from `cargo-cyclonedx`, `syft` and `cdxgen` (generated on a tiny
+2. [x] Fixtures of real tools: one small SBOM each from `cargo-cyclonedx`, `syft` and `cdxgen` (generated on a tiny
    sample project, committed with the command that produced them); verified by tests reading each; makes true SBR-4,
-   SBR-H1; sets the spec `accepted`.
+   SBR-H1; sets the spec `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -68,6 +68,8 @@ Means: option 1 of the issue (`cyclonedx-bom` 0.9.0 parses 1.3–1.7, measured),
 - Supplier: `supplier.name`, with `author` and `publisher` kept apart for the completeness check to weigh.
 - Real-tool fixtures are generated on a small sample project, committed as compact JSON with the command that
   produced them.
+- Deliverable 2 found that 1.6 tools write `authors` (a list) rather than the deprecated `author`: SBR-5 reads both
+  into `authors`, and `manufacturer.name` (1.6) beside `supplier`, so the completeness check can weigh them.
 
 ## Deliverable 1 summary
 done: domain `sbom` module (`Sbom`, `Component`, `Hash`, `SpecVersion` with the BSI 1.6 minimum); `read_json` in
@@ -89,4 +91,25 @@ Code review: 1 finding
 - `serde_json` duplicated under `[dev-dependencies]`: removed.
 
 not verified: real tool outputs (deliverable 2).
+decisions needed: none.
+
+## Deliverable 2 summary
+done: SBOMs of a two-dependency sample project from `cargo-cyclonedx` 0.5.10 (1.6), `syft` 1.57.1 (1.6) and `cdxgen`
+13.2.0 (1.7), with their commands in `tests/fixtures/README.md`; tests asserting their exact components; SBR-5 widened
+to `authors` and `manufacturer`; spec `accepted`.
+
+| check | result |
+|---|---|
+| tests | 16 adapter tests + 1 domain test pass |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean, spec `accepted` |
+| docs | fixtures README; `CLAUDE.md` unchanged (n/a) |
+| code review | see below |
+
+red: SBR-5: with the 1.6 `authors` ignored, `maps_the_fields_of_a_component` failed (`authors` empty); SBR-4, SBR-H1
+passed at once: the reader of deliverable 1 already read the three tools' output (measured before the plan).
+
+Code review: no findings
+
+not verified: none.
 decisions needed: none.

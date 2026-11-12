@@ -1,6 +1,6 @@
 ---
 id: SBR
-status: draft
+status: accepted
 adrs: [0001, 0002]
 ---
 
@@ -34,7 +34,8 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
   | version | `version` |
   | package URL | `purl`, as written |
   | supplier | `supplier.name` |
-  | author | `author` |
+  | manufacturer | `manufacturer.name` (1.6) |
+  | authors | `author` when present, then the `name` of each entry of `authors` (1.6) that has one |
   | publisher | `publisher` |
   | licenses | each entry of `licenses`: the SPDX id or the name of a `license`, or the text of an `expression` |
   | hashes | each entry of `hashes`: the algorithm as written and the value |

@@ -78,6 +78,8 @@ fn maps_the_fields_of_a_component() {
             "purl": "pkg:cargo/serde@1.0.228",
             "supplier": { "name": "Serde Team" },
             "author": "David Tolnay",
+            "authors": [{ "name": "Serde Contributors" }, { "email": "anonymous@example.com" }],
+            "manufacturer": { "name": "Serde Foundry" },
             "publisher": "crates.io",
             "licenses": [{ "license": { "id": "MIT" } }, { "license": { "name": "Custom terms" } }],
             "hashes": [{ "alg": "SHA-256", "content": "aa".repeat(32) }]
@@ -96,7 +98,8 @@ fn maps_the_fields_of_a_component() {
                 version: Some("1.0.228".into()),
                 purl: Some("pkg:cargo/serde@1.0.228".into()),
                 supplier: Some("Serde Team".into()),
-                author: Some("David Tolnay".into()),
+                manufacturer: Some("Serde Foundry".into()),
+                authors: vec!["David Tolnay".into(), "Serde Contributors".into()],
                 publisher: Some("crates.io".into()),
                 licenses: vec!["MIT".into(), "Custom terms".into()],
                 hashes: vec![Hash {

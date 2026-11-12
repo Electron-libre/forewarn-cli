@@ -50,7 +50,10 @@ pub struct Component {
     pub purl: Option<String>,
     /// The name of the supplier organisation.
     pub supplier: Option<String>,
-    pub author: Option<String>,
+    /// The name of the manufacturer organisation (CycloneDX 1.6).
+    pub manufacturer: Option<String>,
+    /// The authors: the legacy single `author` text, then each named author of CycloneDX 1.6.
+    pub authors: Vec<String>,
     pub publisher: Option<String>,
     /// Each license: an SPDX identifier, a license name, or an SPDX expression.
     pub licenses: Vec<String>,
