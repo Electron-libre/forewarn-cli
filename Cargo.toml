@@ -8,6 +8,8 @@ edition = "2024"
 rust-version = "1.86"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Electron-libre/forewarn-cli"
+# The forewarn names are free on crates.io (2026-11-12); publishing waits for its own decision.
+publish = false
 
 [workspace.lints.clippy]
 pedantic = { level = "deny", priority = -1 }

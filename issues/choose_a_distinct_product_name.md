@@ -59,6 +59,9 @@ Candidates checked on 2026-11-12 (crates.io API, `gh search repos`; EU trademark
    `ROADMAP.md` and the `repository` URL; drop `publish = false` and its comment once the names are free on
    crates.io; verified by `cardinal run project-check` and the `check.rs` tests run through the new binary name;
    ~150 lines. The `.cdx.json` fixtures keep the name the tools recorded when generated. (autonomous)
+3. [x] Fixes of the `high` review of the issue: `publish = false` restored (the domain crate, with no path
+   dependency, could be published by accident), its status stated in `CLAUDE.md`; verified by
+   `cardinal run project-check`; ~10 lines. (autonomous)
 
 ## Deliverable 1
 done: the crate directories moved to `crates/forewarn`, `crates/forewarn-cyclonedx`, `crates/forewarn-domain`; the
@@ -103,7 +106,32 @@ not verified: the EU trademark of `forewarn` (TMview).
 
 decisions needed: none.
 
+## Deliverable 3
+done: the `high` review of `base..HEAD` gave 4 findings; `publish = false` and `publish.workspace = true` are back,
+with a comment saying the names are free and publishing waits for its own decision; `CLAUDE.md` states it and its
+paragraph is rewrapped.
+
+| check | result |
+|---|---|
+| tests, fmt, clippy, specs | `cardinal run project-check` green |
+
+red: none (manifests and docs only).
+
+High review: 4 findings
+- the domain crate publishable by accident: fixed (guard restored).
+- path dependencies without `version`: moot while `publish = false`; noted in `CLAUDE.md` for the first publication.
+- `repository` URL `forewarn-cli` is 404 until the GitHub rename: settled by the rename of answer 3b.
+- `CLAUDE.md` lost the publication status, short line: fixed.
+
+Code review: no findings
+
+not verified: the EU trademark of `forewarn` (TMview).
+
+decisions needed: the GitHub rename `rollcall-cli` -> `forewarn-cli` (answer 3b).
+
 ## Decisions
+- Deviation from step 3 of the Approach: `publish = false` is kept although the names are free; the first
+  publication is its own decision (high review).
 - Mode: autonomous
 - Repository rename: the agent runs `gh repo rename` after the user agrees, once deliverable 2 is committed (answer 3b).
 - Name: `forewarn`; crates `forewarn` (binary), `forewarn-domain`, `forewarn-cyclonedx`, all free on crates.io on 2026-11-12 (answer 1a).

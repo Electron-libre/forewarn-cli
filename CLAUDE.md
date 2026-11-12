@@ -21,8 +21,9 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`
-crates. `crates/forewarn/tests/workspace_policy.rs` checks that every member
-inherits the license and the lints, and that the domain depends on no other crate of the workspace.
+crates. `publish = false` stays until the first publication is decided (the path dependencies then need a `version`).
+`crates/forewarn/tests/workspace_policy.rs` checks that every member inherits the license and the lints, and that the
+domain depends on no other crate of the workspace.
 
 ## What this is
 
