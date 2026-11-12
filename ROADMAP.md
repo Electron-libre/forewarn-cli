@@ -29,7 +29,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [match_components_against_vulnerabilities](issues/done/match_components_against_vulnerabilities.md)
   - [read_osv_records](issues/done/read_osv_records.md)
   - [fetch_osv_records](issues/done/fetch_osv_records.md)
-  - [cli_list_affected_components](issues/cli_list_affected_components.md)
+  - [cli_list_affected_components](issues/done/cli_list_affected_components.md)
   - [group_matches_of_one_vulnerability](issues/group_matches_of_one_vulnerability.md)
   - [query_the_osv_api](issues/query_the_osv_api.md)
   - [lock_the_osv_cache_against_concurrent_runs](issues/lock_the_osv_cache_against_concurrent_runs.md)
