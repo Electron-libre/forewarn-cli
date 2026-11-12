@@ -273,7 +273,9 @@ dependencies = [
  "clap",
  "forewarn-cyclonedx",
  "forewarn-domain",
+ "forewarn-osv",
  "serde_json",
+ "tempfile",
  "toml",
 ]
 

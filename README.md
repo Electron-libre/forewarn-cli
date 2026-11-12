@@ -26,6 +26,15 @@ minimum), and each component missing a supplier, a license or a hash. The JSON r
 | 3 | the SBOM cannot be read |
 | 4 | the report cannot be written to standard output |
 
+```sh
+forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
+```
+
+`forewarn match` prints the components affected by a known OSV vulnerability (its id, aliases and source), apart from
+the components it could not evaluate (no package URL, no version, an ecosystem whose ranges are not compared yet), and
+how many are clean; `--format json` and `--allow-affected` work as for `check`. It exits with 1 when a component is
+affected, 5 when the OSV records cannot be read, and otherwise as `check` does.
+
 ## License
 
 Licensed under either of

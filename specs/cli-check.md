@@ -101,4 +101,4 @@ job can act on.
 - Checking several SBOMs in one run, or a directory.
 - Colours, or a `--quiet` option.
 - Failing on an SBOM below the BSI minimum: it is flagged, not refused (`specs/sbom-reading.md`).
-- Matching vulnerabilities, drafting reports or uploading: later subcommands (`match`, `report`, `upload`).
+- Matching vulnerabilities: `forewarn match` (`specs/cli-match.md`); drafting reports or uploading: later subcommands.

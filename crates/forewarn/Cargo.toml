@@ -12,9 +12,11 @@ publish.workspace = true
 clap = { version = "4.6", features = ["derive"] }
 forewarn-cyclonedx = { path = "../forewarn-cyclonedx" }
 forewarn-domain = { path = "../forewarn-domain" }
+forewarn-osv = { path = "../forewarn-osv" }
 serde_json = "1"
 
 [dev-dependencies]
+tempfile = "3"
 toml = "0.9"
 
 [lints]
