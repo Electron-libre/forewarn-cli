@@ -1,0 +1,203 @@
+//! The `rollcall check` command, driven through the binary (`specs/cli-check.md`).
+
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+
+use serde_json::{Value, json};
+
+/// The output of a run, its streams decoded.
+struct Run {
+    code: i32,
+    stdout: String,
+    stderr: String,
+}
+
+fn run(args: &[&str], stdin: Option<&[u8]>) -> Run {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_rollcall"))
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the binary starts");
+    let mut input = child.stdin.take().expect("stdin is piped");
+    if let Some(bytes) = stdin {
+        // The command may exit before reading (a usage error): a broken pipe is not a failure of the test.
+        let _ = input.write_all(bytes);
+    }
+    drop(input);
+    let Output {
+        status,
+        stdout,
+        stderr,
+    } = child.wait_with_output().expect("the binary runs");
+    Run {
+        code: status.code().expect("the binary exits with a code"),
+        stdout: String::from_utf8(stdout).expect("stdout is UTF-8"),
+        stderr: String::from_utf8(stderr).expect("stderr is UTF-8"),
+    }
+}
+
+fn fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
+}
+
+fn syft_fixture() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../rollcall-cyclonedx/tests/fixtures/syft.cdx.json")
+}
+
+fn bom(spec_version: &str, components: &Value) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "bomFormat": "CycloneDX",
+        "specVersion": spec_version,
+        "version": 1,
+        "components": components,
+    }))
+    .expect("the SBOM serializes")
+}
+
+fn complete_component(name: &str) -> Value {
+    json!({
+        "type": "library",
+        "name": name,
+        "version": "1.0.0",
+        "supplier": {"name": "Acme"},
+        "licenses": [{"license": {"id": "MIT"}}],
+        "hashes": [{"alg": "SHA-256", "content": "ab12"}],
+    })
+}
+
+// spec: CHK-H1, CHK-1, CHK-2, CHK-3, CHK-9
+#[test]
+fn reports_the_gaps_of_the_sbom_of_syft_and_exits_with_1() {
+    let path = syft_fixture();
+    let run = run(&["check", path.to_str().expect("UTF-8 path")], None);
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    assert_eq!(run.stderr, "");
+    let lines: Vec<&str> = run.stdout.lines().collect();
+    assert_eq!(lines[0], "SBOM: CycloneDX 1.6");
+    assert_eq!(lines[1], "4 of 4 components incomplete:");
+    assert_eq!(
+        lines[2..],
+        [
+            "  itoa 1.0.19 (pkg:cargo/itoa@1.0.19): missing supplier, license, hash",
+            "  rollcall-fixture-sample 0.1.0: missing supplier, license, hash",
+            "  semver 1.0.28 (pkg:cargo/semver@1.0.28): missing supplier, license, hash",
+            "  /Cargo.lock: missing supplier, license",
+        ]
+    );
+}
+
+// spec: CHK-H3, CHK-1, CHK-3, CHK-7
+#[test]
+fn flags_a_complete_sbom_below_the_bsi_minimum_and_exits_with_0() {
+    let path = fixture("complete-1.5.cdx.json");
+    let run = run(&["check", path.to_str().expect("UTF-8 path")], None);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(run.stderr, "");
+    assert_eq!(
+        run.stdout,
+        "SBOM: CycloneDX 1.5 (below the BSI TR-03183-2 minimum, 1.6)\n\
+         Complete: 2 components checked, none missing a supplier, a license or a hash\n"
+    );
+}
+
+// spec: CHK-4, CHK-7
+#[test]
+fn reads_the_sbom_from_standard_input() {
+    let input = bom("1.6", &json!([complete_component("serde")]));
+    let run = run(&["check", "-"], Some(&input));
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(
+        run.stdout,
+        "SBOM: CycloneDX 1.6\nComplete: 1 components checked, none missing a supplier, a license or a hash\n"
+    );
+}
+
+// spec: CHK-2
+#[test]
+fn shows_the_name_alone_of_a_component_with_no_version_nor_purl() {
+    let input = bom("1.7", &json!([{"type": "library", "name": "bare"}]));
+    let run = run(&["check", "-"], Some(&input));
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    assert!(
+        run.stdout
+            .contains("\n  bare: missing supplier, license, hash\n"),
+        "{}",
+        run.stdout
+    );
+}
+
+// spec: CHK-3, CHK-7
+#[test]
+fn an_sbom_with_no_component_is_complete() {
+    let run = run(&["check", "-"], Some(&bom("1.6", &json!([]))));
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert!(
+        run.stdout.contains("Complete: 0 components checked"),
+        "{}",
+        run.stdout
+    );
+}
+
+// spec: CHK-7, CHK-8
+#[test]
+fn a_missing_file_is_named_on_stderr_and_exits_with_3() {
+    let path = fixture("does-not-exist.json");
+    let path = path.to_str().expect("UTF-8 path");
+    let run = run(&["check", path], None);
+    assert_eq!(run.code, 3);
+    assert_eq!(run.stdout, "");
+    assert_eq!(run.stderr.lines().count(), 1, "{}", run.stderr);
+    assert!(run.stderr.contains(path), "{}", run.stderr);
+    assert!(
+        run.stderr.contains("cannot read the input"),
+        "{}",
+        run.stderr
+    );
+}
+
+// spec: CHK-7, CHK-8
+#[test]
+fn a_refused_sbom_on_standard_input_names_it_and_exits_with_3() {
+    let run = run(&["check", "-"], Some(&bom("1.2", &json!([]))));
+    assert_eq!(run.code, 3);
+    assert_eq!(run.stdout, "");
+    assert_eq!(run.stderr.lines().count(), 1, "{}", run.stderr);
+    assert!(run.stderr.contains("standard input"), "{}", run.stderr);
+    assert!(
+        run.stderr.contains("unsupported spec version"),
+        "{}",
+        run.stderr
+    );
+}
+
+// spec: CHK-7, CHK-11
+#[test]
+fn accepts_the_human_format_and_refuses_an_unknown_one() {
+    let input = bom("1.6", &json!([]));
+    assert_eq!(
+        run(&["check", "--format", "human", "-"], Some(&input)).code,
+        0
+    );
+    let refused = run(&["check", "--format", "xml", "-"], Some(&input));
+    assert_eq!(refused.code, 2);
+    assert_eq!(refused.stdout, "");
+}
+
+// spec: CHK-7
+#[test]
+fn a_check_with_no_sbom_is_a_usage_error() {
+    assert_eq!(run(&["check"], None).code, 2);
+}
+
+// spec: CHK-12
+#[test]
+fn no_subcommand_prints_the_usage_and_exits_with_2() {
+    let run = run(&[], None);
+    assert_eq!(run.code, 2);
+    assert!(run.stderr.contains("check"), "{}", run.stderr);
+}

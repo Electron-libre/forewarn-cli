@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project status
 
 Early proof of concept. The CycloneDX adapter reads a JSON SBOM into the domain types (`specs/sbom-reading.md`); the
-domain lists the components missing a supplier, a license or a hash (`specs/sbom-completeness.md`); no command yet.
+domain lists the components missing a supplier, a license or a hash (`specs/sbom-completeness.md`); `rollcall check`
+prints both (`specs/cli-check.md`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
@@ -17,7 +18,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 |---|---|---|
 | `rollcall-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
 | `rollcall-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
-| `rollcall` | the CLI binary: arguments and wiring | `cli` |
+| `rollcall` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
 `publish = false` for now: the names `rollcall`, `rollcall-cli` and `rollcall-core` are taken on crates.io by another
 project, so the package names are provisional. `crates/rollcall/tests/workspace_policy.rs` checks that every member

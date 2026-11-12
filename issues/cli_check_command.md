@@ -28,3 +28,38 @@ Read and check an SBOM
 
 # Hints
 * Keep the command name open to later subcommands (`match`, `report`, `upload`).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-12
+
+## Understanding
+`rollcall check <sbom|->` prints the spec version (flagged below 1.6) and the incomplete components, as text or
+`--format json`, with exit codes 0 / 1 gaps / 2 usage / 3 unreadable, and `--allow-incomplete` for CI.
+Out of scope: matching, reports, upload, several SBOMs. The report formats are modules of the binary crate (ADR 0001:
+adapters start as modules), `clap` derive with a `check` subcommand.
+
+## Plan
+1. [x] `check` subcommand: clap parsing, path or `-`, human report, exit codes, errors on stderr; verified by tests
+   through the binary (`crates/rollcall/tests/check.rs`); makes true CHK-1, CHK-2, CHK-3, CHK-4, CHK-7, CHK-8, CHK-9,
+   CHK-11 (`human`), CHK-12. (autonomous)
+2. [ ] JSON report adapter behind `--format json`; verified by tests through the binary parsing stdout; makes true
+   CHK-5, CHK-10, CHK-11.
+3. [ ] `--allow-incomplete`, README usage section; verified by tests through the binary; makes true CHK-6, sets the
+   spec `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 863ffc1e5b32f8909761d39ea70060d15e33af85
+- Exit codes: 0 complete, 1 incomplete, 2 usage, 3 unreadable SBOM.
+- Non-fatal gaps: `--allow-incomplete`.
+- JSON: an absent `version` or `purl` is `null`.
+- Report formats: modules of the binary crate (ADR 0001), commit scope `cli`.
+
+## Deliverable 1
+- done: `rollcall check <sbom|->` with clap, human report (module `report`), exit codes 0/1/2/3, errors on stderr;
+  README usage, CLAUDE.md status and layout.
+- red: CHK-H1, CHK-H3, CHK-1, CHK-2, CHK-3, CHK-4, CHK-7, CHK-8, CHK-9, CHK-11, CHK-12: 10 tests failed, the empty
+  binary exits with 0 and prints nothing (`left: 0, right: 1`).
+- Code review: no findings
+- not verified: none. Decisions needed: none.
