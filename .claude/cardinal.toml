@@ -7,7 +7,7 @@ rev = "fe1200554912fe4285ecf33f549af0d0f0db7c95"  # default branch
 
 [project]
 # Scopes allowed in commit messages besides `docs` and `cardinal` (crates, areas).
-commit_scopes = ["cli", "sbom", "matching", "feeds", "report"]
+commit_scopes = ["cli", "domain", "sbom", "matching", "feeds", "report"]
 # Documents at the repository root that skills may cite besides AGENTS.md and CLAUDE.md (delivered-quality counts
 # their lines as docs).
 root_docs = ["README.md"]

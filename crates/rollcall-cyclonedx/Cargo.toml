@@ -1,0 +1,15 @@
+[package]
+name = "rollcall-cyclonedx"
+description = "CycloneDX adapter of rollcall: reads an SBOM into the types of the domain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+rollcall-domain = { path = "../rollcall-domain" }
+
+[lints]
+workspace = true

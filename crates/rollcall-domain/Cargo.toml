@@ -1,0 +1,12 @@
+[package]
+name = "rollcall-domain"
+description = "Domain of rollcall: SBOM components, completeness, vulnerability matching, CRA reporting deadlines"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

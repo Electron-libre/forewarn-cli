@@ -1,0 +1,2 @@
+# Product names written as they are spelled, not as code, in doc comments (`doc_markdown`); ".." keeps the defaults.
+doc-valid-idents = ["CycloneDX", ".."]

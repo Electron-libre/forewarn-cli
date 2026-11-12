@@ -37,3 +37,34 @@ Read and check an SBOM
 * Public repository: the crates shared with the hosted service (matching, CycloneDX handling, API types) must be
   usable without the CLI, so keep them free of CLI dependencies.
 * Silence a pedantic lint only locally with `#[expect(clippy::<lint>, reason = "...")]`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-12
+
+## Understanding
+A buildable workspace skeleton, laid out hexagonally, with the license and the pedantic lints inherited by every crate,
+so that `just check` passes. No SBOM parsing nor CLI argument yet (later issues).
+
+## Plan
+1. [x] Workspace skeleton: root `Cargo.toml` (`[workspace.package]`, `[workspace.lints.clippy]`), three crates under
+   `crates/` (domain, CycloneDX adapter, CLI binary printing its version), a placeholder test per crate, the crate
+   layout ADR; verified by `cardinal run project-check` and a test asserting each manifest inherits the license and
+   the lints. (autonomous)
+
+## Deliverable 1 summary
+- done: workspace with `rollcall-domain`, `rollcall-cyclonedx`, `rollcall` (empty), license and pedantic lints
+  inherited, `clippy.toml` accepting `CycloneDX` in doc comments, `.gitignore`, ADR 0001, `CLAUDE.md` layout, scope
+  `domain`.
+- red: none (no spec); the policy test failed first with `crates/rollcall/Cargo.toml: [lints] workspace = true is
+  missing`.
+- Code review: no findings
+- not verified: no CI job runs `cargo` yet (`.github/workflows/cardinal.yml` runs the Cardinal checks only).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 6ddff02c0f49bfe376b6ff298063d8e0d2f364d6
+- Package names: `publish = false` and provisional names (`rollcall`, `rollcall-domain`, `rollcall-cyclonedx`); the
+  names `rollcall`, `rollcall-cli` and `rollcall-core` are taken on crates.io by another CRA SBOM project, to settle
+  before the first publication.
+- Product name conflict: a separate issue (choose a distinct product name).

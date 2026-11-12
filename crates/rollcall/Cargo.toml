@@ -1,0 +1,19 @@
+[package]
+name = "rollcall"
+description = "Match a CycloneDX SBOM against actively exploited vulnerabilities and draft the CRA early warning"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+rollcall-cyclonedx = { path = "../rollcall-cyclonedx" }
+rollcall-domain = { path = "../rollcall-domain" }
+
+[dev-dependencies]
+toml = "0.9"
+
+[lints]
+workspace = true
