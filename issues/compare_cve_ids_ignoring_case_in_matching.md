@@ -50,6 +50,9 @@ matching still reads from the prefix only; the OSV adapter, which keeps the ids 
 1. [x] Matching reads a CVE id ignoring case: `Named` keeps its CVE ids in upper case, the match is named by that
    form and leaves out every CVE alias in any case; verified by the three VMT-29 scenarios in
    `crates/forewarn-domain/tests/matching.rs`; makes true VMT-29. (autonomous)
+2. [x] Fixes of the `high` review of the issue: tests of a lower-case CVE as a record id, with VMT-20 and VMT-22;
+   the EXF-4/EXF-9 scenario names its match instead of aliasing it; follow-up issue for one CVE id definition;
+   verified by `cardinal run project-check`; makes true VMT-29. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -69,5 +72,20 @@ matching still reads from the prefix only; the OSV adapter, which keeps the ids 
 - red: VMT-29: `left: [("time", "RUSTSEC-A")] right: [("time", "CVE-2023-1111")]`, and the grouping test reported
   two matches `CVE-2023-1111` and `RUSTSEC-A` for one CVE.
 - Code review: no findings (`low`).
+- not verified: none.
+- decisions needed: none.
+
+## Summary of deliverable 2
+- done: three tests of VMT-29 (a record whose id is `cve-…`, a pair not evaluated dropped through a lower-case CVE
+  (VMT-20), a record not affecting listed through one (VMT-22)); EXF-4/EXF-9 scenario reworded; issue
+  `share_one_definition_of_a_cve_id_in_the_domain` opened, in the milestone.
+- `high` review: 6 findings. Fixed: missing tests (3), the EXF scenario of a match aliased by a CVE (5). Follow-up
+  issue: the prefix-only `is_cve` of matching against the shape of EXF-7 (1), one CVE id definition for the domain
+  (4). Not fixed: a record is listed, and its pair reported, under its id as its source writes it (VMT-18, non-goal
+  "each is reported under its record's id") (2); `cves` copying part of `ids` only allocates for a lower-case CVE,
+  absent from the archives (6).
+- checks: tests 361 passed; clippy, fmt, specs green.
+- Code review: no findings (`low`).
+- red: none (tests of behaviour deliverable 1 already gives, asked by the review).
 - not verified: none.
 - decisions needed: none.

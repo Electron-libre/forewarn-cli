@@ -975,3 +975,52 @@ fn keeps_a_lower_case_cve_alias_apart_from_the_cve_of_its_record() {
     assert_eq!(record_ids(&report.matches()[0]), ["CVE-2023-1111"]);
     assert_eq!(record_ids(&report.matches()[1]), ["CVE-2023-1111"]);
 }
+
+// spec: VMT-29, VMT-21
+#[test]
+fn groups_a_record_whose_own_id_is_a_lower_case_cve() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[
+            time_record("cve-2023-1111", "NVD", &[], "0"),
+            time_record("GHSA-X", "GHSA", &["CVE-2023-1111"], "0"),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-2023-1111")]);
+    assert_eq!(report.matches()[0].aliases, ["GHSA-X"]);
+}
+
+// spec: VMT-29, VMT-20
+#[test]
+fn drops_the_pair_of_a_record_whose_lower_case_cve_names_a_match() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2023-1111"], "0"),
+            unevaluated_time_record("GHSA-X", &["cve-2023-1111"]),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-2023-1111")]);
+    assert_eq!(record_ids(&report.matches()[0]), ["GHSA-X", "RUSTSEC-A"]);
+    assert_eq!(report.not_evaluated(), []);
+}
+
+// spec: VMT-29, VMT-22
+#[test]
+fn lists_a_record_not_affecting_through_a_lower_case_cve() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2023-1111"], "0"),
+            fixed_time_record("GHSA-Z", &["cve-2023-1111"]),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-2023-1111")]);
+    assert_eq!(
+        report.matches()[0].records,
+        [
+            record_with("GHSA-Z", "GHSA", RecordStatus::DoesNotAffect),
+            record("RUSTSEC-A", "RUSTSEC"),
+        ]
+    );
+}
