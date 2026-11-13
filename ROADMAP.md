@@ -62,11 +62,11 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   becomes aware of an actively exploited vulnerability, and the final report deadline (14 days) from the moment a
   corrective or mitigating measure is available (CRA article 14(2)), covered by BDD scenarios.
 - Why: a wrong deadline is the costliest bug of the project; it deserves its own milestone and tests.
-- State: in issues
+- State: done
 - Issues:
   - [compute_cra_reporting_deadlines](issues/done/compute_cra_reporting_deadlines.md)
   - [cli_print_reporting_deadlines](issues/done/cli_print_reporting_deadlines.md)
-  - [tell_overdue_reporting_deadlines](issues/tell_overdue_reporting_deadlines.md)
+  - [tell_overdue_reporting_deadlines](issues/done/tell_overdue_reporting_deadlines.md)
 
 ## Draft the CRA early warning
 
