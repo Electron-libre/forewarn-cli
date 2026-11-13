@@ -24,7 +24,8 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
   server sent one.
 - **OSF-3** (deterministic) Fetching under the policy `offline` must send no request.
 - **OSF-4** (deterministic) A fetch of an ecosystem that another fetch into the same cache is downloading, or is
-  putting back the snapshot a stopped fetch left aside, must wait until that fetch is done with the ecosystem, then read its snapshot or download its archive as OSF-9 says.
+  putting back the snapshot a stopped fetch left aside, must wait until that fetch is done with the ecosystem, then
+  read its snapshot or download its archive as OSF-9 says.
 - **OSF-5** (deterministic) Fetches of an ecosystem into the same cache that each read its cached snapshot without
   downloading must not wait for each other.
 - **OSF-6** (deterministic) A fetch that downloads the archive of an ecosystem, or puts back the snapshot a stopped
@@ -102,7 +103,7 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
 - (OSF-10) Given a snapshot of `crates.io` whose record file `RUSTSEC-2020-0071.json` was removed, or truncated, or
   beside which a file `extra.json` was added, its record of freshness intact, when `crates.io` is fetched under
   `if-missing`, then the archive is downloaded once and its vulnerabilities returned.
-- (OSF-10) Given a snapshot beside whose records a hidden file `.DS_Store` was left, when it is fetched under
+- (OSF-10, OSF-11) Given a snapshot beside whose records a hidden file `.DS_Store` was left, when it is fetched under
   `offline`, then its vulnerabilities are returned: a file whose name starts with `.` is not compared.
 - (OSF-11) Given the same snapshot, when it is fetched under `offline`, then it fails with "damaged cached copy"
   naming `RUSTSEC-2020-0071.json` (or `extra.json`) and no request is sent.

@@ -1323,7 +1323,7 @@ fn a_snapshot_whose_freshness_names_no_files_is_downloaded_again_under_older_tha
     assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
 }
 
-// spec: OSF-10
+// spec: OSF-10, OSF-11
 #[test]
 fn a_hidden_file_left_in_a_snapshot_is_not_damage() {
     let cache = TempDir::new().expect("a cache");

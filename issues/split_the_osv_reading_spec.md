@@ -44,7 +44,7 @@ changes: only citations move.
 ## Plan
 1. [x] Split the spec: `specs/osv-fetching.md` with OSF-1 to OSF-20 and OSF-H1 to OSF-H3, the moved OSR ids
    `withdrawn: moved to OSF-n`; the tests of `fetching.rs`, the doc comments of `forewarn-osv` (`fetch.rs`, `lib.rs`),
-   `specs/cli-match.md`, ADR 0008 and CLAUDE.md re-cited; verified by `check-specs` (no bound warning, both specs
+   `specs/cli-match.md` and CLAUDE.md re-cited; verified by `check-specs` (no bound warning, both specs
    `accepted`) and `project-check` unchanged; makes true OSF-1 to OSF-20. (autonomous)
 
 ## Decisions
@@ -62,4 +62,12 @@ changes: only citations move.
   `fetching.rs`, the doc comments of `fetch.rs` and `lib.rs`, `specs/cli-match.md`, ADR 0008 and CLAUDE.md re-cited.
 - checks: project-check pass (fmt, clippy, tests); check-specs pass, no bound warning; docs: CLAUDE.md.
 - red: none (no test added: the existing tests are only re-cited).
+- Code review: no findings
+
+## Deliverable 2: high review fixes
+2. [x] Fix the four findings of the high review of the issue: OSR-37 points to OSF-10 to OSF-13; the test and the
+   scenario of a hidden file in a snapshot, fetched under `offline`, also cite OSF-11; ADR 0008 keeps its OSR ids (an
+   accepted ADR is not rewritten, the withdrawn ids resolve); OSF-4 wrapped; verified by project-check and
+   check-specs. (autonomous)
+- red: none (citations and docs only).
 - Code review: no findings

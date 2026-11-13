@@ -79,7 +79,7 @@ when the caller opts in, the OSV API, into the vulnerabilities of the domain, so
   | `id` is absent, not a string, or empty once trimmed (OSR-36), a field of the table of OSR-4 has the wrong type or appears twice, a range `type` is not one of the three, or an event holds none of `introduced`, `fixed`, `last_affected` and `limit` | invalid OSV record, with the parser's reason or the empty `id` |
 
 - **OSR-13** (deterministic) withdrawn: moved to OSF-9 (`specs/osv-fetching.md`).
-- **OSR-37** (deterministic) withdrawn: replaced by OSR-38 to OSR-41, which tell a damaged snapshot from one that
+- **OSR-37** (deterministic) withdrawn: replaced by OSF-10 to OSF-13 (`specs/osv-fetching.md`), which tell a damaged snapshot from one that
   cannot be read by the files its download stored.
 - **OSR-38** (deterministic) withdrawn: moved to OSF-10 (`specs/osv-fetching.md`).
 - **OSR-39** (deterministic) withdrawn: moved to OSF-11 (`specs/osv-fetching.md`).
