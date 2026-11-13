@@ -1,15 +1,15 @@
 ---
 id: OSR
 status: accepted
-adrs: [0001, 0003, 0004, 0005]
+adrs: [0001, 0003, 0004, 0005, 0006]
 ---
 
 # OSV reading
 
 ## Intent
 
-Obtain vulnerability records in the OSV JSON format, from a file, a directory laid out as an OSV ecosystem archive or
-the archives OSV publishes per ecosystem, and read them into the vulnerabilities of the domain, so that the matching
+Obtain vulnerability records in the OSV JSON format, from a file, a directory laid out as an OSV ecosystem archive,
+the archives OSV publishes per ecosystem or, when the caller opts in, the OSV API, and read them into the vulnerabilities of the domain, so that the matching
 (`specs/vulnerability-matching.md`) runs on OSV data.
 
 ## Requirements
@@ -33,6 +33,11 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
 - **OSR-20** (deterministic) Fetches of two different ecosystems into the same cache must not wait for each other.
 - **OSR-21** (deterministic) A fetch stopped before it was done with an ecosystem (a killed process) must not make a
   later fetch of that ecosystem wait.
+- **OSR-24** (deterministic) Querying the OSV API for a list of packages, each an ecosystem, a name and a version,
+  must return the vulnerability of each record the API names for one of them, each id once, in the byte order of the
+  ids.
+- **OSR-25** (deterministic) Querying must return the freshness of the records: the UTC time the query started and
+  the URL of the API.
 
 ### Contract
 
@@ -105,6 +110,26 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
   caller gives, 40 minutes unless the caller gives another, then fail with the error of OSR-18.
 - **OSR-23** (deterministic) Fetching under `offline` must read the snapshots of a cache in which it cannot write,
   without waiting for another fetch.
+- **OSR-26** (deterministic) A query must send its packages with `POST <api>/v1/querybatch`, a JSON body
+  `{"queries": [{"package": {"ecosystem", "name"}, "version"}]}` holding one query per distinct package and version
+  in the order of the list, at most 1000 queries per request, `<api>` being `https://api.osv.dev` unless the caller
+  gives another.
+- **OSR-27** (deterministic) A request to the API must not send any field of a package other than its ecosystem, its
+  name and its version.
+- **OSR-28** (deterministic) A query whose result carries a `next_page_token` must be sent again with that token as
+  its `page_token`, until no result of the query carries one.
+- **OSR-29** (deterministic) A query must read the record of each id the results name with one `GET
+  <api>/v1/vulns/<id>`, with no body, once per id, through the model of OSR-4.
+- **OSR-30** (deterministic) A query of an empty list of packages must send no request.
+- **OSR-31** (deterministic) A failed query must fail with the error of this table, the first cause that applies,
+  its message quoting the offending value when there is one.
+
+  | Cause | Error |
+  |---|---|
+  | the API cannot be reached, or answers with a status other than 200 | cannot query the OSV API, with the URL and the reason or the status |
+  | an answer of `querybatch` is not JSON, or does not hold one result per query with a list of ids | invalid OSV API answer, with the parser's reason |
+  | an id of a result is empty, starts with `.`, or holds a character other than an ASCII letter, a digit, `.`, `-`, `_` and `:` | invalid record id, quoting it |
+  | the record of an id cannot be read (OSR-9) | the error of OSR-9, naming the id |
 
 ## Scenarios
 
@@ -122,6 +147,10 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
 - **OSR-H5** (happy; OSR-19, OSR-13) Given a run fetching `crates.io` into a cache, when a second run fetches
   `crates.io` into it under `if-missing` at the same time, then the second sends no request until the first is done,
   and returns the snapshot the first stored without downloading it again.
+- **OSR-H6** (happy; OSR-24, OSR-25, OSR-26, OSR-29) Given an API naming `RUSTSEC-2020-0071` for `crates.io` `time`
+  0.1.43, when `time` 0.1.43 and `serde` 1.0.0 are queried, then one `querybatch` request with both packages and one
+  request of `/v1/vulns/RUSTSEC-2020-0071` are sent, and that vulnerability is returned with the time of the query and
+  the URL of the API.
 - (OSR-4) Given a GitHub advisory `GHSA-…` of an npm package, when it is read, then its source is `GHSA`.
 - (OSR-4) Given a record with a `last_affected` event, when it is read, then the range carries that event.
 - (OSR-5) Given a record with an affected entry holding only `ranges` of type `GIT` and no `package`, when it is
@@ -173,10 +202,30 @@ the archives OSV publishes per ecosystem, and read them into the vulnerabilities
 - (OSR-10) Given an archive holding a record in a subdirectory and a `README.txt` beside its records, when it is
   fetched, then only the records at its top are returned.
 
+- (OSR-26) Given 1001 distinct packages, when they are queried, then two `querybatch` requests are sent, of 1000
+  and 1 queries.
+- (OSR-26) Given `time` 0.1.43 listed twice, when it is queried, then the `querybatch` request holds it once.
+- (OSR-24, OSR-29) Given an API naming the same id for two packages, when both are queried, then the record is
+  requested once and returned once.
+- (OSR-28) Given an API answering the first query with a `next_page_token`, when it is queried, then a second
+  `querybatch` request holds that query alone with the token as `page_token`, and the ids of both pages are read.
+- (OSR-30) Given no package, when it is queried, then no request is sent and no vulnerability is returned.
+- (OSR-31) Given an API answering 503, when it is queried, then it fails with "cannot query the OSV API" quoting the
+  status.
+- (OSR-31) Given an API answering `querybatch` with a text that is not JSON, when it is queried, then it fails with
+  "invalid OSV API answer".
+- (OSR-31) Given an API naming the id `../x`, when it is queried, then it fails with "invalid record id" quoting it and
+  no request of a record is sent.
+- (OSR-31) Given an API answering `/v1/vulns/<id>` with a record whose range `type` is `CALVER`, when it is queried,
+  then it fails with "invalid OSV record" naming the id.
+
 ## Non-goals
 
-- Querying the OSV API (`/v1/querybatch`, `/v1/vulns/<id>`): it sends the package URLs of the inventory out of the
-  CI; the archives send only ecosystem names.
+- Querying the OSV API by default: it sends the packages of the inventory out of the CI (ADR 0006); the caller opts
+  in.
+- Caching the answers of the API, or reading them offline: a query depends on the moment it runs.
+- Retrying a failed request, or waiting for a rate limit of the API.
+- Listing a record the API does not name for a version: the API decides which records it returns.
 - The command-line flags, the default cache directory and the default refresh policy: the CLI wires them.
 - Conditional requests (`If-None-Match`, `If-Modified-Since`) and resumed downloads.
 - Waiting for a fetch of another machine through a cache on a network file system, where the advisory locks of

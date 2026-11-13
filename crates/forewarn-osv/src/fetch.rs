@@ -155,13 +155,7 @@ impl Archives {
         clock: impl Fn() -> SystemTime,
     ) -> Result<Vec<Snapshot>, FetchError> {
         // One agent for every download, so that they share its connections.
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .http_status_as_error(false)
-            .timeout_connect(Some(CONNECT_TIMEOUT))
-            .timeout_recv_response(Some(RESPONSE_TIMEOUT))
-            .timeout_recv_body(Some(BODY_TIMEOUT))
-            .build()
-            .into();
+        let agent = agent();
         ecosystems
             .iter()
             .map(|ecosystem| {
@@ -323,6 +317,17 @@ impl Download<'_> {
         }
         Ok((freshness, vulnerabilities))
     }
+}
+
+/// An HTTP agent with the timeouts of a download, that leaves the status of a response to the caller.
+pub(crate) fn agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .http_status_as_error(false)
+        .timeout_connect(Some(CONNECT_TIMEOUT))
+        .timeout_recv_response(Some(RESPONSE_TIMEOUT))
+        .timeout_recv_body(Some(BODY_TIMEOUT))
+        .build()
+        .into()
 }
 
 /// Whether a name is one OSR-17 accepts: it names a directory of the cache and a path of the URL as it is.

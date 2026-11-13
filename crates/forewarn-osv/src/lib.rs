@@ -1,7 +1,9 @@
 //! The OSV adapter of `forewarn`: reads vulnerability records in the OSV JSON format into the types of the domain
 //! (`specs/osv-reading.md`). The `serde` model of the record stays in this crate (ADR 0003). The module [`fetch`]
-//! downloads the archive of each ecosystem into a cache (ADR 0004).
+//! downloads the archive of each ecosystem into a cache (ADR 0004); the module [`api`] queries the OSV API, an opt-in
+//! source (ADR 0006).
 
+pub mod api;
 pub mod fetch;
 
 use std::fmt;
@@ -61,19 +63,24 @@ pub fn read_record(path: &Path) -> Result<Vulnerability, ReadError> {
         cause,
     };
     let bytes = fs::read(path).map_err(|e| error(Cause::Io(e.to_string())))?;
-    match serde_json::from_slice::<Record>(&bytes) {
+    parse_record(&bytes).map_err(error)
+}
+
+/// Reads the bytes of an OSV record into a vulnerability, or gives the first [`Cause`] that refuses them.
+fn parse_record(bytes: &[u8]) -> Result<Vulnerability, Cause> {
+    match serde_json::from_slice::<Record>(bytes) {
         Ok(record) => {
-            check_schema_version(record.schema_version.as_ref()).map_err(error)?;
+            check_schema_version(record.schema_version.as_ref())?;
             Ok(record.into())
         }
         // A shape error: the schema version, when the document is JSON, is the cause that comes first.
         Err(shape) if shape.is_data() => {
             let document: Value =
-                serde_json::from_slice(&bytes).map_err(|e| error(Cause::NotJson(e.to_string())))?;
-            check_schema_version(document.get("schema_version")).map_err(error)?;
-            Err(error(Cause::Invalid(shape.to_string())))
+                serde_json::from_slice(bytes).map_err(|e| Cause::NotJson(e.to_string()))?;
+            check_schema_version(document.get("schema_version"))?;
+            Err(Cause::Invalid(shape.to_string()))
         }
-        Err(syntax) => Err(error(Cause::NotJson(syntax.to_string()))),
+        Err(syntax) => Err(Cause::NotJson(syntax.to_string())),
     }
 }
 

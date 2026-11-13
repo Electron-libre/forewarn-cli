@@ -14,7 +14,9 @@ ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
 (`<ecosystem>/all.zip`) into a cache under a refresh policy, recording when it was downloaded (ADR
 [0004](docs/adr/0004-fetch-osv-ecosystem-archives-into-a-cache.md)): only ecosystem names leave the CI. A file lock
 per ecosystem makes concurrent runs sharing a cache wait for each other (ADR
-[0005](docs/adr/0005-lock-each-ecosystem-of-the-osv-cache-with-a-file-lock.md)).
+[0005](docs/adr/0005-lock-each-ecosystem-of-the-osv-cache-with-a-file-lock.md)). It can also query the OSV API
+(`/v1/querybatch`, then `/v1/vulns/<id>`), an opt-in source that sends the ecosystem, name and version of each
+component out (ADR [0006](docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md)).
 `forewarn match` prints the affected components of an SBOM, apart from those not evaluated, matched against the cached
 OSV archives of the ecosystems it uses, or local records given with `--osv` (`specs/cli-match.md`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
@@ -28,7 +30,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 |---|---|---|
 | `forewarn-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
 | `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
-| `forewarn-osv` | OSV adapter: vulnerability records, read or fetched into a cache, into domain types | `feeds` |
+| `forewarn-osv` | OSV adapter: vulnerability records, read, fetched into a cache or queried from the OSV API, into domain types | `feeds` |
 | `forewarn` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`

@@ -34,3 +34,36 @@ Match known vulnerabilities (OSV)
 * `CLAUDE.md`: only inventories leave the user's CI; this source sends part of one to a third party, which is why it
   is opt-in.
 * `querybatch` returns only ids and paginates per query (`next_page_token`).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+An opt-in source of OSV records: `forewarn match --osv-api` queries `/v1/querybatch` with the packages of the SBOM
+(ecosystem, name, version, never the package URL), reads each id with `/v1/vulns/<id>`, and reports the API, its URL
+and the time of the query as the source. Out of scope: caching the answers, retries, an environment variable.
+
+## Plan
+1. [x] API query: module `forewarn_osv::api` (batches of 1000, pagination, one record request per id, errors,
+   freshness), ADR 0006; verified by tests against a loopback HTTP server; makes true OSR-24 to OSR-31, OSR-H6, the
+   OSV reading spec `accepted`. (~800 lines)
+2. [ ] CLI: `--osv-api` and `--osv-api-url` on `forewarn match`, the API source in both reports, the help and the docs
+   saying what leaves the CI; verified by end-to-end tests of the binary against a loopback server; makes true MCH-24
+   to MCH-28, MCH-H3, the match spec `accepted`. (~400 lines)
+
+## Decisions
+- Mode: autonomous
+- Base commit: d32dd8bf689fca5496372ca502239be4f367eb2a
+- `querybatch` receives the ecosystem, name and version of each component, never its package URL (OSR-26, OSR-27).
+- The flag `--osv-api` alone turns the source on, no environment variable (MCH-25).
+- `--osv-api-url <url>` changes the API, and requires `--osv-api` (MCH-27, MCH-10).
+- No cache of the answers and no retry: a failed request exits with 5.
+
+## Summary of deliverable 1
+- done: module `forewarn_osv::api` (`Api::query`: batches of 1000, pagination, one record request per id, ids
+  checked before any record request, errors of OSR-31, freshness of OSR-25); `parse_record` and the HTTP agent shared
+  with `fetch`; ADR 0006 accepted; `specs/osv-reading.md` accepted; CLAUDE.md updated.
+- checks: tests pass (16 new, loopback server), clippy pedantic clean, `check-specs` passes.
+- red: OSR-H6, OSR-24, OSR-25, OSR-26, OSR-27, OSR-28, OSR-29, OSR-30, OSR-31: `unresolved import forewarn_osv::api`.
+- Code review: no findings
