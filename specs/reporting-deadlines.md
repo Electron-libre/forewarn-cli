@@ -73,9 +73,9 @@ mitigating measure became available, so that no deadline is computed later than 
 
 - Reading a clock or the moment of awareness: the caller gives each moment (the CLI, `cli_print_reporting_deadlines`).
 - Time zones and offsets other than UTC: an adapter converts a moment given with an offset.
-- The rules of Regulation (EEC, Euratom) No 1182/71 on periods and time limits (a period starting at the next hour or
-  day, a period in days ending on a working day): the deadlines computed are never later than those, a vendor meeting
-  them meets the regulation.
+- The rules of Regulation (EEC, Euratom) No 1182/71 on periods and time limits (a period in hours starting at the
+  next hour, a period in days starting at the next day and ending on a working day): the deadlines computed are never
+  later than those, a vendor meeting them meets the regulation.
 - The deadlines of a severe incident (article 14(4)) and the one-month final report of an incident.
 - Telling the time left before a deadline or that it is overdue (`tell_overdue_reporting_deadlines`).
 - The content of the reports, the member states the early warning names (milestone "Draft the CRA early warning").

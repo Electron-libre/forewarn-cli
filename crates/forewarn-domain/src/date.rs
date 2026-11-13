@@ -3,7 +3,6 @@
 //! computed (`specs/reporting-deadlines.md`, ADR 0011).
 
 use std::fmt;
-use std::time::Duration;
 
 /// A day of the Gregorian calendar, ordered by year, then month, then day.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -83,14 +82,14 @@ const SECONDS_PER_DAY: u64 = 86_400;
 
 /// A moment of Coordinated Universal Time to the second, ordered by its date, then its time of day (RDL-5, RDL-8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Instant {
+pub struct Moment {
     date: Date,
     hour: u8,
     minute: u8,
     second: u8,
 }
 
-impl Instant {
+impl Moment {
     /// The moment of `date` at `hour:minute:second` UTC (RDL-5).
     ///
     /// # Errors
@@ -132,11 +131,10 @@ impl Instant {
         self.second
     }
 
-    /// The moment `duration` later, its fraction of a second dropped; `None` past `9999-12-31T23:59:59Z` (RDL-9).
+    /// The moment `seconds` later (RDL-9); `None` past `9999-12-31T23:59:59Z` (RDL-10).
     #[must_use]
-    pub fn checked_add(self, duration: Duration) -> Option<Self> {
-        let seconds = self.seconds().checked_add(duration.as_secs())?;
-        Self::from_seconds(seconds)
+    pub fn checked_add_seconds(self, seconds: u64) -> Option<Self> {
+        Self::from_seconds(self.seconds().checked_add(seconds)?)
     }
 
     /// The seconds since `0001-01-01T00:00:00Z`.
@@ -149,16 +147,19 @@ impl Instant {
 
     /// The moment `seconds` after `0001-01-01T00:00:00Z`, `None` past the year 9999.
     fn from_seconds(seconds: u64) -> Option<Self> {
-        let date = civil_from_days(seconds / SECONDS_PER_DAY)?;
+        // Below 86 400: an hour below 24, a minute and a second below 60, so each fits a `u8`.
         let of_day = seconds % SECONDS_PER_DAY;
-        let [hour, minute, second] =
-            [of_day / 3600, of_day / 60 % 60, of_day % 60].map(|part| u8::try_from(part).ok());
-        Self::new(date, hour?, minute?, second?).ok()
+        Some(Self {
+            date: civil_from_days(seconds / SECONDS_PER_DAY)?,
+            hour: (of_day / 3600) as u8,
+            minute: (of_day / 60 % 60) as u8,
+            second: (of_day % 60) as u8,
+        })
     }
 }
 
 /// `YYYY-MM-DDTHH:MM:SSZ`, RFC 3339 in UTC (RDL-7).
-impl fmt::Display for Instant {
+impl fmt::Display for Moment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

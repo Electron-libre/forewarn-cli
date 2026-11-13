@@ -1,15 +1,13 @@
 //! The CRA reporting deadlines and the moments they are computed from (`specs/reporting-deadlines.md`).
 
-use std::time::Duration;
-
-use forewarn_domain::date::{Date, Instant, InvalidTime};
+use forewarn_domain::date::{Date, InvalidTime, Moment};
 use forewarn_domain::deadlines::{DeadlinePastRange, ReportingDeadlines, reporting_deadlines};
 
 const HOUR: u64 = 3600;
 const DAY: u64 = 24 * HOUR;
 
 /// The deadlines from `aware_since` and `measure`, written in RFC 3339.
-fn deadlines(aware_since: Instant, measure: Option<Instant>) -> [Option<String>; 3] {
+fn deadlines(aware_since: Moment, measure: Option<Moment>) -> [Option<String>; 3] {
     let ReportingDeadlines {
         early_warning,
         notification,
@@ -32,8 +30,8 @@ fn due(early_warning: &str, notification: &str, final_report: Option<&str>) -> [
 }
 
 /// The moment of `YYYY-MM-DDTHH:MM:SSZ`, given as numbers.
-fn at(year: u16, month: u8, day: u8, hour: u8, minute: u8, second: u8) -> Instant {
-    Instant::new(Date::new(year, month, day).unwrap(), hour, minute, second).unwrap()
+fn at(year: u16, month: u8, day: u8, hour: u8, minute: u8, second: u8) -> Moment {
+    Moment::new(Date::new(year, month, day).unwrap(), hour, minute, second).unwrap()
 }
 
 // spec: RDL-5, RDL-6
@@ -41,7 +39,7 @@ fn at(year: u16, month: u8, day: u8, hour: u8, minute: u8, second: u8) -> Instan
 fn refuses_a_time_of_day_out_of_bounds_naming_it() {
     let date = Date::new(2026, 11, 13).unwrap();
     for (hour, minute, second) in [(24, 0, 0), (12, 60, 0), (12, 0, 60), (255, 255, 255)] {
-        let refused = Instant::new(date, hour, minute, second).unwrap_err();
+        let refused = Moment::new(date, hour, minute, second).unwrap_err();
         assert_eq!(
             refused,
             InvalidTime {
@@ -109,24 +107,24 @@ fn moves_a_moment_forward_across_days_months_years_and_29_february() {
     ];
     for (from, seconds, expected) in cases {
         assert_eq!(
-            from.checked_add(Duration::from_secs(seconds)),
+            from.checked_add_seconds(seconds),
             Some(expected),
             "{from} + {seconds} s"
         );
     }
 }
 
-// spec: RDL-9
+// spec: RDL-10
 #[test]
 fn gives_no_moment_past_the_end_of_9999() {
     let last = at(9999, 12, 31, 23, 59, 59);
-    assert_eq!(last.checked_add(Duration::ZERO), Some(last));
-    assert_eq!(last.checked_add(Duration::from_secs(1)), None);
+    assert_eq!(last.checked_add_seconds(0), Some(last));
+    assert_eq!(last.checked_add_seconds(1), None);
     assert_eq!(
-        at(9999, 12, 28, 23, 59, 59).checked_add(Duration::from_secs(3 * DAY)),
+        at(9999, 12, 28, 23, 59, 59).checked_add_seconds(3 * DAY),
         Some(last)
     );
-    assert_eq!(at(2026, 1, 1, 0, 0, 0).checked_add(Duration::MAX), None);
+    assert_eq!(at(2026, 1, 1, 0, 0, 0).checked_add_seconds(u64::MAX), None);
 }
 
 // spec: RDL-H1, RDL-1, RDL-2, RDL-4, RDL-7

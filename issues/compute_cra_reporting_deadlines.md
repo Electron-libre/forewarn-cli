@@ -64,6 +64,9 @@ final report (+14 × 24 h after the measure) deadlines. Out of scope: clock, off
 2. [x] Deadlines: `deadlines::ReportingDeadlines` computed from the awareness and an optional measure, refusing past
    9999; verified by the scenarios of the spec in `tests/reporting_deadlines.rs`; makes true RDL-1 to RDL-4, RDL-10,
    RDL-11; spec and ADR 0011 accepted. (autonomous)
+3. [x] Review fixes of the issue: `Instant` renamed `Moment`, additions in whole seconds, RDL-10 cited at the
+   bound of `Moment`, ADR 0011 on leap seconds and on the periods of Regulation 1182/71; verified by project-check.
+   (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,6 +74,8 @@ final report (+14 × 24 h after the measure) deadlines. Out of scope: clock, off
 - Deadlines are exact durations from the moment itself (24 h, 72 h, 14 × 24 h), not the periods of Regulation 1182/71, never later than those.
 - The final report counts from the measure alone, even before the awareness (RDL-11).
 - Years 1 to 9999, as `Date`; a deadline past 9999 is refused (RDL-10).
+- Follow-up for `cli_print_reporting_deadlines`: build a `Moment` from the clock (Unix seconds) in the domain, so
+  the calendar arithmetic stays in one place (finding of the `high` review).
 
 ## Summary of deliverable 1
 - done: `Instant` (a `Date` and a UTC time of day), its refusal `InvalidTime`, its order, RFC 3339 writing and
@@ -91,3 +96,16 @@ final report (+14 × 24 h after the measure) deadlines. Out of scope: clock, off
 - Code review: no findings
 - not verified: the reading of Regulation 1182/71 the non-goal and ADR 0011 rest on (from memory, not checked against
   its text).
+
+## Summary of deliverable 3
+- done: fixes of the `high` review: `Moment` (not `std::time::Instant`), `checked_add_seconds` instead of a
+  `Duration` whose fraction was dropped, `from_seconds` without unreachable fallible paths, RDL-10 cited at the bound,
+  ADR 0011 and the spec non-goal exact on leap seconds and on Regulation 1182/71 (only periods in days move to a
+  working day).
+- checks: project-check passes; docs: CLAUDE.md, ADR 0011, spec non-goal updated.
+- red: none (no new behaviour).
+- Code review (high): 7 findings: 6 fixed here; `Moment` from the clock left to `cli_print_reporting_deadlines`
+  (follow-up in Decisions).
+- Code review: 1 finding: the `as u8` casts of `from_seconds` would trip `cast_possible_truncation`; not fixed,
+  clippy passes and reports an `expect` of that lint there as unfulfilled (it bounds the value).
+- not verified: the text of Regulation 1182/71 itself.
