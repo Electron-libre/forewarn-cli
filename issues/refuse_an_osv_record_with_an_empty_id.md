@@ -45,6 +45,8 @@ domain never groups unrelated records under `""`. Out of scope: skipping such a 
 ## Plan
 1. [x] Refuse an empty id: `parse_record` fails with "invalid OSV record" when the trimmed `id` is empty; verified by
    `reading.rs` (a file, a directory); makes true OSR-36. (autonomous)
+2. [x] Settle the `high` review: the error says "`id` is empty or only whitespace", a test of the OSV API path;
+   verified by `reading.rs`, `api.rs`; makes true OSR-36. (autonomous)
 
 ## Measure
 2026-11-13, the `all.zip` archives of `crates.io`, `Go`, `Maven`, `npm`, `NuGet`, `Packagist`, `PyPI`, `RubyGems`:
@@ -71,5 +73,35 @@ OSR-36 added to `specs/osv-reading.md` and to the cause of OSR-9, the spec accep
 red: OSR-36: `the record is refused: Vulnerability { id: "", aliases: [], source: "", withdrawn: false, affected: [] }`
 
 Code review: no findings
+
+not verified: none. decisions needed: none.
+
+## Deliverable 2
+done: the error of a blank id reads "invalid OSV record: `id` is empty or only whitespace"; a test proves that a
+record of `/v1/vulns/<id>` with a blank id is refused with it (OSR-36 through OSR-31).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | n/a: no page quotes the message |
+| code review | pass |
+
+red: OSR-36: `Record { id: "GHSA-a", cause: Invalid("`id` is empty") }`
+
+Code review: no findings
+
+The `high` review of the issue, 7 findings:
+1. The domain still groups records by an empty id from another adapter: filed as
+   `issues/group_no_records_by_an_empty_id_in_the_domain.md`.
+2. An id of Unicode whitespace only (U+00A0) is kept: not fixed, OSR-34 trims ASCII whitespace only and keeps the
+   rest as written; no OSV id holds any.
+3. One blank id in an archive fails the whole ecosystem: not fixed, the decision 1 a of this issue (none today).
+4. The message said "empty" for a blank id: fixed.
+5. The id is trimmed in `parse_record` and again in `From<Record>`: not fixed, the check needs the error path that
+   `From` lacks; three trims of a short string.
+6. The OSV API path was not tested: fixed (`api.rs`).
+7. The spec row of OSR-9 omits the mismatched id of the API: not fixed, OSR-31 states that error.
 
 not verified: none. decisions needed: none.

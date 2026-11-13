@@ -73,7 +73,9 @@ fn parse_record(bytes: &[u8]) -> Result<Vulnerability, Cause> {
             check_schema_version(record.schema_version.as_ref())?;
             // An empty id would group unrelated records under one name (OSR-36).
             if record.id.trim_ascii().is_empty() {
-                return Err(Cause::Invalid("`id` is empty".to_owned()));
+                return Err(Cause::Invalid(
+                    "`id` is empty or only whitespace".to_owned(),
+                ));
             }
             Ok(record.into())
         }

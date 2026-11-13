@@ -279,7 +279,9 @@ fn a_record_whose_id_is_empty_or_blank_is_invalid() {
 
         assert!(matches!(error.cause, Cause::Invalid(_)), "{id:?}: {error}");
         assert!(
-            error.to_string().contains("invalid OSV record"),
+            error
+                .to_string()
+                .contains("invalid OSV record: `id` is empty or only whitespace"),
             "{id:?}: {error}"
         );
     }

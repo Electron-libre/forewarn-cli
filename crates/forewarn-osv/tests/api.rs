@@ -550,3 +550,22 @@ fn a_record_holding_another_id_is_refused() {
         "{error:?}"
     );
 }
+
+// spec: OSR-36, OSR-31
+#[test]
+fn a_record_of_the_api_with_a_blank_id_is_refused_as_blank() {
+    let server = Server::new(|request| {
+        if request.path == "/v1/querybatch" {
+            answer(request, |_| vec!["GHSA-a"])
+        } else {
+            (200, record(" "))
+        }
+    });
+
+    let error = query_error(&server, &[package("a", "1.0.0")]);
+
+    assert!(
+        matches!(&error, QueryError::Record { id, cause: Cause::Invalid(reason) } if id == "GHSA-a" && reason.contains("`id` is empty or only whitespace")),
+        "{error:?}"
+    );
+}
