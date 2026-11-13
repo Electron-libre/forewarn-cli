@@ -24,7 +24,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   components are listed with the vulnerability, its aliases (CVE) and its source.
 - Why: OSV indexes vulnerabilities by package and version range, which makes exact matching on an SBOM possible; the
   exploited lists only name CVEs.
-- State: in issues
+- State: done
 - Issues:
   - [match_components_against_vulnerabilities](issues/done/match_components_against_vulnerabilities.md)
   - [read_osv_records](issues/done/read_osv_records.md)
@@ -34,7 +34,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [keep_distinct_cves_in_separate_matches](issues/done/keep_distinct_cves_in_separate_matches.md)
   - [query_the_osv_api](issues/done/query_the_osv_api.md)
   - [lock_the_osv_cache_against_concurrent_runs](issues/done/lock_the_osv_cache_against_concurrent_runs.md)
-  - [share_the_osv_cache_lock_between_readers](issues/share_the_osv_cache_lock_between_readers.md)
+  - [share_the_osv_cache_lock_between_readers](issues/done/share_the_osv_cache_lock_between_readers.md)
   - [match_large_archives_without_the_cross_product](issues/done/match_large_archives_without_the_cross_product.md)
   - [evaluate_ecosystem_ranges_beyond_semver](issues/done/evaluate_ecosystem_ranges_beyond_semver.md)
   - [evaluate_nuget_and_packagist_ranges](issues/done/evaluate_nuget_and_packagist_ranges.md)
