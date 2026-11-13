@@ -25,6 +25,8 @@ pub(crate) enum Scheme {
     Pep440,
     /// The ordering of `Maven` (VMT-25).
     Maven,
+    /// The ordering of `RubyGems`, as `Gem::Version` (VMT-26).
+    RubyGems,
 }
 
 impl Scheme {
@@ -37,6 +39,7 @@ impl Scheme {
             }
             (RangeKind::Ecosystem, "PyPI") => Some(Self::Pep440),
             (RangeKind::Ecosystem, "Maven") => Some(Self::Maven),
+            (RangeKind::Ecosystem, "RubyGems") => Some(Self::RubyGems),
             _ => None,
         }
     }
@@ -472,4 +475,87 @@ fn compare_qualifiers(a: &str, b: &str) -> Ordering {
             .unwrap_or(KNOWN.len())
     };
     rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
+}
+
+/// The ordering of `RubyGems`, as `Gem::Version` reads and compares versions (VMT-26).
+pub(crate) struct RubyGems;
+
+/// A segment of a `RubyGems` version: text (a pre-release) before numbers.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum GemSegment {
+    Text(String),
+    Number(Number),
+}
+
+impl VersionOrder for RubyGems {
+    /// The canonical segments: the zeros at the end of the numbers before the first text dropped, and those at the
+    /// end of the rest.
+    type Key = Vec<GemSegment>;
+
+    fn parse(version: &str) -> Option<Self::Key> {
+        let version = version.trim();
+        if !is_gem_version(version) {
+            return None;
+        }
+        let version = version.replace('-', ".pre.");
+        let mut segments = Vec::new();
+        let mut rest = version.as_str();
+        while let Some(start) = rest.find(|c: char| c.is_ascii_alphanumeric()) {
+            rest = &rest[start..];
+            let is_digit = rest.starts_with(|c: char| c.is_ascii_digit());
+            let length = rest
+                .find(|c: char| !c.is_ascii_alphanumeric() || c.is_ascii_digit() != is_digit)
+                .unwrap_or(rest.len());
+            let segment = &rest[..length];
+            segments.push(if is_digit {
+                GemSegment::Number(Number::of(segment))
+            } else {
+                GemSegment::Text(segment.to_owned())
+            });
+            rest = &rest[length..];
+        }
+        let first_text = segments
+            .iter()
+            .position(|segment| matches!(segment, GemSegment::Text(_)))
+            .unwrap_or(segments.len());
+        let mut text = segments.split_off(first_text);
+        drop_trailing_zeros(&mut segments);
+        drop_trailing_zeros(&mut text);
+        segments.extend(text);
+        Some(segments)
+    }
+
+    fn compare(a: &Self::Key, b: &Self::Key) -> Ordering {
+        let zero = GemSegment::Number(Number::of("0"));
+        (0..a.len().max(b.len()))
+            .map(|i| a.get(i).unwrap_or(&zero).cmp(b.get(i).unwrap_or(&zero)))
+            .find(|order| order.is_ne())
+            .unwrap_or(Ordering::Equal)
+    }
+}
+
+fn drop_trailing_zeros(segments: &mut Vec<GemSegment>) {
+    while matches!(segments.last(), Some(GemSegment::Number(number)) if number.is_zero()) {
+        segments.pop();
+    }
+}
+
+/// Whether the version follows the pattern of `Gem::Version`: `[0-9]+(\.[0-9a-zA-Z]+)*(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?`.
+fn is_gem_version(version: &str) -> bool {
+    let (release, pre) = match version.split_once('-') {
+        Some((release, pre)) => (release, Some(pre)),
+        None => (version, None),
+    };
+    let mut parts = release.split('.');
+    let starts_with_number = parts
+        .next()
+        .is_some_and(|first| !first.is_empty() && first.bytes().all(|b| b.is_ascii_digit()));
+    let release_ok = starts_with_number
+        && parts.all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_alphanumeric()));
+    let pre_ok = pre.is_none_or(|pre| {
+        pre.split('.').all(|part| {
+            !part.is_empty() && part.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        })
+    });
+    release_ok && pre_ok
 }

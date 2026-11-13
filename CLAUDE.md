@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Early proof of concept. The CycloneDX adapter reads a JSON SBOM into the domain types (`specs/sbom-reading.md`); the
 domain lists the components missing a supplier, a license or a hash (`specs/sbom-completeness.md`); `forewarn check`
 prints both (`specs/cli-check.md`). The domain also matches components against OSV-shaped vulnerabilities by package
-URL and version, grouping the records of one vulnerability that name each other, one CVE per match
-(`specs/vulnerability-matching.md`); the OSV adapter reads an OSV record file, or a directory of them (an extracted
+URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems),
+grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`); the OSV adapter reads an OSV record file, or a directory of them (an extracted
 ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
 [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)), and fetches the archive of each ecosystem
 (`<ecosystem>/all.zip`) into a cache under a refresh policy, recording when it was downloaded (ADR

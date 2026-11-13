@@ -53,8 +53,8 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
 2. [x] PyPI: PEP 440 parsing and ordering; verified by the PyPI scenarios, one through `forewarn match`; makes true
    VMT-24, VMT-23 (PyPI row). (autonomous)
 3. [x] Maven: the `ComparableVersion` ordering; verified by the Maven scenarios; makes true VMT-25, VMT-23 (Maven row). (autonomous)
-4. [ ] RubyGems: the `Gem::Version` ordering; verified by the RubyGems scenarios; makes true VMT-26, VMT-23 (RubyGems
-   row); the spec set `accepted`.
+4. [x] RubyGems: the `Gem::Version` ordering; verified by the RubyGems scenarios; makes true VMT-26, VMT-23 (RubyGems
+   row); the spec set `accepted`. (autonomous)
 5. [ ] Docs and the fixes of the `high` review of the whole issue; a follow-up issue for NuGet and Packagist.
 
 ## Decisions
@@ -116,6 +116,25 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
   2.14.1 was reported `RangeNotEvaluated`.
 - Hyphen nesting of `ComparableVersion` (`1-0-alpha` against `1-alpha`) is flattened as the Maven version order
   specification and the OSV reference read it.
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 4: RubyGems
+- done: `RubyGems` ordering in the module `version` (the pattern of `Gem::Version`, `-` as `.pre.`, canonical
+  segments, text before numbers); `RubyGems` `ECOSYSTEM` ranges evaluated; VMT-26 states the exact pattern; spec
+  `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`), `specs/vulnerability-matching.md` accepted |
+| docs | `README.md` (the ecosystems not compared yet), `CLAUDE.md` (the orderings) |
+| code review | low, see below |
+
+- red: VMT-9, VMT-23, VMT-26: `evaluates_an_ecosystem_range_of_rubygems_by_gem_version`: the pair of `rails` 1.9 was
+  reported `RangeNotEvaluated`.
 - Code review: no findings
 - not verified: none
 - decisions needed: none

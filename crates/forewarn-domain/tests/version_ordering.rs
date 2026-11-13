@@ -25,6 +25,12 @@ const MAVEN: Package = Package {
     purl: "pkg:maven/org.apache.logging.log4j/log4j-core",
 };
 
+const RUBYGEMS: Package = Package {
+    ecosystem: "RubyGems",
+    name: "rails",
+    purl: "pkg:gem/rails",
+};
+
 fn introduced(version: &str) -> Event {
     Event::Introduced(version.into())
 }
@@ -229,4 +235,53 @@ fn orders_maven_versions_by_comparable_version() {
         MAVEN.assert_equal(a, b);
     }
     MAVEN.assert_ordered(&["1-alpha", "1-sp", "1-a", "1-b"]);
+}
+
+// spec: VMT-9, VMT-23, VMT-26
+#[test]
+fn evaluates_an_ecosystem_range_of_rubygems_by_gem_version() {
+    let window = [introduced("0"), fixed("1.10")];
+    assert!(RUBYGEMS.affects("1.9", &window));
+    assert!(!RUBYGEMS.affects("1.10.0", &window));
+    assert!(RUBYGEMS.affects("1.10.0.rc1", &window));
+}
+
+// spec: VMT-26
+#[test]
+fn orders_rubygems_versions_by_gem_version() {
+    RUBYGEMS.assert_ordered(&[
+        "1.0.B",
+        "1.0.a",
+        "1.0.a1",
+        "1.0.b",
+        "1.0-pre",
+        "1.0",
+        "1.0.1",
+        "1.0.1.1",
+        "1.2",
+        "1.10",
+        "99999999999999999999",
+        "100000000000000000000",
+    ]);
+    for (a, b) in [
+        ("1.0.0", "1"),
+        ("1.0.0.a", "1.a"),
+        ("1.0.a.0", "1.a"),
+        ("1.0-rc.1", "1.0.pre.rc.1"),
+        ("1.0rc1", "1.0.rc.1"),
+        (" 1.0 ", "1"),
+        ("01.2", "1.2"),
+    ] {
+        RUBYGEMS.assert_equal(a, b);
+    }
+}
+
+// spec: VMT-26, VMT-10
+#[test]
+fn reports_a_rubygems_version_gem_does_not_read_as_invalid() {
+    for invalid in [
+        "1.0 beta", "a1", "1a", "1.", "1..0", "1.0-", "1.0-a.", "v1.0", "1_0",
+    ] {
+        RUBYGEMS.assert_invalid(invalid, "2.0");
+    }
 }
