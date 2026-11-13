@@ -174,6 +174,7 @@ fn drafts_the_early_warning_of_an_exploited_match() {
             list: "CISA KEV".into(),
             cve: "CVE-2021-44228".into(),
             added: Some(date(2021, 12, 10)),
+            record: None,
         }]
     );
     assert_eq!(warning.aware_since, aware());
@@ -397,6 +398,41 @@ fn takes_the_euvd_id_among_the_aliases() {
         euvd(&report(&[cve], &[cve, "EUVD-2021-1234"])).as_deref(),
         Some("EUVD-2021-1234")
     );
+}
+
+// spec: EWD-8
+#[test]
+fn takes_the_euvd_id_from_the_record_of_the_evidence_first() {
+    let euvd_id = |record_id: &str| {
+        let euvd = ExploitedList {
+            name: "EUVD".into(),
+            entries: vec![
+                ExploitedEntry::new("CVE-2021-44228", None)
+                    .unwrap()
+                    .with_record(record_id),
+            ],
+        };
+        let report = flag_exploited(
+            match_components(
+                &[component(
+                    "org.apache.logging.log4j",
+                    "log4j-core",
+                    "2.14.1",
+                )],
+                &[record(
+                    "GHSA-jfh8-c2jp-5v3q",
+                    &["CVE-2021-44228", "EUVD-2021-9999"],
+                    "org.apache.logging.log4j:log4j-core",
+                )],
+            ),
+            &[kev(), euvd],
+        );
+        draft(&report, Some(&shop()))[0].euvd.clone()
+    };
+
+    assert_eq!(euvd_id("EUVD-2021-0001").as_deref(), Some("EUVD-2021-0001"));
+    assert_eq!(euvd_id("euvd-2021-0001").as_deref(), Some("euvd-2021-0001"));
+    assert_eq!(euvd_id("GSD-2021-0001").as_deref(), Some("EUVD-2021-9999"));
 }
 
 // spec: EWD-5

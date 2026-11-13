@@ -87,7 +87,8 @@ directory, created when missing: one Markdown file per CVE, `<product>-<CVE>.md`
 character other than an ASCII letter, a digit, `.`, `_` or `-` written `_`; `<CVE>.md` when the SBOM names no product),
 which a rerun replaces whole; the report names each file written after the matches (`drafts` in the JSON report,
 `{"cve", "path"}`). A draft fills what the SBOM, the match and the moments give (the product, its
-manufacturer, the components, the CVE, the evidence, the deadlines) and marks `**TO COMPLETE**` the fields of the ENISA
+manufacturer, the components, the CVE, the EUVD id of the EUVD record naming it, else of an `EUVD-` alias of the
+match, the evidence, the deadlines) and marks `**TO COMPLETE**` the fields of the ENISA
 Single Reporting Platform only the vendor knows (the title, the summary, the Member States). The drafts of a CVE no
 longer exploited stay in the directory.
 

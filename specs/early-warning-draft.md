@@ -42,8 +42,9 @@ document a person copies into the ENISA Single Reporting Platform form.
 
 - **EWD-7** (deterministic) The CVE id of a draft must be the CVE id of the first evidence of each of its matches, in
   upper case (EXF-9).
-- **EWD-8** (deterministic) The EUVD id of a draft must be the first id that starts with `EUVD-`, ignoring ASCII case,
-  among the id then the aliases of each of its matches in turn, and none when no id does.
+- **EWD-8** (deterministic) The EUVD id of a draft must be the first record id of its evidence (EWD-5, EXF-10) that
+  starts with `EUVD-`, ignoring ASCII case, else the first id that does among the id then the aliases of each of its
+  matches in turn, and none when no id does.
 - **EWD-9** (deterministic) The fields to complete must be taken from the fields the ENISA SRP glossary, version 1.6 of
   21 October 2026, marks required or mandatory in the early warning of an actively exploited vulnerability, in its
   order, as the table below says, and no other field.
@@ -121,6 +122,9 @@ document a person copies into the ENISA Single Reporting Platform form.
 - (EWD-8) Given a match aliased to `euvd-2021-1234`, when it is drafted, then its EUVD id is `euvd-2021-1234`; given a
   match with no such alias, its EUVD id is none; given two matches of one CVE, the second alone aliased to
   `EUVD-2021-1234`, the EUVD id of their draft is `EUVD-2021-1234`.
+- (EWD-8) Given a match aliased to `EUVD-2021-9999` whose CVE an EUVD list names in the record `EUVD-2021-0001`, when
+  it is drafted, then its EUVD id is `EUVD-2021-0001`; given an evidence whose record id does not start with `EUVD-`,
+  the EUVD id falls back on the aliases.
 - (EWD-5) Given a match that CISA KEV and EUVD both name, when it is drafted, then its draft carries both evidences, in
   the order of flagging.
 - (EWD-3) Given an SBOM listing `log4j-core` `2.14.1` twice, both matched to `CVE-2021-44228`, when the early

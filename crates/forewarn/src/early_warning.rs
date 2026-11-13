@@ -254,6 +254,7 @@ mod tests {
                 list: "CISA KEV".to_owned(),
                 cve: "CVE-2021-44228".to_owned(),
                 added: Some(date(2021, 12, 10)),
+                record: None,
             }],
             aware_since,
             measure_available: None,

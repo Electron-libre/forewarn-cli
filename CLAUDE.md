@@ -22,7 +22,7 @@ Markdown document, the fields numbered and named as the glossary does, those to 
 fetched into a cache under the refresh policy and the lock of the OSV archives (crate `forewarn-cache`), into such a
 list, with the catalog's version and release date (`specs/kev-reading.md`, ADR
 [0008](docs/adr/0008-exploited-lists-crate-and-a-shared-cache-crate.md)), and reads the exploited records of EUVD, from a
-file or paged from the EUVD search into the same cache, into the list `EUVD`, an entry per CVE alias dated by `exploitedSince` (`specs/euvd-reading.md`, ADR
+file or paged from the EUVD search into the same cache, into the list `EUVD`, an entry per CVE alias dated by `exploitedSince` and carrying the record's EUVD id, which the draft early warning names (`specs/euvd-reading.md`, ADR
 [0009](docs/adr/0009-page-the-euvd-search-for-its-exploited-list.md)); the OSV adapter reads an OSV record file, or a directory of them (an extracted
 ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
 [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)), and fetches the archive of each ecosystem

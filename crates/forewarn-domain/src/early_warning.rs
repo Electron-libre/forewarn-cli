@@ -39,7 +39,7 @@ pub struct EarlyWarning {
     pub components: Vec<AffectedComponent>,
     /// The CVE id, in upper case (EWD-7).
     pub cve: String,
-    /// The first `EUVD-` id of the matches (EWD-8).
+    /// The first `EUVD-` record id of the evidence, else the first `EUVD-` id of the matches (EWD-8).
     pub euvd: Option<String>,
     /// The evidence of exploitation of the first match (EWD-5).
     pub evidence: Vec<Evidence>,
@@ -107,11 +107,13 @@ pub fn draft_early_warnings(
                 components
             }),
             cve: cve.to_owned(),
-            euvd: matches
+            euvd: matches[0]
+                .evidence
                 .iter()
-                .flat_map(|flagged| {
+                .filter_map(|evidence| evidence.record.as_ref())
+                .chain(matches.iter().flat_map(|flagged| {
                     std::iter::once(&flagged.found.id).chain(&flagged.found.aliases)
-                })
+                }))
                 .find(|id| is_euvd(id))
                 .cloned(),
             evidence: matches[0].evidence.clone(),
