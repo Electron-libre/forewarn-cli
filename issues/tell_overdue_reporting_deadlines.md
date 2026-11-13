@@ -44,6 +44,8 @@ the run. The JSON report is left as is (non-goal of MXL).
 2. [x] `forewarn match --now` and the time left or overdue printed next to each deadline, with the moment of the check;
    verified by end-to-end tests of `crates/forewarn/tests/exploited.rs` at the bounds of each deadline; makes true
    MXL-22 to MXL-26. (autonomous)
+3. [x] Fixes of the `high` review of the issue; verified by the existing tests; makes true no new requirement.
+   (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -87,6 +89,34 @@ left, `due now` or `overdue by`; spec MXL accepted; README and CLAUDE.md.
 | code review | low, clean |
 
 red: MXL-H5, MXL-22, MXL-23, MXL-24, MXL-25, MXL-26: error: unexpected argument '--now' found
+
+Code review: no findings
+
+not verified: none
+decisions needed: none
+
+## Deliverable 3
+
+done: fixes of the `high` review of `cc2d112..HEAD`: the clock error names only the options missing, `--now` says it
+applies to the human report, `push_deadlines` tells each deadline it prints (no `zip` of two options),
+`Moment::seconds_until` crate-private, a doc comment rewrapped.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `--now` help |
+| code review | low, clean |
+
+red: none
+
+High review of the issue: 9 findings; fixed: clock error message, `--now` help (JSON ignores it, a non-goal of MXL),
+`zip`, `seconds_until` made `pub(crate)`, doc wrap. Not fixed: the clock read without `--now` when `--aware-since` is
+given (a clock outside the years 1 to 9999 is refused, and the message now names `--now`); `--now` before the moment of
+awareness accepted (RDL scenario: a moment before awareness has its time left); the strings of `state` and `duration`
+(a few per exploited match, a human report); the nine runs of the bounds test (MXL-24 is proved through the binary,
+the suite takes 0.04 s).
 
 Code review: no findings
 

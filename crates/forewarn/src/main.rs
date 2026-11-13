@@ -127,7 +127,7 @@ struct MatchArgs {
     #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
     measure_available: Option<GivenMoment>,
     /// The moment the deadlines are checked at, an RFC 3339 instant, for the time left before each or how long it is
-    /// overdue [default: the moment of the run].
+    /// overdue, printed in the human report only [default: the moment of the run].
     #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
     now: Option<GivenMoment>,
     /// The format of the report.
@@ -264,17 +264,27 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
 }
 
 /// The moments the reporting deadlines of the run are computed from, those deadlines and the moment they are checked
-/// at (MXL-14 to MXL-17, MXL-23); exits
-/// with 2, naming the option and the value given, when a deadline falls past the year 9999 (MXL-20).
+/// at (MXL-14 to MXL-17, MXL-23); exits with 2, naming the option and the value given, when a deadline falls past the
+/// year 9999 (MXL-20).
 fn awareness(args: &MatchArgs) -> Awareness {
     // The clock is read once, for the moment of awareness and the moment of the check alike (MXL-23).
     let run = (args.aware_since.is_none() || args.now.is_none()).then(|| {
         report::offset_date_time(SystemTime::now())
             .and_then(moment)
             .unwrap_or_else(|| {
+                let missing = [
+                    (args.aware_since.is_none(), "--aware-since"),
+                    (args.now.is_none(), "--now"),
+                ]
+                .into_iter()
+                .filter_map(|(missing, option)| missing.then_some(option))
+                .collect::<Vec<_>>()
+                .join(" and ");
                 usage_error(
                     clap::error::ErrorKind::InvalidValue,
-                    "the clock of the system gives no moment of the years 1 to 9999: give --aware-since and --now",
+                    &format!(
+                        "the clock of the system gives no moment of the years 1 to 9999: give {missing}"
+                    ),
                 )
             })
     });

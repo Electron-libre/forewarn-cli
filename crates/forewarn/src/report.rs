@@ -425,18 +425,18 @@ fn push_awareness(text: &mut String, awareness: &Awareness) {
 /// overdue at the moment of the check (MXL-14 to MXL-16, MXL-22).
 fn push_deadlines(text: &mut String, awareness: &Awareness) {
     let deadlines = &awareness.deadlines;
-    let states = deadlines.at(awareness.checked_at);
+    let state = |deadline| state(DeadlineState::at(deadline, awareness.checked_at));
     let _ = write!(
         text,
         "    report by: early warning {} ({}), notification {} ({}), final report ",
         deadlines.early_warning,
-        state(states.early_warning),
+        state(deadlines.early_warning),
         deadlines.notification,
-        state(states.notification)
+        state(deadlines.notification)
     );
-    match deadlines.final_report.zip(states.final_report) {
-        Some((final_report, final_state)) => {
-            let _ = writeln!(text, "{final_report} ({})", state(final_state));
+    match deadlines.final_report {
+        Some(final_report) => {
+            let _ = writeln!(text, "{final_report} ({})", state(final_report));
         }
         None => text.push_str("14 days after a corrective measure is available\n"),
     }

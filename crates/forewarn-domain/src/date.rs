@@ -140,7 +140,7 @@ impl Moment {
     /// The seconds from this moment to `later`, every day counting 86 400 seconds (RDL-15); zero when `later` is not
     /// after it.
     #[must_use]
-    pub fn seconds_until(self, later: Self) -> u64 {
+    pub(crate) fn seconds_until(self, later: Self) -> u64 {
         later.seconds().saturating_sub(self.seconds())
     }
 
