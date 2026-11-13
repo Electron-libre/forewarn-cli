@@ -1,6 +1,14 @@
 //! The `forewarn` command line: parses the arguments and wires the adapters to the domain (`specs/cli-check.md`,
 //! `specs/cli-match.md`, `specs/cli-match-exploited.md`).
 
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "no command writes a draft before the issue cli_draft_early_warnings"
+    )
+)]
+mod early_warning;
 mod report;
 
 use std::collections::HashSet;
