@@ -47,3 +47,36 @@ Compute CRA reporting deadlines
 * Article 14(2)(a) lets the early warning be due "without undue delay and in any event within 24 hours": the
   deadline is the latest moment, not a target.
 * Remembering from one run to the next when a vulnerability was first seen needs a state: out of this milestone.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+A domain rule, no I/O: from the moment of awareness and, optionally, the moment a corrective measure became available
+(UTC instants to the second, a type written in the domain), give the early warning (+24 h), notification (+72 h) and
+final report (+14 × 24 h after the measure) deadlines. Out of scope: clock, offsets, printing, time left.
+
+## Plan
+1. [x] Instant: `date::Instant` (a `Date` and a time of day in UTC), its refusals, order, RFC 3339 writing and the
+   addition of a duration in seconds across days, months and years; verified by `tests/reporting_deadlines.rs`;
+   makes true RDL-5 to RDL-9. Spec and ADR 0011 drafts committed with it. (autonomous)
+2. [ ] Deadlines: `deadlines::ReportingDeadlines` computed from the awareness and an optional measure, refusing past
+   9999; verified by the scenarios of the spec in `tests/reporting_deadlines.rs`; makes true RDL-1 to RDL-4, RDL-10,
+   RDL-11; spec and ADR 0011 accepted.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 37db817b2f42117106f4c0622446dd4f1bf7ae92
+- Deadlines are exact durations from the moment itself (24 h, 72 h, 14 × 24 h), not the periods of Regulation 1182/71, never later than those.
+- The final report counts from the measure alone, even before the awareness (RDL-11).
+- Years 1 to 9999, as `Date`; a deadline past 9999 is refused (RDL-10).
+
+## Summary of deliverable 1
+- done: `Instant` (a `Date` and a UTC time of day), its refusal `InvalidTime`, its order, RFC 3339 writing and
+  `checked_add`, through a day count of the proleptic Gregorian calendar.
+- checks: project-check passes (fmt, clippy pedantic, tests, specs); docs n/a until the deadlines exist (CLAUDE.md
+  status at deliverable 2).
+- red: RDL-5, RDL-6, RDL-7, RDL-8, RDL-9: unresolved imports `forewarn_domain::date::Instant`, `InvalidTime`.
+- Code review: no findings
+- not verified: none.
