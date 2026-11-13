@@ -137,6 +137,7 @@ fn prints_the_same_result_as_json() {
                 "exploited": [],
                 "deadlines": null,
             }],
+            "drafts": [],
             "notEvaluated": [{
                 "name": "bare",
                 "version": "1.0",

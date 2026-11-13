@@ -85,7 +85,8 @@ reader. An instant refused exits with 2.
 `--drafts <dir>` writes, in the same run, the draft CRA early warning of each actively exploited CVE into that
 directory, created when missing: one Markdown file per CVE, `<product>-<CVE>.md` (the product name of the SBOM, each
 character other than an ASCII letter, a digit, `.`, `_` or `-` written `_`; `<CVE>.md` when the SBOM names no product),
-which a rerun replaces whole. A draft fills what the SBOM, the match and the moments give (the product, its
+which a rerun replaces whole; the report names each file written after the matches (`drafts` in the JSON report,
+`{"cve", "path"}`). A draft fills what the SBOM, the match and the moments give (the product, its
 manufacturer, the components, the CVE, the evidence, the deadlines) and marks `**TO COMPLETE**` the fields of the ENISA
 Single Reporting Platform only the vendor knows (the title, the summary, the Member States). The drafts of a CVE no
 longer exploited stay in the directory.

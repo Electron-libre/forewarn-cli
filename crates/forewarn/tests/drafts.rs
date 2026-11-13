@@ -6,7 +6,7 @@ mod common;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use common::{Run, run, run_in};
+use common::{Run, json_report, run, run_in};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
@@ -21,7 +21,8 @@ fn path(path: &Path) -> &str {
 
 const DRAFT: &str = "shop-CVE-2021-44228.md";
 
-/// A directory holding an OSV record of `Log4Shell`, `CVE-2021-44228`, affecting `log4j-core` before 2.15.0.
+/// A directory holding an OSV record of `Log4Shell`, `CVE-2021-44228`, affecting `log4j-core` before 2.15.0, and one of
+/// `CVE-2023-4966`, which the KEV fixture also names, affecting `com.example:gateway` before 2.0.0.
 fn log4j_records() -> TempDir {
     let directory = TempDir::new().expect("a temporary directory");
     let record = json!({
@@ -36,6 +37,20 @@ fn log4j_records() -> TempDir {
     fs::write(
         directory.path().join("GHSA-jfh8-c2jp-5v3q.json"),
         serde_json::to_vec(&record).expect("the record serializes"),
+    )
+    .expect("the record is written");
+    let citrix = json!({
+        "id": "GHSA-citrix-bleed",
+        "modified": "2023-10-10T00:00:00Z",
+        "aliases": ["CVE-2023-4966"],
+        "affected": [{
+            "package": {"ecosystem": "Maven", "name": "com.example:gateway"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]}],
+        }],
+    });
+    fs::write(
+        directory.path().join("GHSA-citrix-bleed.json"),
+        serde_json::to_vec(&citrix).expect("the record serializes"),
     )
     .expect("the record is written");
     directory
@@ -256,4 +271,108 @@ fn a_draft_that_cannot_be_renamed_exits_with_7_and_leaves_no_temporary_file() {
     assert_eq!(run.stdout, "");
     assert!(run.stderr.contains(DRAFT), "{}", run.stderr);
     assert_eq!(entries(out.path()), [DRAFT]);
+}
+
+// spec: MXL-H6, MXL-28, MXL-35
+#[test]
+fn the_report_names_the_draft_written_and_a_rerun_with_the_measure_replaces_it() {
+    let out = TempDir::new().expect("a temporary directory");
+    let draft = out.path().join(DRAFT);
+    let run = matched(&["--drafts", path(out.path())], &shop());
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let expected = format!(
+        "Draft early warnings (1):\n  CVE-2021-44228: {}\n",
+        path(&draft)
+    );
+    assert!(run.stdout.contains(&expected), "{}", run.stdout);
+    let affected = run.stdout.find("Affected (").expect("the matches");
+    let not_evaluated = run.stdout.find("Not evaluated (").expect("the gaps");
+    let drafts = run.stdout.find("Draft early warnings").expect("the drafts");
+    assert!(
+        affected < drafts && drafts < not_evaluated,
+        "{}",
+        run.stdout
+    );
+    let written = fs::read_to_string(&draft).expect("the draft is written");
+    assert!(
+        written.contains("- Early warning due by: 2026-11-14T09:30:00Z\n"),
+        "{written}"
+    );
+
+    let rerun = matched(
+        &[
+            "--drafts",
+            path(out.path()),
+            "--measure-available",
+            "2026-11-15T17:00:00Z",
+        ],
+        &shop(),
+    );
+    assert_eq!(rerun.code, 6, "{}", rerun.stderr);
+    assert!(rerun.stdout.contains(&expected), "{}", rerun.stdout);
+    assert_eq!(entries(out.path()), [DRAFT]);
+    let written = fs::read_to_string(&draft).expect("the draft is replaced");
+    assert!(
+        written.contains("- Final report due by: 2026-11-29T17:00:00Z\n"),
+        "{written}"
+    );
+}
+
+// spec: MXL-27, MXL-28, MCH-16
+#[test]
+fn the_json_report_gives_the_draft_of_each_exploited_cve_in_the_order_of_the_matches() {
+    let out = TempDir::new().expect("a temporary directory");
+    let mut bom: Value = serde_json::from_slice(&shop()).expect("JSON");
+    bom["components"]
+        .as_array_mut()
+        .expect("components")
+        .insert(
+            0,
+            json!({"type": "library", "name": "gateway", "version": "1.0.0",
+                   "purl": "pkg:maven/com.example/gateway@1.0.0"}),
+        );
+    let bom = serde_json::to_vec(&bom).expect("the SBOM serializes");
+    let run = matched(&["--drafts", path(out.path()), "--format", "json"], &bom);
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let report = json_report(&run);
+    let cves: Vec<&Value> = report["affected"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .map(|found| &found["exploited"][0]["cve"])
+        .collect();
+    let drafts: Vec<Value> = cves
+        .iter()
+        .map(|cve| {
+            let cve = cve.as_str().expect("a CVE");
+            json!({"cve": cve, "path": path(&out.path().join(format!("shop-{cve}.md")))})
+        })
+        .collect();
+    assert_eq!(drafts.len(), 2, "{report:#}");
+    assert_eq!(report["drafts"], Value::Array(drafts));
+    assert_eq!(
+        entries(out.path()),
+        ["shop-CVE-2021-44228.md", "shop-CVE-2023-4966.md"]
+    );
+}
+
+// spec: MXL-35, MCH-16
+#[test]
+fn without_the_option_the_reports_say_nothing_of_drafts() {
+    let human = matched(&[], &shop());
+    assert_eq!(human.code, 6, "{}", human.stderr);
+    assert!(!human.stdout.contains("Draft"), "{}", human.stdout);
+    let json = matched(&["--format", "json"], &shop());
+    assert_eq!(json_report(&json)["drafts"], json!([]));
+}
+
+// spec: MXL-35, MCH-18
+#[test]
+fn the_path_of_a_draft_is_printed_with_its_control_characters_escaped() {
+    let parent = TempDir::new().expect("a temporary directory");
+    let out = parent.path().join("a\nb");
+    let run = matched(&["--drafts", path(&out)], &shop());
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let printed = format!("{}/a\\nb/{DRAFT}\n", path(parent.path()));
+    assert!(run.stdout.contains(&printed), "{}", run.stdout);
 }

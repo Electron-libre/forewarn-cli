@@ -40,8 +40,8 @@ actively exploited with its evidence (the catalog fetched into the same cache or
 into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-since` (by default the moment of the
 run) and `--measure-available`, each with the time left before it or how long it is overdue at `--now` (by default the
 moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`); with `--drafts <dir>`, it
-writes the draft early warning of each such CVE into `<dir>/<product>-<CVE>.md` (module `drafts`), exiting with 7 when
-one cannot be written.
+writes the draft early warning of each such CVE into `<dir>/<product>-<CVE>.md` (module `drafts`), names the files in
+the report, and exits with 7 when one cannot be written.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 

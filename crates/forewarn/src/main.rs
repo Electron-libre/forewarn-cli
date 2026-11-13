@@ -262,12 +262,22 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         }))
         .collect();
     // The drafts before the report, so that a draft not written leaves standard output empty (MXL-33).
-    if let Some(directory) = &args.drafts {
-        write_drafts(directory, &sbom, &awareness, &matching)?;
-    }
+    let drafts = args
+        .drafts
+        .as_ref()
+        .map(|directory| write_drafts(directory, &sbom, &awareness, &matching))
+        .transpose()?;
+    let report = report::MatchReport {
+        sbom: &sbom,
+        sources: &sources,
+        exploited: &exploited,
+        awareness: &awareness,
+        matching: &matching,
+        drafts: drafts.as_deref(),
+    };
     write_report(&match args.format {
-        Format::Human => report::matching_human(&sbom, &sources, &exploited, &awareness, &matching),
-        Format::Json => report::matching_json(&sbom, &sources, &exploited, &awareness, &matching),
+        Format::Human => report::matching_human(&report),
+        Format::Json => report::matching_json(&report),
     })?;
     if matching.exploited_count() > 0 {
         return Ok(ExitCode::from(EXPLOITED));

@@ -44,8 +44,8 @@ written. Out of scope: removing stale drafts, printing a draft on standard outpu
 1. [x] Write the drafts: `--drafts <dir>`, drafting with `draft_early_warnings` and `early_warning::markdown`, the file
    name, the directory created, the write through a temporary file and a rename, exit 7; verified by tests through the
    binary in `crates/forewarn/tests/drafts.rs`; makes true MXL-27, MXL-29, MXL-30, MXL-31, MXL-32, MXL-33, MXL-34. (autonomous)
-2. [ ] Name the drafts in the report: a line per draft in the human report, the member `drafts` in the JSON report;
-   verified by tests through the binary; makes true MXL-28, MXL-35, MXL-H6, the `drafts` row of MCH-16.
+2. [x] Name the drafts in the report: a line per draft in the human report, the member `drafts` in the JSON report;
+   verified by tests through the binary; makes true MXL-28, MXL-35, MXL-H6, the `drafts` row of MCH-16. (autonomous)
 
 ## Decisions
 - Command: an option `--drafts <dir>` of `match`, not a subcommand: the same inputs, one run, one exit code.
@@ -65,3 +65,12 @@ written. Out of scope: removing stale drafts, printing a draft on standard outpu
     `CVE-<year>-<digits>`), the CVE id is now also kept to the safe characters, as defence in depth.
 - not verified: a directory without write permission (the test uses a regular file and a directory in place of the
   draft instead, the tests may run as root).
+
+## Deliverable 2: name the drafts in the report
+- done: the human report prints `Draft early warnings (<n>):` then `<CVE>: <path>` after the matches, only with
+  `--drafts`; the JSON report gains `drafts`, `[]` without it; the report functions take one `MatchReport`.
+- checks: tests ok, clippy ok, fmt ok, specs ok (both specs back to `accepted`), docs (README, CLAUDE.md) ok, code
+  review low done.
+- red: MXL-H6, MXL-28, MXL-35, MCH-16: `"drafts"` was `Null` in the JSON report and no draft line in the human one.
+- Code review: no findings
+- not verified: nothing.

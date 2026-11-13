@@ -6,6 +6,8 @@ use std::fmt::Write;
 use std::path::Path;
 
 use forewarn_domain::completeness::{CompletenessReport, Field};
+
+use crate::drafts::Written;
 use forewarn_domain::exploited::{Evidence, FlaggedMatch, FlaggedReport};
 use forewarn_domain::matching::{ComponentReason, ComponentRef, PairReason, Reason, RecordStatus};
 use forewarn_domain::sbom::{Sbom, SpecVersion};
@@ -211,16 +213,29 @@ fn entries(count: usize) -> &'static str {
     if count == 1 { "entry" } else { "entries" }
 }
 
+/// What the report of `forewarn match` prints.
+pub struct MatchReport<'a> {
+    pub sbom: &'a Sbom,
+    pub sources: &'a [Source<'a>],
+    pub exploited: &'a [ExploitedSource<'a>],
+    pub awareness: &'a Awareness,
+    pub matching: &'a FlaggedReport,
+    /// The draft early warnings written, `None` without `--drafts` (MXL-28).
+    pub drafts: Option<&'a [Written]>,
+}
+
 /// The text report of `forewarn match` for a person: the SBOM, the sources of the records and the exploited lists,
-/// the matches with the evidence of those actively exploited, the components and pairs not evaluated, and the count
-/// of clean components.
-pub fn matching_human(
-    sbom: &Sbom,
-    sources: &[Source],
-    exploited: &[ExploitedSource],
-    awareness: &Awareness,
-    matching: &FlaggedReport,
-) -> String {
+/// the matches with the evidence of those actively exploited, the drafts written, the components and pairs not
+/// evaluated, and the count of clean components.
+pub fn matching_human(report: &MatchReport) -> String {
+    let MatchReport {
+        sbom,
+        sources,
+        exploited,
+        awareness,
+        matching,
+        drafts,
+    } = *report;
     let count = sbom.components.len();
     let mut text = format!(
         "SBOM: CycloneDX {}, {count} {}\n",
@@ -280,6 +295,14 @@ pub fn matching_human(
         if flagged.is_exploited() {
             push_evidence(&mut text, &flagged.evidence);
             push_deadlines(&mut text, awareness);
+        }
+    }
+    if let Some(drafts) = drafts {
+        let _ = writeln!(text, "Draft early warnings ({}):", drafts.len());
+        for draft in drafts {
+            let _ = write!(text, "  {}: ", draft.cve);
+            push_escaped(&mut text, &draft.path.to_string_lossy());
+            text.push('\n');
         }
     }
     let _ = writeln!(text, "Not evaluated ({}):", matching.not_evaluated().len());
@@ -480,13 +503,15 @@ fn push_component_ref(text: &mut String, component: &ComponentRef) {
 }
 
 /// The JSON report of `forewarn match` for a machine: one object whose members MCH-16 lists, ending with a newline.
-pub fn matching_json(
-    sbom: &Sbom,
-    sources: &[Source],
-    exploited: &[ExploitedSource],
-    awareness: &Awareness,
-    matching: &FlaggedReport,
-) -> String {
+pub fn matching_json(report: &MatchReport) -> String {
+    let MatchReport {
+        sbom,
+        sources,
+        exploited,
+        awareness,
+        matching,
+        drafts,
+    } = *report;
     let sources: Vec<Value> = sources
         .iter()
         .map(|source| match source {
@@ -548,6 +573,11 @@ pub fn matching_json(
             .filter(|_| exploited_any)
             .map(|moment| moment.to_string()),
         "affected": affected,
+        "drafts": drafts
+            .unwrap_or_default()
+            .iter()
+            .map(|draft| json!({"cve": draft.cve, "path": draft.path.to_string_lossy()}))
+            .collect::<Vec<_>>(),
         "notEvaluated": not_evaluated,
     });
     format!("{report:#}\n")

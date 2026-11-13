@@ -14,11 +14,7 @@ use crate::early_warning;
 /// The characters of the product name kept in a file name (MXL-31).
 const PRODUCT_NAME_LENGTH: usize = 100;
 
-/// A draft written to its file.
-#[expect(
-    dead_code,
-    reason = "the report names the drafts written in the next deliverable of cli_draft_early_warnings"
-)]
+/// A draft written to its file, which the report names (MXL-28).
 pub struct Written {
     pub cve: String,
     pub path: PathBuf,
