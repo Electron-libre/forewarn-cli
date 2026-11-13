@@ -13,7 +13,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - State: in issues
 - Issues:
   - [read_the_product_of_the_sbom](issues/done/read_the_product_of_the_sbom.md)
-  - [draft_the_early_warning_in_the_domain](issues/draft_the_early_warning_in_the_domain.md)
+  - [draft_the_early_warning_in_the_domain](issues/done/draft_the_early_warning_in_the_domain.md)
   - [write_the_early_warning_in_an_adapter](issues/write_the_early_warning_in_an_adapter.md)
   - [cli_draft_early_warnings](issues/cli_draft_early_warnings.md)
   - [keep_the_euvd_id_of_an_exploited_entry](issues/keep_the_euvd_id_of_an_exploited_entry.md)
