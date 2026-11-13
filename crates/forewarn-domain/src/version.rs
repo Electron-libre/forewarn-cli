@@ -23,6 +23,8 @@ pub(crate) enum Scheme {
     Semver,
     /// PEP 440, the versions of `PyPI` (VMT-24).
     Pep440,
+    /// The ordering of `Maven` (VMT-25).
+    Maven,
 }
 
 impl Scheme {
@@ -34,6 +36,7 @@ impl Scheme {
                 Some(Self::Semver)
             }
             (RangeKind::Ecosystem, "PyPI") => Some(Self::Pep440),
+            (RangeKind::Ecosystem, "Maven") => Some(Self::Maven),
             _ => None,
         }
     }
@@ -314,4 +317,159 @@ fn local_version(cursor: &mut Cursor) -> Option<Vec<LocalSegment>> {
             return None;
         }
     }
+}
+
+/// The ordering of `Maven`, by the version order specification of Maven's `ComparableVersion` (VMT-25).
+pub(crate) struct Maven;
+
+/// What separates a Maven token from the one before it: a hyphen also stands for a change between digits and letters.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Separator {
+    Dot,
+    Hyphen,
+}
+
+/// The value of a Maven token.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum MavenValue {
+    Number(Number),
+    /// A qualifier in lower case, its aliases resolved (`cr` as `rc`; `ga`, `final`, `release` as the empty one).
+    Qualifier(String),
+}
+
+impl MavenValue {
+    /// Whether the value is a null one, trimmed at the end of a hyphen group: `0` or the empty qualifier.
+    fn is_null(&self) -> bool {
+        match self {
+            Self::Number(number) => number.is_zero(),
+            Self::Qualifier(qualifier) => qualifier.is_empty(),
+        }
+    }
+}
+
+/// A Maven version: its tokens, each with the separator before it.
+#[derive(Debug)]
+pub(crate) struct MavenKey(Vec<(Separator, MavenValue)>);
+
+impl VersionOrder for Maven {
+    type Key = MavenKey;
+
+    fn parse(version: &str) -> Option<Self::Key> {
+        let text = version.trim().to_lowercase();
+        let mut raw: Vec<(Separator, String, bool)> = Vec::new();
+        let mut separator = Separator::Dot;
+        let mut current = String::new();
+        for c in text.chars() {
+            match c {
+                '.' | '-' => {
+                    raw.push((separator, std::mem::take(&mut current), false));
+                    separator = if c == '.' {
+                        Separator::Dot
+                    } else {
+                        Separator::Hyphen
+                    };
+                }
+                _ => {
+                    let is_digit = c.is_ascii_digit();
+                    if current
+                        .chars()
+                        .last()
+                        .is_some_and(|last| last.is_ascii_digit() != is_digit)
+                    {
+                        raw.push((separator, std::mem::take(&mut current), is_digit));
+                        separator = Separator::Hyphen;
+                    }
+                    current.push(c);
+                }
+            }
+        }
+        raw.push((separator, current, false));
+        let mut groups: Vec<Vec<(Separator, MavenValue)>> = Vec::new();
+        for (separator, token, followed_by_digit) in raw {
+            let value = maven_value(&token, followed_by_digit);
+            match groups.last_mut() {
+                Some(group) if separator == Separator::Dot => group.push((separator, value)),
+                _ => groups.push(vec![(separator, value)]),
+            }
+        }
+        let mut tokens = Vec::new();
+        for mut group in groups {
+            while group.last().is_some_and(|(_, value)| value.is_null()) {
+                group.pop();
+            }
+            tokens.extend(group);
+        }
+        Some(MavenKey(tokens))
+    }
+
+    fn compare(a: &Self::Key, b: &Self::Key) -> Ordering {
+        let length = a.0.len().max(b.0.len());
+        (0..length)
+            .map(|i| match (a.0.get(i), b.0.get(i)) {
+                (Some(a), Some(b)) => compare_maven_tokens(a, b),
+                (Some(a), None) => compare_maven_to_null(a),
+                (None, Some(b)) => compare_maven_to_null(b).reverse(),
+                (None, None) => Ordering::Equal,
+            })
+            .find(|order| order.is_ne())
+            .unwrap_or(Ordering::Equal)
+    }
+}
+
+/// The value of a token: empty as `0`, digits as a number, `a`, `b`, `m` directly followed by a digit as `alpha`,
+/// `beta`, `milestone`, and the aliases of the qualifiers resolved.
+fn maven_value(token: &str, followed_by_digit: bool) -> MavenValue {
+    if token.is_empty() {
+        return MavenValue::Number(Number::of("0"));
+    }
+    if token.bytes().all(|b| b.is_ascii_digit()) {
+        return MavenValue::Number(Number::of(token));
+    }
+    let qualifier = match (token, followed_by_digit) {
+        ("a", true) => "alpha",
+        ("b", true) => "beta",
+        ("m", true) => "milestone",
+        ("cr", _) => "rc",
+        ("ga" | "final" | "release", _) => "",
+        (other, _) => other,
+    };
+    MavenValue::Qualifier(qualifier.to_owned())
+}
+
+/// The order of the kinds of token: a qualifier, then a number after a hyphen, then a number after a dot.
+fn maven_kind((separator, value): &(Separator, MavenValue)) -> u8 {
+    match (value, separator) {
+        (MavenValue::Qualifier(_), _) => 0,
+        (MavenValue::Number(_), Separator::Hyphen) => 1,
+        (MavenValue::Number(_), Separator::Dot) => 2,
+    }
+}
+
+fn compare_maven_tokens(a: &(Separator, MavenValue), b: &(Separator, MavenValue)) -> Ordering {
+    match (&a.1, &b.1) {
+        (MavenValue::Number(x), MavenValue::Number(y)) if a.0 == b.0 => x.cmp(y),
+        (MavenValue::Qualifier(x), MavenValue::Qualifier(y)) => compare_qualifiers(x, y),
+        _ => maven_kind(a).cmp(&maven_kind(b)),
+    }
+}
+
+/// The order of a token against the missing token of a shorter version: `0` against a number, the release (the
+/// empty qualifier) against a qualifier.
+fn compare_maven_to_null(token: &(Separator, MavenValue)) -> Ordering {
+    match &token.1 {
+        MavenValue::Number(number) => number.cmp(&Number::of("0")),
+        MavenValue::Qualifier(qualifier) => compare_qualifiers(qualifier, ""),
+    }
+}
+
+/// `alpha` < `beta` < `milestone` < `rc` < `snapshot` < the release < `sp` < any other, by text.
+fn compare_qualifiers(a: &str, b: &str) -> Ordering {
+    const KNOWN: [&str; 7] = ["alpha", "beta", "milestone", "rc", "snapshot", "", "sp"];
+    let rank = |qualifier: &str| {
+        KNOWN
+            .iter()
+            .position(|known| *known == qualifier)
+            .unwrap_or(KNOWN.len())
+    };
+    rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
 }

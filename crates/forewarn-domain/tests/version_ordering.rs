@@ -19,6 +19,12 @@ const PYPI: Package = Package {
     purl: "pkg:pypi/django",
 };
 
+const MAVEN: Package = Package {
+    ecosystem: "Maven",
+    name: "org.apache.logging.log4j:log4j-core",
+    purl: "pkg:maven/org.apache.logging.log4j/log4j-core",
+};
+
 fn introduced(version: &str) -> Event {
     Event::Introduced(version.into())
 }
@@ -171,4 +177,56 @@ fn reports_a_pypi_version_pep_440_does_not_read_as_invalid() {
     ] {
         PYPI.assert_invalid(invalid, "3.0");
     }
+}
+
+// spec: VMT-9, VMT-23, VMT-25
+#[test]
+fn evaluates_an_ecosystem_range_of_maven_by_its_ordering() {
+    let window = [introduced("2.0-beta9"), fixed("2.15.0")];
+    assert!(MAVEN.affects("2.14.1", &window));
+    assert!(MAVEN.affects("2.0-beta9", &window));
+    assert!(!MAVEN.affects("2.15.0", &window));
+    assert!(!MAVEN.affects("2.0-alpha1", &window));
+}
+
+// spec: VMT-25
+#[test]
+fn orders_maven_versions_by_comparable_version() {
+    MAVEN.assert_ordered(&[
+        "1-alpha-1",
+        "1-alpha-2",
+        "1-beta2",
+        "1-milestone",
+        "1-RC1",
+        "1-SNAPSHOT",
+        "1",
+        "1-sp",
+        "1-abc",
+        "1-xyz",
+        "1-1",
+        "1.0.1",
+        "1.1",
+        "1.10",
+        "2",
+        "99999999999999999999",
+        "100000000000000000000",
+    ]);
+    for (a, b) in [
+        ("1.0.0", "1"),
+        ("1-ga", "1"),
+        ("1-FINAL", "1"),
+        ("1-release", "1"),
+        ("1-0", "1"),
+        ("1..", "1"),
+        ("1-cr1", "1-rc1"),
+        ("1-a1", "1-alpha-1"),
+        ("1-b1", "1-beta-1"),
+        ("1-m3", "1-milestone-3"),
+        ("1.0-alpha", "1-alpha"),
+        ("1rc1", "1-rc-1"),
+        ("01.2", "1.2"),
+    ] {
+        MAVEN.assert_equal(a, b);
+    }
+    MAVEN.assert_ordered(&["1-alpha", "1-sp", "1-a", "1-b"]);
 }

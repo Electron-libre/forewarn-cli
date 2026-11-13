@@ -52,7 +52,7 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
    domain tests of the Go and NuGet scenarios; makes true VMT-9, VMT-10, VMT-23 (Go row). (autonomous)
 2. [x] PyPI: PEP 440 parsing and ordering; verified by the PyPI scenarios, one through `forewarn match`; makes true
    VMT-24, VMT-23 (PyPI row). (autonomous)
-3. [ ] Maven: the `ComparableVersion` ordering; verified by the Maven scenarios; makes true VMT-25, VMT-23 (Maven row).
+3. [x] Maven: the `ComparableVersion` ordering; verified by the Maven scenarios; makes true VMT-25, VMT-23 (Maven row). (autonomous)
 4. [ ] RubyGems: the `Gem::Version` ordering; verified by the RubyGems scenarios; makes true VMT-26, VMT-23 (RubyGems
    row); the spec set `accepted`.
 5. [ ] Docs and the fixes of the `high` review of the whole issue; a follow-up issue for NuGet and Packagist.
@@ -95,6 +95,27 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
 
 - red: VMT-9, VMT-23, VMT-24: `evaluates_an_ecosystem_range_of_pypi_by_pep_440` and the ordering tests: the pair of
   `django` 2.1 was reported `RangeNotEvaluated`; `forewarn match` exited with 0 instead of 1.
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 3: Maven
+- done: `Maven` ordering in the module `version` (tokens split at `.`, `-` and digit/letter changes, the trailing
+  nulls of each hyphen group trimmed, qualifiers ranked, `a`/`b`/`m` before a digit and the aliases resolved);
+  `Maven` `ECOSYSTEM` ranges evaluated.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`) |
+| docs | n/a: the spec already states VMT-25; README unchanged until the last ordering |
+| code review | low, see below |
+
+- red: VMT-9, VMT-23, VMT-25: `evaluates_an_ecosystem_range_of_maven_by_its_ordering`: the pair of `log4j-core`
+  2.14.1 was reported `RangeNotEvaluated`.
+- Hyphen nesting of `ComparableVersion` (`1-0-alpha` against `1-alpha`) is flattened as the Maven version order
+  specification and the OSV reference read it.
 - Code review: no findings
 - not verified: none
 - decisions needed: none
