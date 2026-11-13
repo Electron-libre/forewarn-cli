@@ -1,6 +1,6 @@
 ---
 id: MCH
-status: accepted
+status: draft
 adrs: [0001, 0004]
 ---
 
@@ -18,7 +18,8 @@ exit code a CI job can act on.
 
 - **MCH-1** (deterministic) `forewarn match <sbom>` must print each match of the matching
   (`specs/vulnerability-matching.md`): the component's name, its version and package URL when it has them, and the
-  vulnerability's id, aliases, and the id and source of each of its records (VMT-18).
+  vulnerability's id, aliases, and the id, source and status of each of its records (VMT-18), the status shown for a
+  record that does not affect the component or could not be evaluated.
 - **MCH-2** (deterministic) `forewarn match <sbom>` must print each component or pair not evaluated (VMT-3) with its
   reason, under a heading of its own, apart from the matches and from the count of clean components.
 - **MCH-3** (deterministic) `forewarn match <sbom>` must print how many components were matched and how many are
@@ -71,7 +72,7 @@ exit code a CI job can act on.
   | `componentCount` | the number of components matched, nested ones included |
   | `cleanCount` | the number of clean components (MCH-3) |
   | `osv` | an array, in the order of MCH-5 or of the `--osv` paths, of objects `{"kind": "archive", "ecosystem", "url", "downloadedAt", "lastModified", "recordCount"}` (`downloadedAt` in RFC 3339, UTC, to the second, ending in `Z`; `lastModified` a string or `null`) or `{"kind": "local", "path", "recordCount"}` (`recordCount` the number of MCH-22) |
-  | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source"}`, in the order of VMT-18) |
+  | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated) |
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
@@ -126,6 +127,9 @@ exit code a CI job can act on.
   source shows 0 records.
 - (MCH-1, MCH-16) Given a directory holding `RUSTSEC-2020-0071` and its `GHSA` mirror, both affecting `time` 0.1.43,
   when the SBOM is matched, then `time` is listed once as `CVE-2020-26235`, with both records and their sources.
+- (MCH-1, MCH-16) Given a directory holding `RUSTSEC-2020-0071` affecting `time` 0.1.43 and its `GHSA` mirror fixed at
+  0.1.40, when the SBOM is matched, then the human report marks the mirror as not affecting `time` and the JSON report
+  gives it `"affects": false`.
 - (MCH-23) Given a directory holding a file that is not JSON and whose name holds a newline, when it is read, then the
   error stays on one line.
 

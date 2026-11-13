@@ -39,3 +39,43 @@ Match known vulnerabilities (OSV)
 # Resources
 * `crates/forewarn-domain/src/matching.rs`, `crates/forewarn/src/report.rs`.
 * `issues/done/group_matches_of_one_vulnerability.md` (its `# Tracking`, decisions and deliverable summaries).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+A match stands for one CVE: records holding different `CVE-` ids never share a match, a record holding several goes
+into the match of each; a record not affecting the component never joins, bridges or names a match, it is only listed;
+each record of a match carries its status (affects, does not, not evaluated). Out of scope: the OSV `related` field.
+
+## Plan
+1. [x] Group by CVE: `match_components` builds one group per `CVE-` id held by the records affecting or not evaluated,
+   CVE-less records joining each group they overlap, records not affecting only listed in the groups they overlap;
+   aliases leave out foreign CVEs and the ids of records of another CVE; pairs not evaluated kept when a CVE of their
+   record names no match; verified by domain tests of the new VMT scenarios; makes true VMT-15, VMT-16, VMT-17,
+   VMT-19, VMT-20, VMT-21, VMT-22. (autonomous)
+2. [ ] Record status: `RecordRef.status` (`Affects`, `DoesNotAffect`, `NotEvaluated`) in the domain, `affects`
+   (`true`, `false`, `null`) in the JSON `records`, `(does not affect)` / `(not evaluated)` after the record in the
+   human report; verified by domain tests and a `forewarn match --osv` test on a RUSTSEC record and a mirror fixed
+   earlier; makes true VMT-18, MCH-1, MCH-16.
+
+## Decisions
+- Mode: autonomous
+- Base commit: e9d6806d5cdf8582d723717889b7d11b68f3a054
+- A record holding several `CVE-` ids goes into the match of each (VMT-21).
+- JSON `records[].affects`: `true`, `false`, or `null` for a record not evaluated (MCH-16).
+- A record not affecting never names a match, its CVE included (VMT-16, VMT-22).
+
+## Deliverable 1: summary
+- done: `match_components` builds one group per `CVE-` id of the records affecting or not evaluated, records
+  without CVE joining each group they overlap (or forming their own), records not affecting only listed; aliases
+  leave out other CVEs and the ids of records of another CVE; a pair not evaluated stays reported when one of its
+  CVEs names no match. README and CLAUDE.md say two CVEs are never merged.
+- checks: `cardinal run project-check` passes (fmt, clippy, tests, specs).
+- red: VMT-16, VMT-17, VMT-19, VMT-20, VMT-21, VMT-22: 7 of 37 domain tests failed, two CVEs in one match
+  (`left: [("time", "CVE-1")]`, `right: [("time", "CVE-1"), ("time", "CVE-2")]`).
+- Code review: 1 findings (`low`): `named.dedup_by` drops only adjacent duplicates; not fixed, no change needed:
+  `naming` returns the places in id order (vulnerabilities sorted by id before indexing), so equal ids are adjacent.
+- Decision: VMT-17 leaves out the id of a record of another CVE only among the records affecting or not evaluated, so
+  a mirror not affecting stays among the aliases through the affecting record that names it.
