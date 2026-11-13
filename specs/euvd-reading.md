@@ -1,6 +1,6 @@
 ---
 id: EUV
-status: accepted
+status: draft
 adrs: [0004, 0005, 0007, 0008, 0009]
 ---
 
@@ -32,8 +32,13 @@ under a refresh policy, so that a European vendor watches the list it is expecte
 
 - **EUV-6** (deterministic) Fetching must download the list only as the refresh policy of the table of KEV-9 says, and
   otherwise read the copy of its cache.
-- **EUV-21** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a cached list that
-  cannot be read must download it again, as KEV-18 says of the catalog.
+- **EUV-21** (deterministic) withdrawn: replaced by EUV-22 to EUV-24.
+- **EUV-22** (deterministic) A fetch of a cached list whose files differ from those its download stored must page it
+  again, or fail under `offline`, as KEV-19 and KEV-20 say of the catalog.
+- **EUV-23** (deterministic) A fetch of a cached list whose files are those its download stored, and that cannot be
+  read, must fail with the error of reading it (EUV-15), without paging it again.
+- **EUV-24** (deterministic) A cached list whose freshness names no files (stored by an earlier forewarn) must be
+  paged again under `if-missing` or `older-than <age>`, and read as it is under `offline`.
 - **EUV-7** (deterministic) A download must request its pages with a `GET` and no body of
   `<url>?exploited=true&size=100&page=<n>`, `<n>` from 0 up by one, `<url>` the one the caller gives,
   `https://euvdservices.enisa.europa.eu/api/search` unless it gives another, the `?` an `&` when `<url>` already holds
@@ -66,6 +71,7 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   | a page repeats an earlier one (EUV-11) | page repeated, with its number |
   | the third attempt changed too (EUV-10) | list changed while paged, with the number of attempts |
   | the downloaded list cannot be read (EUV-16) | the error of EUV-16 |
+  | the policy is `offline` and the files of the copy differ from those its download stored (EUV-22) | damaged cached copy, naming the first file that differs and whether it is missing, added or of another size |
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
 
 - **EUV-16** (deterministic) Reading a refused file must fail with the error of this table, the first cause that
@@ -108,9 +114,13 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   second waits, then reads the copy the first stored, without a request.
 - (EUV-6) Given a copy downloaded 2 hours ago, when it is fetched under `older-than 1h`, then the list is downloaded
   again; under `older-than 3h`, it is read from the cache.
-- (EUV-21) Given a cached list file that was truncated, its freshness intact, when the list is fetched under
-  `if-missing`, then it is paged again and its list returned.
-  Under `offline`, it fails with "not JSON" and no request is sent.
+- (EUV-22) Given a cached list file that was truncated, its freshness intact, when the list is fetched under
+  `if-missing`, then it is paged again and its list returned; under `offline`, it fails with "damaged cached copy"
+  and no request is sent.
+- (EUV-23) Given a cached list file overwritten with as many bytes that are not JSON, when the list is fetched under
+  `if-missing`, then it fails with "not JSON" and no request is sent.
+- (EUV-24) Given a copy whose freshness holds no list of files, when the list is fetched under `if-missing`, then it is
+  paged again; under `offline`, its list is returned.
 - (EUV-8) Given a server whose `total` is 250 over pages of 100, 100 and 50 records, when the list is fetched, then pages
   0 to 2 are requested and page 3 is not.
 - (EUV-8) Given a server whose `total` is 0 and whose page 0 is empty, when the list is fetched, then the list is empty.

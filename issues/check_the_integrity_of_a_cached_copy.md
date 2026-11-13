@@ -36,3 +36,38 @@ files. Recording what a download stored and checking it before a read would tell
 # Hints
 * Hashing a large ecosystem (tens of thousands of files) at each read costs; sizes may be enough against truncation
   and removal.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+A download records in `forewarn-freshness` the name and size of each file it stored; a fetch checks them before
+reading a cached copy: a difference is damage (downloaded again, or "damaged cached copy" under `offline`), a read
+error on a matching copy is reported as it is. Out of scope: hashes, edits that keep a file's size.
+
+## Plan
+1. [x] Manifest in `forewarn-cache` and the OSV snapshots: recorded at download, checked before a read, new error
+   `damaged cached copy`, an older freshness downloaded again once; verified by the tests of `crates/forewarn-osv/tests/fetching.rs`
+   (the OSR-37 ones moved to the new ids); makes true OSR-38, OSR-39, OSR-40, OSR-41 (ADR 0010 draft committed with it). (autonomous)
+2. [ ] KEV catalog and EUVD list: their fetch errors carry the damage, tests moved off KEV-18/EUV-21; verified by
+   `kev_fetching.rs` and `euvd_fetching.rs`; makes true KEV-19 to KEV-22, EUV-22 to EUV-24; specs set `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: d621b74840eca667d1a9edf423a19f979b096b60
+- Manifest: the name and the size of each file (no hash, no modification time), ADR 0010.
+- A freshness without manifest: downloaded again once; read as it is under `offline`.
+- A copy that matches its manifest and cannot be read: its error reported, no download.
+
+## Deliverable 1
+
+- done: `forewarn-freshness` records the size of each file of a download; a fetch checks them before reading a cached
+  copy (new `Error::Damaged`, "damaged cached copy" under `offline`); a matching copy that fails to read reports its
+  error; a freshness without files is downloaded again (read as is offline). The three sources map the new error.
+- red: OSR-38, OSR-39, OSR-40, OSR-41: a removed record went unnoticed (1 request, not 2); `fetch_error` got `Ok`;
+  the freshness held no `files`.
+- KEV-20 and EUV-22: their offline tests moved from "not JSON" to "damaged cached copy"; the rest of KEV and EUVD is
+  deliverable 2.
+- Code review: no findings
+- not verified: the permission test of OSR-40 returns early when run as root.

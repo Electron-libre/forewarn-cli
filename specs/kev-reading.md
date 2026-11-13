@@ -1,6 +1,6 @@
 ---
 id: KEV
-status: accepted
+status: draft
 adrs: [0004, 0005, 0007, 0008]
 ---
 
@@ -45,9 +45,17 @@ so that a vendor can tell which of its vulnerabilities are actively exploited, a
   | `older-than <age>` | when the cache holds no copy of it, or one downloaded more than `<age>` ago |
   | `always` | always |
 
-- **KEV-18** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a cached catalog that
-  cannot be read (removed, truncated or damaged outside forewarn) must download it again, at most once per fetch, and
-  return what that download returns; a fetch under `offline` fails with the error of reading the copy (KEV-16).
+- **KEV-18** (deterministic) withdrawn: replaced by KEV-19 to KEV-22, which tell a damaged copy from one that cannot
+  be read by the files its download stored.
+- **KEV-19** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a cached catalog whose
+  files differ from those its download stored (removed, added, or of another size, changed outside forewarn) must
+  download it again, at most once per fetch, and return what that download returns.
+- **KEV-20** (deterministic) A fetch under `offline` of a cached catalog whose files differ from those its download
+  stored must fail with the error of KEV-15, without a request.
+- **KEV-21** (deterministic) A fetch of a cached catalog whose files are those its download stored, and that cannot be
+  read, must fail with the error of reading it (KEV-15), without downloading it again.
+- **KEV-22** (deterministic) A cached catalog whose freshness names no files (stored by an earlier forewarn) must be
+  downloaded again under `if-missing` or `older-than <age>`, and read as it is under `offline`.
 - **KEV-10** (deterministic) A download must request, with a `GET` and no body, the URL the caller gives,
   `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` unless it gives another.
 - **KEV-11** (deterministic) A fetch that reads the catalog from the cache must return the list and both freshnesses
@@ -67,6 +75,7 @@ so that a vendor can tell which of its vulnerabilities are actively exploited, a
   | another fetch still handles the catalog once the wait of KEV-13 is over | cache locked by another run, with the time waited |
   | the server cannot be reached, or answers with a status other than 200 | cannot download, with the URL and the reason or the status |
   | the downloaded catalog cannot be read (KEV-16) | the error of KEV-16 |
+  | the policy is `offline` and the files of the copy differ from those its download stored (KEV-20) | damaged cached copy, naming the first file that differs and whether it is missing, added or of another size |
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
 
 - **KEV-16** (deterministic) Reading a refused catalog must fail with the error of this table, the first cause that
@@ -106,9 +115,14 @@ so that a vendor can tell which of its vulnerabilities are actively exploited, a
 - (KEV-9) Given a copy downloaded 2 hours ago, when it is fetched under `older-than 1h`, then the catalog is
   downloaded again; under `older-than 3h`, it is read from the cache.
 - (KEV-9) Given a copy in the cache, when it is fetched under `always`, then the catalog is downloaded again.
-- (KEV-18) Given a cached catalog file that was removed, its freshness intact, when the catalog is fetched under
-  `if-missing`, then it is downloaded once and its list returned; truncated, under `offline`, it fails with "not JSON"
-  and no request is sent.
+- (KEV-19) Given a cached catalog file that was removed, or truncated, its freshness intact, when the catalog is
+  fetched under `if-missing`, then it is downloaded once and its list returned.
+- (KEV-20) Given a cached catalog file that was truncated, when the catalog is fetched under `offline`, then it fails
+  with "damaged cached copy" naming the file and no request is sent.
+- (KEV-21) Given a cached catalog file overwritten with as many bytes that are not JSON, when the catalog is fetched
+  under `if-missing`, then it fails with "not JSON" and no request is sent.
+- (KEV-22) Given a copy whose freshness holds no list of files, when the catalog is fetched under `if-missing`, then
+  it is downloaded once; under `offline`, its list is returned.
 - (KEV-9, KEV-15) Given an empty cache, when the catalog is fetched under `offline`, then it fails with "not cached"
   and no request is sent.
 - (KEV-12, KEV-15) Given a copy in the cache and a server answering 503, when it is fetched under `always`, then it

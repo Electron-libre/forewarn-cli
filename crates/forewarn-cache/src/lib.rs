@@ -1,8 +1,10 @@
 //! The cache of the downloads of `forewarn` (ADR 0008): one directory per entry (an OSV ecosystem, the KEV catalog),
 //! downloaded again as a refresh policy says (ADR 0004), beside the freshness of its download, and a file lock per
 //! entry, shared by the runs that read it and exclusive for the run that replaces it (ADRs 0005, 0007). What a
-//! download holds and how it is read is the source's: it hands [`Cache::fetch`] two functions.
+//! download holds and how it is read is the source's: it hands [`Cache::fetch`] two functions. The freshness of a
+//! download records the name and the size of each file it stored, checked before the copy is read (ADR 0010).
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io;
@@ -52,6 +54,50 @@ pub struct Freshness {
     pub last_modified: Option<String>,
 }
 
+/// What the file [`FRESHNESS_FILE`] holds: the freshness of the download, and the size of each file it stored by name
+/// (ADR 0010); none in a file an earlier forewarn wrote.
+#[derive(Serialize, Deserialize)]
+struct Record {
+    #[serde(flatten)]
+    freshness: Freshness,
+    #[serde(default)]
+    files: Option<Files>,
+}
+
+/// The size of each file of an entry directory, by name, but its freshness.
+type Files = BTreeMap<String, u64>;
+
+/// How a file of a cached copy differs from what its download stored.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Change {
+    /// The download stored it; the copy no longer holds it.
+    Removed,
+    /// The copy holds it; the download did not store it.
+    Added,
+    /// The copy holds it with another size than the download stored (truncated, or changed).
+    Resized { stored: u64, found: u64 },
+}
+
+/// The first file, by name, of a cached copy that differs from what its download stored.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Damage {
+    pub file: String,
+    pub change: Change,
+}
+
+impl fmt::Display for Damage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "damaged cached copy: {:?} ", self.file)?;
+        match self.change {
+            Change::Removed => write!(f, "was removed"),
+            Change::Added => write!(f, "was added"),
+            Change::Resized { stored, found } => {
+                write!(f, "has another size: {found} bytes, {stored} downloaded")
+            }
+        }
+    }
+}
+
 /// What a fetch read from an entry, and how fresh it is.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Fetched<T> {
@@ -70,6 +116,8 @@ pub enum Error<E> {
     Download { url: String, reason: String },
     /// The cache directory cannot be read or written; the system's reason.
     Cache(String),
+    /// The policy is [`Refresh::Offline`] and the files of the cached copy differ from those its download stored.
+    Damaged(Damage),
     /// The source could not unpack or read the download, or read the entry.
     Source(E),
 }
@@ -81,6 +129,7 @@ impl<E: fmt::Display> fmt::Display for Error<E> {
             Self::Locked { waited } => write!(f, "cache locked by another run, waited {waited:?}"),
             Self::Download { url, reason } => write!(f, "cannot download {url}: {reason}"),
             Self::Cache(reason) => write!(f, "cannot use the cache: {reason}"),
+            Self::Damaged(damage) => write!(f, "{damage}"),
             Self::Source(error) => write!(f, "{error}"),
         }
     }
@@ -134,8 +183,9 @@ impl Cache {
 
     /// Returns what the source reads from the entry `name`, downloading it again when the refresh policy says so;
     /// `clock` gives the time the policy compares with and the time recorded for a download, read when its request
-    /// starts. A copy the source fails to read (damaged outside forewarn) is downloaded again, once, unless the policy
-    /// is [`Refresh::Offline`].
+    /// starts. A copy whose files differ from those its download stored (changed outside forewarn) is downloaded again,
+    /// once, unless the policy is [`Refresh::Offline`]; a copy whose freshness names no files (written by an earlier
+    /// forewarn) is downloaded again, or read as it is under [`Refresh::Offline`] (ADR 0010).
     ///
     /// # Errors
     ///
@@ -167,8 +217,8 @@ impl Cache {
         } else {
             Mode::Shared
         };
-        // The freshness of a copy the source failed to read under the shared lock (damaged outside forewarn): the
-        // fetch then downloads it under the exclusive lock, one download at most.
+        // The freshness of a copy whose files differ from its download under the shared lock (damaged outside
+        // forewarn): the fetch then downloads it under the exclusive lock, one download at most.
         let mut damaged = None;
         loop {
             self.wait_for(&mut lock, mode, deadline)?;
@@ -181,19 +231,23 @@ impl Cache {
                 self.cached(&directory, clock)?
             };
             match (freshness, mode) {
-                (Some(freshness), Mode::Shared) => match (source.read)(&directory) {
-                    Ok(value) => return Ok(Fetched { value, freshness }),
-                    Err(error) if self.refresh == Refresh::Offline => {
-                        return Err(Error::Source(error));
+                (Some((freshness, files)), Mode::Shared) => {
+                    match check(&directory, files.as_ref())? {
+                        None => return read(source, &directory, freshness),
+                        Some(damage) if self.refresh == Refresh::Offline => {
+                            return Err(Error::Damaged(damage));
+                        }
+                        Some(_) => damaged = Some(freshness),
                     }
-                    Err(_) => damaged = Some(freshness),
-                },
+                }
                 // The copy found damaged, unchanged since.
-                (Some(freshness), Mode::Exclusive) if damaged.as_ref() == Some(&freshness) => break,
+                (Some((freshness, _)), Mode::Exclusive) if damaged.as_ref() == Some(&freshness) => {
+                    break;
+                }
                 // Another run replaced the damaged copy while this one waited for the exclusive lock.
-                (Some(freshness), Mode::Exclusive) if damaged.is_some() => {
-                    if let Ok(value) = (source.read)(&directory) {
-                        return Ok(Fetched { value, freshness });
+                (Some((freshness, files)), Mode::Exclusive) if damaged.is_some() => {
+                    if check(&directory, files.as_ref())?.is_none() {
+                        return read(source, &directory, freshness);
                     }
                     break;
                 }
@@ -220,23 +274,26 @@ impl Cache {
         download.run(source, &directory, clock())
     }
 
-    /// The freshness of the copy of a directory when the refresh policy reads it rather than downloading it again;
-    /// `clock` is read only by a policy that compares with the time.
+    /// The freshness of the copy of a directory, and the files its download stored, when the refresh policy reads it
+    /// rather than downloading it again; `clock` is read only by a policy that compares with the time. Only
+    /// [`Refresh::Offline`] reads a copy whose freshness names no files (ADR 0010).
     fn cached<E>(
         &self,
         directory: &Path,
         clock: &impl Fn() -> SystemTime,
-    ) -> Result<Option<Freshness>, Error<E>> {
-        Ok(match (self.refresh, read_freshness(directory)?) {
+    ) -> Result<Option<(Freshness, Option<Files>)>, Error<E>> {
+        Ok(match (self.refresh, read_record(directory)?) {
             (Refresh::Offline, None) => return Err(Error::NotCached),
-            (Refresh::Offline | Refresh::IfMissing, Some(freshness)) => Some(freshness),
+            (Refresh::Offline, Some(record)) => Some((record.freshness, record.files)),
+            (_, Some(Record { files: None, .. })) => None,
+            (Refresh::IfMissing, Some(record)) => Some((record.freshness, record.files)),
             // A copy dated after now (a clock set back) is not older than any age.
-            (Refresh::OlderThan(age), Some(freshness))
+            (Refresh::OlderThan(age), Some(record))
                 if clock()
-                    .duration_since(freshness.downloaded_at)
+                    .duration_since(record.freshness.downloaded_at)
                     .map_or(true, |elapsed| elapsed <= age) =>
             {
-                Some(freshness)
+                Some((record.freshness, record.files))
             }
             _ => None,
         })
@@ -344,12 +401,15 @@ impl Download<'_> {
         let last_modified = (source.download)(self.agent, &source.url, &self.file.0)?;
         (source.unpack)(&self.file.0, &self.staging.0).map_err(Error::Source)?;
         let value = (source.read)(&self.staging.0).map_err(Error::Source)?;
-        let freshness = Freshness {
-            downloaded_at: now,
-            url: source.url.clone(),
-            last_modified,
+        let record = Record {
+            freshness: Freshness {
+                downloaded_at: now,
+                url: source.url.clone(),
+                last_modified,
+            },
+            files: Some(list_files(&self.staging.0)?),
         };
-        let json = serde_json::to_vec(&freshness).map_err(|e| Error::Cache(e.to_string()))?;
+        let json = serde_json::to_vec(&record).map_err(|e| Error::Cache(e.to_string()))?;
         fs::write(self.staging.0.join(FRESHNESS_FILE), json).map_err(|e| cache_error(&e))?;
 
         self.former.clear()?;
@@ -363,8 +423,57 @@ impl Download<'_> {
             }
             return Err(cache_error(&error));
         }
-        Ok(Fetched { value, freshness })
+        Ok(Fetched {
+            value,
+            freshness: record.freshness,
+        })
     }
+}
+
+/// Reads a cached copy whose files are those its download stored; an error of the source is its own, never damage.
+fn read<T, E>(
+    source: &Source<'_, T, E>,
+    directory: &Path,
+    freshness: Freshness,
+) -> Result<Fetched<T>, Error<E>> {
+    let value = (source.read)(directory).map_err(Error::Source)?;
+    Ok(Fetched { value, freshness })
+}
+
+/// The first file, by name, of a directory that differs from the files its download stored; none when they are the
+/// same, or when its freshness names no files.
+fn check<E>(directory: &Path, stored: Option<&Files>) -> Result<Option<Damage>, Error<E>> {
+    let Some(stored) = stored else {
+        return Ok(None);
+    };
+    let found = list_files(directory)?;
+    let names: std::collections::BTreeSet<&String> = stored.keys().chain(found.keys()).collect();
+    Ok(names.into_iter().find_map(|name| {
+        let change = match (stored.get(name), found.get(name)) {
+            (Some(_), None) => Change::Removed,
+            (None, Some(_)) => Change::Added,
+            (Some(&stored), Some(&found)) if stored != found => Change::Resized { stored, found },
+            _ => return None,
+        };
+        Some(Damage {
+            file: name.clone(),
+            change,
+        })
+    }))
+}
+
+/// The size of each file of a directory, by name, but its freshness.
+fn list_files<E>(directory: &Path) -> Result<Files, Error<E>> {
+    let mut files = Files::new();
+    for entry in fs::read_dir(directory).map_err(|e| cache_error(&e))? {
+        let entry = entry.map_err(|e| cache_error(&e))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name != FRESHNESS_FILE {
+            let size = entry.metadata().map_err(|e| cache_error(&e))?.len();
+            files.insert(name, size);
+        }
+    }
+    Ok(files)
 }
 
 /// An HTTP agent with the timeouts of a download, that leaves the status of a response to the caller.
@@ -379,9 +488,9 @@ pub fn agent() -> ureq::Agent {
         .into()
 }
 
-/// The freshness of the copy of a directory; none when the directory holds no copy, or one whose freshness cannot be
+/// The record of the copy of a directory; none when the directory holds no copy, or one whose freshness cannot be
 /// read (a later download replaces it).
-fn read_freshness<E>(directory: &Path) -> Result<Option<Freshness>, Error<E>> {
+fn read_record<E>(directory: &Path) -> Result<Option<Record>, Error<E>> {
     match fs::read(directory.join(FRESHNESS_FILE)) {
         Ok(json) => Ok(serde_json::from_slice(&json).ok()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use forewarn_cache::{Cache, Fetched, Source};
-pub use forewarn_cache::{DEFAULT_LOCK_WAIT, Freshness, Refresh};
+pub use forewarn_cache::{Change, DEFAULT_LOCK_WAIT, Damage, Freshness, Refresh};
 use forewarn_domain::vulnerability::Vulnerability;
 
 use crate::{ReadError, is_path_segment, read_directory};
@@ -64,6 +64,8 @@ pub enum FetchCause {
     Record(ReadError),
     /// The cache directory cannot be read or written; the system's reason.
     Cache(String),
+    /// The policy is [`Refresh::Offline`] and the files of the snapshot differ from those its download stored (OSR-39).
+    Damaged(Damage),
 }
 
 impl fmt::Display for FetchError {
@@ -84,6 +86,7 @@ impl fmt::Display for FetchError {
             FetchCause::UnsafeEntry(name) => write!(f, "unsafe archive entry {name:?}"),
             FetchCause::Record(error) => write!(f, "{error}"),
             FetchCause::Cache(reason) => write!(f, "cannot use the cache: {reason}"),
+            FetchCause::Damaged(damage) => write!(f, "{damage}"),
         }
     }
 }
@@ -97,6 +100,7 @@ impl From<forewarn_cache::Error<FetchCause>> for FetchCause {
             forewarn_cache::Error::Locked { waited } => Self::Locked { waited },
             forewarn_cache::Error::Download { url, reason } => Self::Download { url, reason },
             forewarn_cache::Error::Cache(reason) => Self::Cache(reason),
+            forewarn_cache::Error::Damaged(damage) => Self::Damaged(damage),
             forewarn_cache::Error::Source(cause) => cause,
         }
     }

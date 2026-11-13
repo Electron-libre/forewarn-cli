@@ -1093,71 +1093,103 @@ fn lock_file_read_only(path: &Path) -> fs::File {
     file
 }
 
-/// Truncates the record file of the cached `crates.io` snapshot, its freshness left intact.
-fn damage_the_crates_io_snapshot(cache: &Path) {
-    fs::write(
-        cache.join("crates.io/RUSTSEC-2020-0071.json"),
-        "{ truncated",
-    )
-    .expect("the record file is damaged");
+/// The record file of the cached `crates.io` snapshot.
+fn crates_io_record(cache: &Path) -> PathBuf {
+    cache.join("crates.io/RUSTSEC-2020-0071.json")
 }
 
-// spec: OSR-37
-#[test]
-fn a_snapshot_whose_records_cannot_be_read_is_downloaded_again_once() {
-    let cache = TempDir::new().expect("a cache");
+/// Fills a cache with the `crates.io` snapshot, downloaded at 1,000 s, through a server that keeps serving it.
+fn cached_crates_io(cache: &Path) -> Server {
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
-    archives(cache.path(), &server, Refresh::IfMissing)
+    archives(cache, &server, Refresh::IfMissing)
         .fetch(&["crates.io"], || at(1_000))
         .expect("the archive is fetched");
-    damage_the_crates_io_snapshot(cache.path());
-
-    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], || at(2_000))
-        .expect("the archive is fetched again");
-
-    assert_eq!(server.requests().len(), 2);
-    assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
-    assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
-    let again = archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], || at(3_000))
-        .expect("the new snapshot is read");
-    assert_eq!(again, snapshots);
-    assert_eq!(server.requests().len(), 2);
+    server
 }
 
-// spec: OSR-37
+/// A change of a snapshot outside forewarn: the words of its error, the change, the file the error names.
+type Damaging = (&'static str, fn(&Path), &'static str);
+
+/// The ways a snapshot is changed outside forewarn that its files tell apart.
+fn damages() -> [Damaging; 3] {
+    [
+        (
+            "removed",
+            |cache| fs::remove_file(crates_io_record(cache)).expect("the record is removed"),
+            "RUSTSEC-2020-0071.json",
+        ),
+        (
+            "another size",
+            |cache| {
+                fs::write(crates_io_record(cache), "{ truncated").expect("the record is truncated");
+            },
+            "RUSTSEC-2020-0071.json",
+        ),
+        (
+            "added",
+            |cache| {
+                fs::write(
+                    cache.join("crates.io/extra.json"),
+                    fixture("RUSTSEC-2020-0071.json"),
+                )
+                .expect("a record is added");
+            },
+            "extra.json",
+        ),
+    ]
+}
+
+// spec: OSR-38
 #[test]
-fn a_snapshot_whose_records_cannot_be_read_fails_offline_without_a_request() {
-    let cache = TempDir::new().expect("a cache");
-    let server = Server::new();
-    server.route("/crates.io/all.zip", ok(crates_io_archive()));
-    archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], || at(1_000))
-        .expect("the archive is fetched");
-    damage_the_crates_io_snapshot(cache.path());
+fn a_snapshot_whose_files_differ_from_its_download_is_downloaded_again_once() {
+    for (damage, apply, _) in damages() {
+        let cache = TempDir::new().expect("a cache");
+        let server = cached_crates_io(cache.path());
+        apply(cache.path());
 
-    let error = fetch_error(cache.path(), &server, Refresh::Offline, "crates.io");
+        let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+            .fetch(&["crates.io"], || at(2_000))
+            .expect("the archive is fetched again");
 
-    assert!(error.to_string().contains("not JSON"), "{error}");
-    assert!(
-        error.to_string().contains("RUSTSEC-2020-0071.json"),
-        "{error}"
-    );
-    assert_eq!(server.requests().len(), 1);
+        assert_eq!(server.requests().len(), 2, "{damage}");
+        assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"], "{damage}");
+        assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000), "{damage}");
+        let again = archives(cache.path(), &server, Refresh::IfMissing)
+            .fetch(&["crates.io"], || at(3_000))
+            .expect("the new snapshot is read");
+        assert_eq!(again, snapshots, "{damage}");
+        assert_eq!(server.requests().len(), 2, "{damage}");
+    }
 }
 
-// spec: OSR-37, OSR-16
+// spec: OSR-39, OSR-18
+#[test]
+fn a_snapshot_whose_files_differ_from_its_download_fails_offline_without_a_request() {
+    for (damage, apply, file) in damages() {
+        let cache = TempDir::new().expect("a cache");
+        let server = cached_crates_io(cache.path());
+        apply(cache.path());
+
+        let error = fetch_error(cache.path(), &server, Refresh::Offline, "crates.io");
+
+        let message = error.to_string();
+        assert!(
+            message.contains("damaged cached copy"),
+            "{damage}: {message}"
+        );
+        assert!(message.contains(file), "{damage}: {message}");
+        assert!(message.contains(damage), "{damage}: {message}");
+        assert_eq!(server.requests().len(), 1, "{damage}");
+    }
+}
+
+// spec: OSR-38, OSR-16
 #[test]
 fn a_damaged_snapshot_whose_download_fails_is_requested_once() {
     let cache = TempDir::new().expect("a cache");
-    let server = Server::new();
-    server.route("/crates.io/all.zip", ok(crates_io_archive()));
-    archives(cache.path(), &server, Refresh::IfMissing)
-        .fetch(&["crates.io"], || at(1_000))
-        .expect("the archive is fetched");
-    damage_the_crates_io_snapshot(cache.path());
+    let server = cached_crates_io(cache.path());
+    fs::remove_file(crates_io_record(cache.path())).expect("the record is removed");
     server.route(
         "/crates.io/all.zip",
         Response {
@@ -1172,4 +1204,102 @@ fn a_damaged_snapshot_whose_download_fails_is_requested_once() {
 
     assert!(error.to_string().contains("cannot download"), "{error}");
     assert_eq!(server.requests().len(), 2);
+}
+
+// spec: OSR-40
+#[test]
+fn a_snapshot_of_its_download_whose_records_cannot_be_read_fails_without_a_request() {
+    let cache = TempDir::new().expect("a cache");
+    let server = cached_crates_io(cache.path());
+    let size = fs::metadata(crates_io_record(cache.path()))
+        .expect("the record")
+        .len();
+    fs::write(
+        crates_io_record(cache.path()),
+        vec![b'x'; usize::try_from(size).expect("a size")],
+    )
+    .expect("the record is overwritten");
+
+    let error = fetch_error(cache.path(), &server, Refresh::IfMissing, "crates.io");
+
+    assert!(error.to_string().contains("not JSON"), "{error}");
+    assert!(
+        error.to_string().contains("RUSTSEC-2020-0071.json"),
+        "{error}"
+    );
+    assert_eq!(server.requests().len(), 1);
+}
+
+// spec: OSR-40
+#[cfg(unix)]
+#[test]
+fn a_snapshot_of_its_download_that_cannot_be_opened_fails_without_a_request() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let cache = TempDir::new().expect("a cache");
+    let server = cached_crates_io(cache.path());
+    let record = crates_io_record(cache.path());
+    fs::set_permissions(&record, fs::Permissions::from_mode(0o000)).expect("the mode");
+    if fs::read(&record).is_ok() {
+        // A user who reads any file (root) cannot see the error.
+        return;
+    }
+
+    let error = fetch_error(cache.path(), &server, Refresh::IfMissing, "crates.io");
+
+    assert!(
+        error
+            .to_string()
+            .to_lowercase()
+            .contains("permission denied"),
+        "{error}"
+    );
+    assert_eq!(server.requests().len(), 1);
+}
+
+/// Rewrites the freshness of the cached `crates.io` snapshot as an earlier forewarn wrote it, with no list of files.
+fn forget_the_files_of_crates_io(cache: &Path) {
+    let path = cache.join("crates.io/forewarn-freshness");
+    let mut freshness: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_slice(&fs::read(&path).expect("the freshness")).expect("a JSON object");
+    assert!(
+        freshness.remove("files").is_some(),
+        "the freshness lists the files"
+    );
+    fs::write(&path, serde_json::to_vec(&freshness).expect("JSON")).expect("the freshness");
+}
+
+// spec: OSR-41
+#[test]
+fn a_snapshot_whose_freshness_names_no_files_is_downloaded_again_once() {
+    let cache = TempDir::new().expect("a cache");
+    let server = cached_crates_io(cache.path());
+    forget_the_files_of_crates_io(cache.path());
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(2_000))
+        .expect("the archive is fetched again");
+
+    assert_eq!(server.requests().len(), 2);
+    assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(3_000))
+        .expect("the new snapshot is read");
+    assert_eq!(server.requests().len(), 2);
+}
+
+// spec: OSR-41
+#[test]
+fn a_snapshot_whose_freshness_names_no_files_is_read_offline() {
+    let cache = TempDir::new().expect("a cache");
+    let server = cached_crates_io(cache.path());
+    forget_the_files_of_crates_io(cache.path());
+
+    let snapshots = archives(cache.path(), &server, Refresh::Offline)
+        .fetch(&["crates.io"], || at(2_000))
+        .expect("the snapshot is read");
+
+    assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
+    assert_eq!(snapshots[0].freshness.downloaded_at, at(1_000));
+    assert_eq!(server.requests().len(), 1);
 }

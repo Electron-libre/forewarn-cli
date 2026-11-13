@@ -1,6 +1,6 @@
 ---
 id: OSR
-status: accepted
+status: draft
 adrs: [0001, 0003, 0004, 0005, 0006, 0007]
 ---
 
@@ -97,10 +97,17 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   | `older-than <age>` | when its cache holds no snapshot of it, or one downloaded more than `<age>` ago |
   | `always` | always |
 
-- **OSR-37** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a snapshot whose
-  records cannot be read (a record file truncated or damaged outside forewarn) must download the archive again, at
-  most once per fetch, and return what that download returns; a fetch under `offline` fails with the error of reading
-  the snapshot (OSR-18).
+- **OSR-37** (deterministic) withdrawn: replaced by OSR-38 to OSR-41, which tell a damaged snapshot from one that
+  cannot be read by the files its download stored.
+- **OSR-38** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a snapshot whose files
+  differ from those its download stored (a file removed, added, or of another size, changed outside forewarn) must
+  download the archive again, at most once per fetch, and return what that download returns.
+- **OSR-39** (deterministic) A fetch under `offline` of a snapshot whose files differ from those its download stored
+  must fail with the error of OSR-18, without a request.
+- **OSR-40** (deterministic) A fetch of a snapshot whose files are those its download stored, and whose records cannot
+  be read, must fail with the error of reading it (OSR-18), without downloading it again.
+- **OSR-41** (deterministic) A snapshot whose record of freshness names no files (stored by an earlier forewarn) must
+  be downloaded again under `if-missing` or `older-than <age>`, and read as it is under `offline`.
 - **OSR-14** (deterministic) A download must request, with a `GET` and no body, the URL `<base>/<ecosystem>/all.zip`,
   `<base>` being `https://osv-vulnerabilities.storage.googleapis.com` unless the caller gives another.
 - **OSR-15** (deterministic) A fetch that reads a snapshot from the cache must return the vulnerabilities and the
@@ -121,6 +128,7 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   | the archive is not a zip archive | not a zip archive, with the reason |
   | an entry of the archive has an absolute name, a name holding `\`, or a name with a `..` component | unsafe archive entry, quoting its name |
   | a record of the archive cannot be read (OSR-9) | the error of OSR-9, naming the entry |
+  | the policy is `offline` and the files of the snapshot differ from those its download stored (OSR-39) | damaged cached copy, naming the first file that differs and whether it is missing, added or of another size |
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
 - **OSR-22** (deterministic) A fetch must wait for another fetch of the same ecosystem (OSR-19) at most the time the
   caller gives, 40 minutes unless the caller gives another, then fail with the error of OSR-18.
@@ -204,11 +212,20 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 - (OSR-13) Given a snapshot in the cache, when it is fetched under `always`, then the archive is downloaded again.
 - (OSR-13) Given a snapshot whose record of freshness is damaged, when it is fetched under `if-missing`, then it is
   taken as no snapshot and the archive is downloaded again.
-- (OSR-37) Given a snapshot of `crates.io` whose record file is truncated, its record of freshness intact, when
-  `crates.io` is fetched under `if-missing`, then the archive is downloaded once and its vulnerabilities returned;
-  under `offline`, it fails with "not JSON" naming the entry and no request is sent.
-- (OSR-37, OSR-16) Given a snapshot whose record file is truncated and a server answering 503, when it is fetched
+- (OSR-38) Given a snapshot of `crates.io` whose record file `RUSTSEC-2020-0071.json` was removed, or truncated, or
+  beside which a file `extra.json` was added, its record of freshness intact, when `crates.io` is fetched under
+  `if-missing`, then the archive is downloaded once and its vulnerabilities returned.
+- (OSR-39) Given the same snapshot, when it is fetched under `offline`, then it fails with "damaged cached copy"
+  naming `RUSTSEC-2020-0071.json` (or `extra.json`) and no request is sent.
+- (OSR-38, OSR-16) Given a snapshot whose record file was removed and a server answering 503, when it is fetched
   under `if-missing`, then it fails with "cannot download" after one request.
+- (OSR-40) Given a snapshot whose record file was overwritten with as many bytes that are not JSON, when it is
+  fetched under `if-missing`, then it fails with "not JSON" naming the entry and no request is sent.
+- (OSR-40) Given a snapshot whose record file cannot be opened (its permissions removed), when it is fetched under
+  `if-missing`, then it fails with the system's reason and no request is sent.
+- (OSR-41) Given a snapshot whose record of freshness holds no list of files, when it is fetched under `if-missing`,
+  then the archive is downloaded once, and a later fetch reads the new snapshot without a request; under `offline`,
+  its vulnerabilities are returned.
 - (OSR-16) Given a run stopped after setting the former snapshot aside and before putting the new one in place, when
   the ecosystem is fetched again, then the former snapshot is put back first.
 - (OSR-32) Given a run reading the snapshot of `crates.io` from a cache, when a second run fetches `crates.io` into
@@ -267,8 +284,8 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 
 ## Non-goals
 
-- Detecting a record file removed from a snapshot outside forewarn: the snapshot reads the files it holds
-  (`issues/check_the_integrity_of_a_cached_copy.md`).
+- Detecting a record file changed outside forewarn that keeps its size: its record is read as it now is, or fails
+  as OSR-40 says (hashing every file at each read costs too much for a large ecosystem).
 - Querying the OSV API by default: it sends the packages of the inventory out of the CI (ADR 0006); the caller opts
   in.
 - Caching the answers of the API, or reading them offline: a query depends on the moment it runs.
