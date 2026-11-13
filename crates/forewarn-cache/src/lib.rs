@@ -104,10 +104,16 @@ pub struct Cache {
     pub lock_wait: Duration,
 }
 
+/// How a source downloads a URL into a file, returning the `Last-Modified` header it records.
+pub type DownloadFn<E> = dyn Fn(&ureq::Agent, &str, &Path) -> Result<Option<String>, Error<E>>;
+
 /// What a fetch does with a download, and how it reads an entry.
 pub struct Source<'a, T, E> {
-    /// The URL of the download.
+    /// The URL of the download, recorded in its freshness.
     pub url: String,
+    /// Downloads the URL (second argument) into a file (third argument) and returns the `Last-Modified` header it
+    /// records: [`get`], one `GET`, for a single file; a paginated source pages there (ADR 0009).
+    pub download: &'a DownloadFn<E>,
     /// Turns the downloaded file (first argument) into the files of an entry directory (second argument).
     pub unpack: &'a dyn Fn(&Path, &Path) -> Result<(), E>,
     /// Reads an entry directory.
@@ -321,7 +327,7 @@ impl Download<'_> {
     ) -> Result<Fetched<T>, Error<E>> {
         self.staging.clear()?;
         fs::create_dir(&self.staging.0).map_err(|e| cache_error(&e))?;
-        let last_modified = get(self.agent, &source.url, &self.file.0)?;
+        let last_modified = (source.download)(self.agent, &source.url, &self.file.0)?;
         (source.unpack)(&self.file.0, &self.staging.0).map_err(Error::Source)?;
         let value = (source.read)(&self.staging.0).map_err(Error::Source)?;
         let freshness = Freshness {
@@ -369,8 +375,13 @@ fn read_freshness<E>(directory: &Path) -> Result<Option<Freshness>, Error<E>> {
     }
 }
 
-/// Downloads a URL into a file; returns the `Last-Modified` header the server sent.
-fn get<E>(agent: &ureq::Agent, url: &str, file: &Path) -> Result<Option<String>, Error<E>> {
+/// Downloads a URL into a file with one `GET`; returns the `Last-Modified` header the server sent.
+///
+/// # Errors
+///
+/// [`Error::Download`] when the server cannot be reached or does not answer 200, [`Error::Cache`] when the file
+/// cannot be written.
+pub fn get<E>(agent: &ureq::Agent, url: &str, file: &Path) -> Result<Option<String>, Error<E>> {
     let failed = |reason: String| Error::Download {
         url: url.to_owned(),
         reason,

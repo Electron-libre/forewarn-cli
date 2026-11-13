@@ -160,6 +160,7 @@ impl Archives {
                 "{}/{ecosystem}/all.zip",
                 self.base_url.trim_end_matches('/')
             ),
+            download: &forewarn_cache::get,
             unpack: &extract,
             read: &read_records,
         };

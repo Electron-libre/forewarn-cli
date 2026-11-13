@@ -42,7 +42,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
 | `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
 | `forewarn-osv` | OSV adapter: vulnerability records, read, fetched into a cache or queried from the OSV API, into domain types | `feeds` |
-| `forewarn-cache` | the cache of the downloads: refresh policy, freshness, a file lock per entry (ADR 0008) | `feeds` |
+| `forewarn-cache` | the cache of the downloads: refresh policy, freshness, a file lock per entry (ADR 0008), one `GET` or the download of the source (ADR 0009) | `feeds` |
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read, into the domain's exploited lists | `feeds` |
 | `forewarn` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 

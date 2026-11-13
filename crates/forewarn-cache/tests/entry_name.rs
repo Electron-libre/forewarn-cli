@@ -13,6 +13,7 @@ fn an_entry_name_that_could_escape_the_cache_is_refused_before_any_write() {
     let cache = Cache::new(dir.path().join("cache"), Refresh::IfMissing);
     let source: Source<'_, (), String> = Source {
         url: "http://127.0.0.1:9/unused".into(),
+        download: &forewarn_cache::get,
         unpack: &|_: &Path, _: &Path| Ok(()),
         read: &|_: &Path| Ok(()),
     };
