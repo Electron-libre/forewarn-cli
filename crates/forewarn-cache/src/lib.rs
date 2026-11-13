@@ -86,7 +86,14 @@ impl<E: fmt::Display> fmt::Display for Error<E> {
     }
 }
 
-impl<E: fmt::Debug + fmt::Display> std::error::Error for Error<E> {}
+impl<E: std::error::Error + 'static> std::error::Error for Error<E> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Source(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 /// A cache directory: one directory per entry, created when missing.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -120,12 +127,13 @@ impl Cache {
 
     /// Returns what the source reads from the entry `name`, downloading it again when the refresh policy says so;
     /// `clock` gives the time the policy compares with and the time recorded for a download, read when its request
-    /// starts. `name` must be a name a directory can take that does not start with `.`, which the scratch paths of the
-    /// cache do.
+    /// starts.
     ///
     /// # Errors
     ///
-    /// The [`Error`] that stops the fetch; a failed download leaves the copy the cache held before unchanged.
+    /// The [`Error`] that stops the fetch; a failed download leaves the copy the cache held before unchanged. A `name`
+    /// that is empty, starts with `.` (the scratch paths of the cache do), or holds a character other than an ASCII
+    /// letter, a digit, `.`, `-` and `_` fails with [`Error::Cache`] before the cache is touched.
     pub fn fetch<T, E>(
         &self,
         agent: &ureq::Agent,
@@ -133,6 +141,9 @@ impl Cache {
         source: &Source<'_, T, E>,
         clock: &impl Fn() -> SystemTime,
     ) -> Result<Fetched<T>, Error<E>> {
+        if !is_entry_name(name) {
+            return Err(Error::Cache(format!("invalid entry name {name:?}")));
+        }
         // One bound for both locks of the fetch; a bound too large to add to now waits without one.
         let deadline = Instant::now().checked_add(self.lock_wait);
         let mut lock = self.lock_file(name)?;
@@ -271,6 +282,15 @@ impl Cache {
             }
         }
     }
+}
+
+/// Whether a name can name an entry directory and its lock file as it is, and none of the scratch paths of the cache.
+fn is_entry_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with('.')
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
 }
 
 /// How a fetch holds the lock of an entry: shared to read its copy, exclusive to replace it (ADR 0007).

@@ -59,6 +59,7 @@ and `ETag` sent; every `cveID` and `dateAdded` valid.
    fetch tests unchanged and green (pure refactor, no new requirement). ~700 lines. (autonomous)
 3. [x] Fetch the KEV catalog into a cache through `forewarn-cache`; verified by loopback-server and lock tests; makes
    true KEV-3 to KEV-15, spec `accepted`. ~600 lines. (autonomous)
+4. [x] Fixes of the `high` review of the whole issue; verified by the checks and a `low` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -123,3 +124,37 @@ red: KEV-H2, KEV-H3, KEV-3, KEV-4, KEV-5, KEV-6, KEV-7, KEV-8, KEV-9, KEV-10, KE
 Code review: no findings
 
 not verified: the real CISA URL is not requested by the tests (measured once by hand at planning). decisions needed: none.
+
+## Deliverable 4: fixes of the `high` review
+done: `Cache::fetch` refuses an entry name that could escape the cache or reach a scratch path (new test
+`forewarn-cache/tests/entry_name.rs`); `forewarn_cache::Error` gives its source's error as `source()`; the KEV-5 test
+proves the second run started while the first was downloading. Issue `recover_a_damaged_cached_copy` filed.
+
+| check | result |
+|---|---|
+| tests | all green, 1 new |
+| lint | clean |
+| specs | clean |
+| docs | n/a: no documented behaviour changed |
+| code review | see below |
+
+red: none (review fixes; the entry-name test passes only with the new check).
+
+High review of `570bbdf..HEAD`: 8 findings.
+1. Unchecked entry name in `forewarn-cache`: fixed.
+2. A damaged cached copy is never downloaded again: outside the requirements, filed as
+   `issues/recover_a_damaged_cached_copy.md`.
+3. Cache messages repeated in each adapter's error: not fixed; each adapter keeps a flat public error, as OSV's
+   `FetchCause` (OSR-18), and its messages are tested per spec.
+4. `Feed` and `Archives` copy the fields of `Cache`: not fixed; `Archives` keeps its public API (ADR 0008), `Feed`
+   follows it for one shape across adapters.
+5. A CVE id checked twice in `kev::parse`: not fixed; the domain's constructor is the only way to date an entry, and a
+   setter in the domain for this is not worth it.
+6. No tests of `forewarn-cache` of its own: not fixed; the adapters' tests prove the spec requirements through it, the
+   cache has no spec of its own.
+7. The KEV-5 test did not prove the wait: fixed.
+8. `source()` missing on `forewarn_cache::Error`: fixed.
+
+Code review: no findings
+
+not verified: none. decisions needed: none.
