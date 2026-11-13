@@ -36,3 +36,47 @@ Match known vulnerabilities (OSV)
 * `crates/forewarn-domain/src/matching.rs`: `SEMVER_ECOSYSTEMS`, the range evaluation.
 * `specs/vulnerability-matching.md` (VMT-9, VMT-10), `specs/cli-match.md` (MCH-2, MCH-24).
 * ADR 0006 (`docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md`): the API filters the records by version itself.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Give a verdict to the `ECOSYSTEM` ranges of Go, PyPI, Maven and RubyGems by comparing their versions with each
+ecosystem's own ordering, in the domain (option 1; option 2 refused: the verdict stays the domain's). NuGet and
+Packagist are out of scope, left for a follow-up issue; their ranges stay "range not evaluated".
+
+## Plan
+1. [x] Ordering per ecosystem, and Go: a domain module giving each ecosystem its version ordering, `in_range` generic
+   over it; `Go` compared by Semantic Versioning; the not-evaluated tests move from PyPI to NuGet; verified by the
+   domain tests of the Go and NuGet scenarios; makes true VMT-9, VMT-10, VMT-23 (Go row). (autonomous)
+2. [ ] PyPI: PEP 440 parsing and ordering; verified by the PyPI scenarios, one through `forewarn match`; makes true
+   VMT-24, VMT-23 (PyPI row).
+3. [ ] Maven: the `ComparableVersion` ordering; verified by the Maven scenarios; makes true VMT-25, VMT-23 (Maven row).
+4. [ ] RubyGems: the `Gem::Version` ordering; verified by the RubyGems scenarios; makes true VMT-26, VMT-23 (RubyGems
+   row); the spec set `accepted`.
+5. [ ] Docs and the fixes of the `high` review of the whole issue; a follow-up issue for NuGet and Packagist.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 0967ac7098626574152748006687a65247a9db8b
+- Version orderings: implemented in the domain, no new dependency (PEP 440, Maven, RubyGems).
+- Scope: Go, PyPI, Maven, RubyGems in this order; NuGet and Packagist in a follow-up issue.
+
+## Deliverable 1: ordering per ecosystem, and Go
+- done: module `version` of the domain (`VersionOrder`, `Scheme`), `in_range` generic over the ordering; `Go`
+  `ECOSYSTEM` ranges compared by Semantic Versioning; the "range not evaluated" tests and the MCH scenario use NuGet.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`) |
+| docs | `specs/cli-match.md` scenario moved to NuGet; README unchanged until the last ordering |
+| code review | low, see below |
+
+- red: VMT-9, VMT-23: `evaluates_an_ecosystem_range_of_go_by_semantic_versioning`: the pair of `v1.2.2` was reported
+  `RangeNotEvaluated`.
+- Code review: no findings
+- not verified: none
+- decisions needed: none

@@ -228,13 +228,13 @@ fn reports_apart_each_component_it_could_not_evaluate_with_its_reason() {
     }
 }
 
-// spec: VMT-10
+// spec: VMT-10, VMT-23
 #[test]
 fn reports_a_range_it_does_not_evaluate() {
-    let pypi = vulnerability(
-        "PYSEC-1",
-        "PyPI",
-        "django",
+    let nuget = vulnerability(
+        "GHSA-1",
+        "NuGet",
+        "Newtonsoft.Json",
         vec![range(
             RangeKind::Ecosystem,
             &[introduced("0"), fixed("3.0")],
@@ -248,10 +248,10 @@ fn reports_a_range_it_does_not_evaluate() {
     );
     let report = match_components(
         &[
-            component("pkg:pypi/django@2.1"),
+            component("pkg:nuget/Newtonsoft.Json@2.1"),
             component("pkg:cargo/time@1.0.0"),
         ],
-        &[pypi, git],
+        &[nuget, git],
     );
     assert_eq!(report.matches(), []);
     let reasons: Vec<(&str, Reason)> = report
@@ -263,9 +263,9 @@ fn reports_a_range_it_does_not_evaluate() {
         reasons,
         [
             (
-                "django",
+                "Newtonsoft.Json",
                 Reason::Pair {
-                    vulnerability_id: "PYSEC-1".into(),
+                    vulnerability_id: "GHSA-1".into(),
                     reason: PairReason::RangeNotEvaluated,
                 }
             ),
@@ -380,6 +380,38 @@ fn evaluates_an_ecosystem_range_of_crates_io_and_npm() {
         let report = match_components(&[component(purl)], &[vulnerability]);
         assert_eq!(report.matches().len(), 1, "{purl}");
     }
+}
+
+/// Whether `purl` is affected by a single `ECOSYSTEM` range of `ecosystem` `name`, failing on a pair not evaluated.
+fn ecosystem_affects(ecosystem: &str, name: &str, purl: &str, events: &[Event]) -> bool {
+    let report = match_components(
+        &[component(purl)],
+        &[vulnerability(
+            "ID-1",
+            ecosystem,
+            name,
+            vec![range(RangeKind::Ecosystem, events)],
+        )],
+    );
+    assert_eq!(report.not_evaluated(), [], "{purl} {report:?}");
+    !report.matches().is_empty()
+}
+
+// spec: VMT-9, VMT-23
+#[test]
+fn evaluates_an_ecosystem_range_of_go_by_semantic_versioning() {
+    let window = [introduced("0"), fixed("1.2.3")];
+    let go = |version: &str| {
+        ecosystem_affects(
+            "Go",
+            "github.com/x/y",
+            &format!("pkg:golang/github.com/x/y@{version}"),
+            &window,
+        )
+    };
+    assert!(go("v1.2.2"));
+    assert!(!go("v1.2.3"));
+    assert!(go("v1.2.3-rc.1"));
 }
 
 // spec: VMT-6

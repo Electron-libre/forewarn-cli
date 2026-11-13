@@ -4,10 +4,9 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use semver::Version;
-
 use crate::purl::PackageUrl;
 use crate::sbom::Component;
+use crate::version::{Scheme, Semver, VersionOrder};
 use crate::vulnerability::{AffectedPackage, Event, Range, RangeKind, Vulnerability};
 
 /// How the name of a package URL type is built (VMT-4).
@@ -35,9 +34,6 @@ const ECOSYSTEMS: [(&str, &str, NameForm); 8] = [
     ("composer", "Packagist", NameForm::SlashRequired),
 ];
 
-/// The ecosystems whose `ECOSYSTEM` ranges are compared by Semantic Versioning (VMT-9).
-const SEMVER_ECOSYSTEMS: [&str; 2] = ["crates.io", "npm"];
-
 /// Why a component cannot be matched at all (VMT-10).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComponentReason {
@@ -56,7 +52,7 @@ pub enum ComponentReason {
 pub enum PairReason {
     /// A range of the package is ordered in a way matching does not compare yet.
     RangeNotEvaluated,
-    /// The version, or a version of a range's events, is not Semantic Versioning.
+    /// The version, or a version of a range's events, is not valid in the ordering the range is compared by.
     InvalidVersion,
 }
 
@@ -585,43 +581,44 @@ impl ComponentPackage {
             && same_name(self.ecosystem, &affected.name, &self.name)
     }
 
-    /// Whether the version is in the range, by the OSV algorithm (VMT-9).
+    /// Whether the version is in the range, by the OSV algorithm, in the ordering of the range (VMT-9, VMT-23).
     fn in_range(&self, range: &Range) -> Result<bool, PairReason> {
-        let comparable = match range.kind {
-            RangeKind::Semver => true,
-            RangeKind::Ecosystem => SEMVER_ECOSYSTEMS.contains(&self.ecosystem),
-            RangeKind::Git => false,
-        };
-        if !comparable {
-            return Err(PairReason::RangeNotEvaluated);
+        match Scheme::of(range.kind, self.ecosystem) {
+            Some(Scheme::Semver) => in_range::<Semver>(&self.version, &range.events),
+            None => Err(PairReason::RangeNotEvaluated),
         }
-        let version = parse_semver(&self.version)?;
-        let mut events = range
-            .events
-            .iter()
-            .map(|event| {
-                let at = match event {
-                    Event::Introduced(at) if at.trim() == "0" => None,
-                    _ => Some(parse_semver(event.version())?),
-                };
-                Ok((event, at))
-            })
-            .collect::<Result<Vec<_>, PairReason>>()?;
-        events.sort_by(|(a_event, a), (b_event, b)| {
-            compare(a.as_ref(), b.as_ref()).then(rank(a_event).cmp(&rank(b_event)))
-        });
-        let mut affected = false;
-        for (event, at) in events {
-            let order = at.map_or(Ordering::Greater, |at| version.cmp_precedence(&at));
-            match event {
-                Event::Introduced(_) if order.is_ge() => affected = true,
-                Event::Fixed(_) if order.is_ge() => affected = false,
-                Event::LastAffected(_) if order.is_gt() => affected = false,
-                _ => {}
-            }
-        }
-        Ok(affected)
     }
+}
+
+/// Whether the version is in the range of these events, by the OSV algorithm (VMT-9): events sorted by version, then
+/// `introduced`, `fixed`, `last_affected` at an equal version.
+fn in_range<O: VersionOrder>(version: &str, events: &[Event]) -> Result<bool, PairReason> {
+    let parse = |version: &str| O::parse(version).ok_or(PairReason::InvalidVersion);
+    let version = parse(version)?;
+    let mut events = events
+        .iter()
+        .map(|event| {
+            let at = match event {
+                Event::Introduced(at) if at.trim() == "0" => None,
+                _ => Some(parse(event.version())?),
+            };
+            Ok((event, at))
+        })
+        .collect::<Result<Vec<_>, PairReason>>()?;
+    events.sort_by(|(a_event, a), (b_event, b)| {
+        compare::<O>(a.as_ref(), b.as_ref()).then(rank(a_event).cmp(&rank(b_event)))
+    });
+    let mut affected = false;
+    for (event, at) in events {
+        let order = at.map_or(Ordering::Greater, |at| O::compare(&version, &at));
+        match event {
+            Event::Introduced(_) if order.is_ge() => affected = true,
+            Event::Fixed(_) if order.is_ge() => affected = false,
+            Event::LastAffected(_) if order.is_gt() => affected = false,
+            _ => {}
+        }
+    }
+    Ok(affected)
 }
 
 /// Whether two package names of an ecosystem are the same: exactly equal, or equal once normalized under `PyPI`, or
@@ -659,9 +656,9 @@ fn normalize_pypi(name: &str) -> String {
 }
 
 /// Orders the versions of events, `None` (introduced `0`) first.
-fn compare(a: Option<&Version>, b: Option<&Version>) -> Ordering {
+fn compare<O: VersionOrder>(a: Option<&O::Key>, b: Option<&O::Key>) -> Ordering {
     match (a, b) {
-        (Some(a), Some(b)) => a.cmp_precedence(b),
+        (Some(a), Some(b)) => O::compare(a, b),
         (a, b) => a.is_some().cmp(&b.is_some()),
     }
 }
@@ -673,11 +670,4 @@ fn rank(event: &Event) -> u8 {
         Event::Fixed(_) => 1,
         Event::LastAffected(_) => 2,
     }
-}
-
-/// A Semantic Versioning 2.0 version, a leading `v` ignored.
-fn parse_semver(version: &str) -> Result<Version, PairReason> {
-    let version = version.trim();
-    let version = version.strip_prefix('v').unwrap_or(version);
-    Version::parse(version).map_err(|_| PairReason::InvalidVersion)
 }

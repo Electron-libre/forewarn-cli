@@ -5,4 +5,5 @@ pub mod completeness;
 pub mod matching;
 mod purl;
 pub mod sbom;
+mod version;
 pub mod vulnerability;

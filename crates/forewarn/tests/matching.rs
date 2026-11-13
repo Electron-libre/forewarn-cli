@@ -203,21 +203,25 @@ fn allow_affected_exits_with_0_and_leaves_the_report_unchanged() {
 #[test]
 fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
     let osv = records(&[json!({
-        "id": "PYSEC-1",
+        "id": "GHSA-1",
         "affected": [{
-            "package": {"ecosystem": "PyPI", "name": "django"},
+            "package": {"ecosystem": "NuGet", "name": "Newtonsoft.Json"},
             "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "3.0"}]}],
         }],
     })]);
     let input = bom(
         "1.6",
-        &json!([component("django", "2.1", Some("pkg:pypi/django@2.1"))]),
+        &json!([component(
+            "Newtonsoft.Json",
+            "2.1",
+            Some("pkg:nuget/Newtonsoft.Json@2.1")
+        )]),
     );
     let human = run(&["match", "--osv", path(osv.path()), "-"], Some(&input));
     assert_eq!(human.code, 0, "{}", human.stderr);
     assert!(
         human.stdout.contains(
-            "Not evaluated (1):\n  django 2.1 (pkg:pypi/django@2.1): PYSEC-1: range not evaluated\n\
+            "Not evaluated (1):\n  Newtonsoft.Json 2.1 (pkg:nuget/Newtonsoft.Json@2.1): GHSA-1: range not evaluated\n\
              Clean: 0 of 1 component\n"
         ),
         "{}",
@@ -232,11 +236,11 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
     assert_eq!(
         report["notEvaluated"],
         json!([{
-            "name": "django",
+            "name": "Newtonsoft.Json",
             "version": "2.1",
-            "purl": "pkg:pypi/django@2.1",
+            "purl": "pkg:nuget/Newtonsoft.Json@2.1",
             "reason": "range not evaluated",
-            "vulnerabilityId": "PYSEC-1",
+            "vulnerabilityId": "GHSA-1",
         }])
     );
 }

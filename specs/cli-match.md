@@ -127,7 +127,7 @@ exit code a CI job can act on.
 - (MCH-10, MCH-12) Given neither `--cache`, `XDG_CACHE_HOME` nor `HOME`, when the command runs without `--osv`, then
   it exits with 2; with `--osv`, it runs.
 - (MCH-10) Given `--osv` and `--refresh always`, when the command runs, then it exits with 2.
-- (MCH-2, MCH-16) Given a `PyPI` component and a record naming it with only an `ECOSYSTEM` range, when it is matched,
+- (MCH-2, MCH-16) Given a `NuGet` component and a record naming it with only an `ECOSYSTEM` range, when it is matched,
   then it is reported not evaluated with `range not evaluated` and the record's id, and is not counted clean.
 - (MCH-3, MCH-10) Given an SBOM no record affects, when it is matched, then every evaluated component is clean and
   the command exits with 0.
