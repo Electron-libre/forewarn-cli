@@ -64,7 +64,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Why: a wrong deadline is the costliest bug of the project; it deserves its own milestone and tests.
 - State: in issues
 - Issues:
-  - [compute_cra_reporting_deadlines](issues/compute_cra_reporting_deadlines.md)
+  - [compute_cra_reporting_deadlines](issues/done/compute_cra_reporting_deadlines.md)
   - [cli_print_reporting_deadlines](issues/cli_print_reporting_deadlines.md)
   - [tell_overdue_reporting_deadlines](issues/tell_overdue_reporting_deadlines.md)
 
