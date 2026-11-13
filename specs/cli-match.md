@@ -1,6 +1,6 @@
 ---
 id: MCH
-status: accepted
+status: draft
 adrs: [0001, 0004, 0006]
 ---
 
@@ -58,7 +58,7 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 
   | Situation | Exit code |
   |---|---|
-  | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--osv-url` or `--osv-api`, `--osv-api` with `--osv-url`, `--osv-api-url` without `--osv-api`, `--kev` with `--no-kev` or `--kev-url`, `--no-kev` with `--kev-url`, `--euvd` with `--no-euvd` or `--euvd-url`, `--no-euvd` with `--euvd-url`, `--cache` or `--refresh` when nothing is fetched (`--osv` or `--osv-api`, with `--kev` or `--no-kev`, and with `--euvd` or `--no-euvd`), no SBOM given, no cache directory MCH-12 can find when an OSV archive, the KEV catalog or the EUVD list is fetched) | 2 |
+  | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--osv-url` or `--osv-api`, `--osv-api` with `--osv-url`, `--osv-api-url` without `--osv-api`, `--kev` with `--no-kev` or `--kev-url`, `--no-kev` with `--kev-url`, `--euvd` with `--no-euvd` or `--euvd-url`, `--no-euvd` with `--euvd-url`, an instant `--aware-since` or `--measure-available` refused (MXL-20), `--cache` or `--refresh` when nothing is fetched (`--osv` or `--osv-api`, with `--kev` or `--no-kev`, and with `--euvd` or `--no-euvd`), no SBOM given, no cache directory MCH-12 can find when an OSV archive, the KEV catalog or the EUVD list is fetched) | 2 |
   | the SBOM cannot be read (any error of SBR-7) | 3 |
   | the OSV records cannot be read (OSR-9), fetched (OSF-18) or queried (OSR-31), the KEV catalog cannot be read (KEV-16) or fetched (KEV-15), or the EUVD list cannot be read (EUV-16) or fetched (EUV-15) | 5 |
   | the report cannot be written to standard output, a closed pipe aside (MCH-20) | 4 |
@@ -91,7 +91,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   | `osv` | an array, in the order of MCH-5 or of the `--osv` paths, of objects `{"kind": "archive", "ecosystem", "url", "downloadedAt", "lastModified", "recordCount"}` (`downloadedAt` in RFC 3339, UTC, to the second, ending in `Z`; `lastModified` a string or `null`), `{"kind": "api", "url", "queriedAt", "recordCount"}` (`queriedAt` as `downloadedAt`) or `{"kind": "local", "path", "recordCount"}` (`recordCount` the number of MCH-22) |
   | `exploitedLists` | an array of objects `{"kind": "fetched", "name", "version", "released", "url", "downloadedAt", "lastModified", "entryCount"}` or `{"kind": "local", "name", "version", "released", "path", "entryCount"}` in the order of MXL-6 (`version` a string and `released` a date `YYYY-MM-DD` for CISA KEV, both `null` for EUVD, `downloadedAt` and `lastModified` as in `osv`), empty with `--no-kev` and `--no-euvd` |
   | `exploitedCount` | the number of matches actively exploited (MXL-1) |
-  | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated), `exploited` (an array of objects `{"list", "cve", "dateAdded"}`, in the order of EXF-5, `dateAdded` a date `YYYY-MM-DD` or `null`, empty when no list names the match) |
+  | `awareSince` | the moment of awareness of MXL-17, in RFC 3339, UTC, to the second, ending in `Z` |
+  | `measureAvailable` | the moment of `--measure-available` as `awareSince`, or `null` |
+  | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated), `exploited` (an array of objects `{"list", "cve", "dateAdded"}`, in the order of EXF-5, `dateAdded` a date `YYYY-MM-DD` or `null`, empty when no list names the match), `deadlines` (an object `{"earlyWarning", "notification", "finalReport"}` of MXL-14, MXL-15 and MXL-16, each as `awareSince`, `finalReport` `null` without `--measure-available`, or `null` when no list names the match) |
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
@@ -187,4 +189,4 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - Failing on a component not evaluated: it is printed, never counted clean, but does not change the exit code.
 - Showing the progress of a download.
 - An environment variable that turns on `--osv-api`: sending the inventory out stays a choice made on the command line.
-- Severity, deadlines and draft early warnings: later milestones.
+- Severity and draft early warnings: later milestones; the reporting deadlines are those of MXL-14.

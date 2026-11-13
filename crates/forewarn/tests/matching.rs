@@ -109,6 +109,8 @@ fn prints_the_same_result_as_json() {
             "--no-kev",
             "--format",
             "json",
+            "--aware-since",
+            "2026-11-13T09:30:00Z",
             "--osv",
             path(&osv),
             "-",
@@ -125,6 +127,8 @@ fn prints_the_same_result_as_json() {
             "osv": [{"kind": "local", "path": path(&osv), "recordCount": 4}],
             "exploitedLists": [],
             "exploitedCount": 0,
+            "awareSince": "2026-11-13T09:30:00Z",
+            "measureAvailable": null,
             "affected": [{
                 "name": "time",
                 "version": "0.1.43",
@@ -133,6 +137,7 @@ fn prints_the_same_result_as_json() {
                 "aliases": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
                 "records": [{"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true}],
                 "exploited": [],
+                "deadlines": null,
             }],
             "notEvaluated": [{
                 "name": "bare",
@@ -609,6 +614,7 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
                 {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true},
             ],
             "exploited": [],
+            "deadlines": null,
         }])
     );
 }

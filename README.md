@@ -33,6 +33,7 @@ forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an ext
 forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, sending the packages of the SBOM out
 forewarn match --kev kev.json sbom.cdx.json       # a CISA KEV catalog file instead of fetching the catalog
 forewarn match --euvd euvd.json sbom.cdx.json     # an EUVD exploited list file instead of paging the list
+forewarn match --aware-since 2026-11-13T09:30:00Z sbom.cdx.json  # the CRA reporting deadlines from that moment
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
@@ -66,6 +67,13 @@ number and when they were downloaded. EUVD publishes no single file: the list is
 `euvd-exploited` of the same cache, under the same `--refresh` policy: the requests name no component. `--euvd <file>`
 reads a file of the shape `{"items": [...]}` instead (a copy of `euvd-exploited/exploited.json`), for an air-gapped
 CI; `--no-euvd` flags nothing against it. With `--no-kev` and `--no-euvd`, the report says that no list was used.
+
+Each actively exploited match carries the deadlines CRA article 14(2) sets for reporting it (`deadlines` in the JSON
+report): the early warning 24 hours and the notification 72 hours after the moment the vendor became aware of it,
+`--aware-since <instant>` (RFC 3339, an offset is converted to UTC) or, by default, the moment of the run; the final
+report 14 days after `--measure-available <instant>`, the moment a corrective or mitigating measure became available,
+else due 14 days after one is, with no date. One moment of awareness applies to every match of the run; the JSON
+report gives it as `awareSince`, and the measure as `measureAvailable`. An instant refused exits with 2.
 
 It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
 `--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records, the KEV catalog or the EUVD

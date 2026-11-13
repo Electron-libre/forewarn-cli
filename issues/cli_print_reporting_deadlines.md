@@ -33,3 +33,37 @@ Compute CRA reporting deadlines
 * A default taken from the clock makes the output vary: the tests always pass the instant.
 * One moment of awareness per run applies to every match: a per-vulnerability moment needs a state kept between
   runs, out of this milestone.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+`forewarn match` prints the CRA article 14(2) deadlines with each actively exploited match, from `--aware-since` or the
+clock of the run, the final report dated only with `--measure-available`. Out of scope: state kept between runs, time
+left or overdue. The domain stays clock-free: the CLI parses RFC 3339 (offsets converted to UTC, fraction dropped).
+
+## Plan
+1. [x] Flags and JSON: `--aware-since`, `--measure-available` (RFC 3339, offsets converted, refused with exit 2
+   before the SBOM), the clock default, `awareSince`, `measureAvailable` and `deadlines` in the JSON report; verified
+   by integration tests in `crates/forewarn/tests/exploited.rs`; makes true MXL-14, MXL-15, MXL-16, MXL-17, MXL-19,
+   MXL-20, MXL-21 and the rows of MCH-10 and MCH-16. (autonomous)
+2. [ ] Human report: the moment of awareness (given or from the clock) and the measure, then the deadlines under the
+   evidence of each exploited match; verified by integration tests, MXL-H4 among them; makes true MXL-18 and the
+   human side of MXL-14 to MXL-16.
+
+## Decisions
+- Mode: autonomous
+- Base commit: e327ea609414a0c7a9fffa442f7046082124a1b1
+- Flag of the measure: `--measure-available` (JSON `measureAvailable`).
+- Instants with an offset accepted, converted to UTC, the fraction of a second dropped.
+- The human report prints the moment of awareness only when a match is actively exploited.
+- MXL-H4 stays a fourth happy path.
+
+## Deliverable 1
+- done: `--aware-since`, `--measure-available` (RFC 3339, offset converted, fraction dropped, refused with 2 before
+  the SBOM), the clock default, `awareSince`, `measureAvailable` and `deadlines` in the JSON report; README, CLAUDE.md.
+- red: MXL-14, MXL-15, MXL-16, MXL-17, MXL-19, MXL-20, MXL-21: `unexpected argument '--aware-since' found`.
+- Code review: no findings
+- checks: project-check green, check-specs clean (both specs `draft` until deliverable 2 traces MXL-18).
+- not verified: none.

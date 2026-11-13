@@ -15,6 +15,8 @@ use std::time::{Duration, SystemTime};
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
+use forewarn_domain::date::{Date, Moment};
+use forewarn_domain::deadlines::reporting_deadlines;
 use forewarn_domain::exploited::{ExploitedList, flag_exploited};
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
@@ -24,7 +26,10 @@ use forewarn_osv::api::{Api, Package};
 use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
-use report::{ExploitedSource, Origin, Source};
+use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
+
+use report::{Awareness, ExploitedSource, Origin, Source};
 
 /// Check a CycloneDX SBOM for the fields the EU Cyber Resilience Act expects, and match its components against known
 /// vulnerabilities.
@@ -111,6 +116,16 @@ struct MatchArgs {
     /// `https://euvdservices.enisa.europa.eu/api/search`].
     #[arg(long)]
     euvd_url: Option<String>,
+    /// The moment the vendor became aware of the actively exploited vulnerabilities, an RFC 3339 instant
+    /// (`2026-11-13T09:30:00Z`, an offset is converted to UTC), from which their early warning (24 h) and notification
+    /// (72 h) deadlines are computed [default: the moment of the run].
+    #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
+    aware_since: Option<Moment>,
+    /// The moment a corrective or mitigating measure became available, an RFC 3339 instant, from which the final
+    /// report deadline (14 days) is computed; without it the final report is due 14 days after a measure is
+    /// available.
+    #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
+    measure_available: Option<Moment>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -155,6 +170,7 @@ fn run_check(args: &CheckArgs) -> Result<ExitCode, u8> {
 
 fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
+    let awareness = awareness(args);
     let fetches_archives = args.osv.is_empty() && !args.osv_api;
     let fetches_kev = args.kev.is_none() && !args.no_kev;
     let fetches_euvd = args.euvd.is_none() && !args.no_euvd;
@@ -235,12 +251,67 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         .collect();
     write_report(&match args.format {
         Format::Human => report::matching_human(&sbom, &sources, &exploited, &matching),
-        Format::Json => report::matching_json(&sbom, &sources, &exploited, &matching),
+        Format::Json => report::matching_json(&sbom, &sources, &exploited, &awareness, &matching),
     })?;
     if matching.exploited_count() > 0 {
         return Ok(ExitCode::from(EXPLOITED));
     }
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
+}
+
+/// The moments the reporting deadlines of the run are computed from, and those deadlines (MXL-14 to MXL-17); exits
+/// with 2 when a deadline falls past the year 9999 (MXL-20).
+fn awareness(args: &MatchArgs) -> Awareness {
+    let since = args.aware_since.unwrap_or_else(|| {
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .ok()
+            .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
+            .and_then(|seconds| OffsetDateTime::from_unix_timestamp(seconds).ok())
+            .and_then(moment)
+            .unwrap_or_else(|| {
+                usage_error(
+                    clap::error::ErrorKind::InvalidValue,
+                    "the clock of the system gives no moment of the years 1 to 9999: give --aware-since",
+                )
+            })
+    });
+    let deadlines = reporting_deadlines(since, args.measure_available).unwrap_or_else(|error| {
+        let option = if args.aware_since == Some(error.0) {
+            "--aware-since"
+        } else {
+            "--measure-available"
+        };
+        usage_error(
+            clap::error::ErrorKind::InvalidValue,
+            &format!("invalid value '{}' for '{option}': {error}", error.0),
+        )
+    });
+    Awareness {
+        since,
+        measure_available: args.measure_available,
+        deadlines,
+    }
+}
+
+/// Reads an RFC 3339 instant into a moment of UTC, its offset applied and its fraction of a second dropped, so that no
+/// deadline is computed later (MXL-19, MXL-20).
+fn parse_moment(text: &str) -> Result<Moment, String> {
+    let time = OffsetDateTime::parse(text, &Rfc3339)
+        .map_err(|error| format!("an RFC 3339 instant such as `2026-11-13T09:30:00Z`: {error}"))?;
+    moment(time).ok_or_else(|| "an instant of the years 1 to 9999 in UTC".to_owned())
+}
+
+/// The moment of UTC of a time, to the second; `None` outside the years 1 to 9999.
+fn moment(time: OffsetDateTime) -> Option<Moment> {
+    let utc = time.to_offset(time::UtcOffset::UTC);
+    let date = Date::new(
+        u16::try_from(utc.year()).ok()?,
+        u8::from(utc.month()),
+        utc.day(),
+    )
+    .ok()?;
+    Moment::new(date, utc.hour(), utc.minute(), utc.second()).ok()
 }
 
 /// The CISA KEV catalog and the EUVD list of a run, the files given read before a list is fetched (MXL-2, MXL-3,

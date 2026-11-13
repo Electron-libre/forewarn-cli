@@ -11,7 +11,8 @@ use forewarn_domain::matching::{ComponentReason, ComponentRef, PairReason, Reaso
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
-use forewarn_domain::date::Date;
+use forewarn_domain::date::{Date, Moment};
+use forewarn_domain::deadlines::ReportingDeadlines;
 use forewarn_domain::exploited::ExploitedList;
 use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
@@ -165,6 +166,15 @@ pub enum Origin<'a> {
     Local(&'a Path),
     /// Fetched into the cache, with the freshness of its download.
     Fetched(&'a Freshness),
+}
+
+/// The moments the CRA reporting deadlines of a run are computed from, and those deadlines, the same for every
+/// actively exploited match (MXL-14 to MXL-17).
+pub struct Awareness {
+    /// The moment of awareness.
+    pub since: Moment,
+    pub measure_available: Option<Moment>,
+    pub deadlines: ReportingDeadlines,
 }
 
 /// A time of a download or of a query in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time
@@ -381,6 +391,7 @@ pub fn matching_json(
     sbom: &Sbom,
     sources: &[Source],
     exploited: &[ExploitedSource],
+    awareness: &Awareness,
     matching: &FlaggedReport,
 ) -> String {
     let sources: Vec<Value> = sources
@@ -410,7 +421,11 @@ pub fn matching_json(
         })
         .collect();
     let exploited_lists: Vec<Value> = exploited.iter().map(exploited_list_json).collect();
-    let affected: Vec<Value> = matching.matches().iter().map(match_json).collect();
+    let affected: Vec<Value> = matching
+        .matches()
+        .iter()
+        .map(|flagged| match_json(flagged, &awareness.deadlines))
+        .collect();
     let not_evaluated: Vec<Value> = matching
         .not_evaluated()
         .iter()
@@ -432,6 +447,8 @@ pub fn matching_json(
         "osv": sources,
         "exploitedLists": exploited_lists,
         "exploitedCount": matching.exploited_count(),
+        "awareSince": awareness.since.to_string(),
+        "measureAvailable": awareness.measure_available.map(|moment| moment.to_string()),
         "affected": affected,
         "notEvaluated": not_evaluated,
     });
@@ -461,8 +478,9 @@ fn exploited_list_json(source: &ExploitedSource) -> Value {
     list
 }
 
-/// A match in the JSON report, with its records and the evidence of the lists naming it (MCH-16).
-fn match_json(flagged: &FlaggedMatch) -> Value {
+/// A match in the JSON report, with its records, the evidence of the lists naming it and, when one does, its reporting
+/// deadlines (MCH-16, MXL-14).
+fn match_json(flagged: &FlaggedMatch, deadlines: &ReportingDeadlines) -> Value {
     let found = &flagged.found;
     let records: Vec<Value> = found
         .records
@@ -495,6 +513,11 @@ fn match_json(flagged: &FlaggedMatch) -> Value {
         "aliases": found.aliases,
         "records": records,
         "exploited": exploited,
+        "deadlines": flagged.is_exploited().then(|| json!({
+            "earlyWarning": deadlines.early_warning.to_string(),
+            "notification": deadlines.notification.to_string(),
+            "finalReport": deadlines.final_report.map(|moment| moment.to_string()),
+        })),
     })
 }
 
