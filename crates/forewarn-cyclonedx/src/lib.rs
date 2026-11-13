@@ -6,8 +6,9 @@ use std::io::Read;
 use cyclonedx_bom::models::bom::{Bom, SpecVersion as CdxSpecVersion};
 use cyclonedx_bom::models::component::Component as CdxComponent;
 use cyclonedx_bom::models::license::{LicenseChoice, LicenseIdentifier};
+use cyclonedx_bom::models::metadata::Metadata;
 use cyclonedx_bom::models::organization::{OrganizationalContact, OrganizationalEntity};
-use forewarn_domain::sbom::{Component, Hash, Sbom, SpecVersion};
+use forewarn_domain::sbom::{Component, Hash, Product, Sbom, SpecVersion};
 use serde_json::Value;
 
 /// Why an input is not a readable CycloneDX JSON SBOM (`specs/sbom-reading.md`, SBR-7).
@@ -51,7 +52,8 @@ impl fmt::Display for ReadError {
 
 impl std::error::Error for ReadError {}
 
-/// Reads a CycloneDX JSON SBOM: its spec version and its components, the nested ones flattened in document order.
+/// Reads a CycloneDX JSON SBOM: its spec version, the product it describes and its components, the nested ones
+/// flattened in document order.
 ///
 /// # Errors
 ///
@@ -82,6 +84,7 @@ pub fn read_json(mut reader: impl Read) -> Result<Sbom, ReadError> {
     }
     Ok(Sbom {
         spec_version,
+        product: bom.metadata.as_ref().and_then(product),
         components,
     })
 }
@@ -104,6 +107,30 @@ fn spec_version(text: &str) -> Result<(CdxSpecVersion, SpecVersion), ReadError> 
         .into_iter()
         .find(|(cdx, _)| cdx.to_string() == text)
         .ok_or_else(|| ReadError::UnsupportedSpecVersion(text.to_owned()))
+}
+
+/// The product of `metadata.component` (SBR-10): the manufacturer of the metadata before that of the component, then
+/// the deprecated `manufacture`; the supplier of the metadata before that of the component.
+fn product(metadata: &Metadata) -> Option<Product> {
+    let component = metadata.component.as_ref()?;
+    Some(Product {
+        name: component.name.to_string(),
+        version: component.version.as_ref().map(ToString::to_string),
+        purl: component.purl.as_ref().map(ToString::to_string),
+        manufacturer: first_identity([
+            &metadata.manufacturer,
+            &component.manufacturer,
+            &metadata.manufacture,
+        ]),
+        supplier: first_identity([&metadata.supplier, &component.supplier]),
+    })
+}
+
+/// The first identity of the organizations given, absent ones skipped (SBR-5).
+fn first_identity<'a>(
+    entities: impl IntoIterator<Item = &'a Option<OrganizationalEntity>>,
+) -> Option<String> {
+    entities.into_iter().flatten().find_map(organization)
 }
 
 /// Pushes each component, then its nested ones, depth first.

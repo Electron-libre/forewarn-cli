@@ -39,3 +39,33 @@ Draft the CRA early warning
 # Hints
 * The component of the metadata is not one of the `components`: it must not be matched against the vulnerabilities
   nor counted in the completeness report unless step 1 decides so.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+The CycloneDX adapter reads `metadata.component` into an optional domain `Product` (name, version, purl,
+manufacturer, supplier) on `Sbom`; the product never joins the matched components. Out of scope: any change to
+`forewarn check` or the reports (an absent product is not a completeness gap here).
+
+## Plan
+1. [x] Read the product: `Product` and `Sbom::product` in the domain, filled by the adapter with the manufacturer
+   and supplier precedence of SBR-10; verified by tests of `crates/forewarn-cyclonedx/tests/reading.rs` and the real
+   tool fixtures (~250 lines); makes true SBR-9, SBR-10, SBR-11. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 639a12ee2fd764f61b58b8b384474fa5772e2e5c
+- Completeness: an SBOM without a product, or a product without a manufacturer, is not a gap in this issue (answer 1 a).
+- Findings added at step 1: the SBOMs of `cargo-cyclonedx`, `syft` and `cdxgen` in the fixtures all write
+  `metadata.component` with a name and version (purl except `syft`), and no manufacturer nor supplier.
+
+## Deliverable 1
+- done: `Sbom::product` read from `metadata.component`, manufacturer and supplier by SBR-10 precedence; spec
+  `sbom-reading` accepted again; `CLAUDE.md` status line.
+- checks: project-check (fmt, clippy, tests, specs) pass; docs updated.
+- red: SBR-9, SBR-10, SBR-11: unresolved import `forewarn_domain::sbom::Product`, no field `product` on type `Sbom`.
+- Code review: no findings
+- not verified: none.
+- decisions needed: none.

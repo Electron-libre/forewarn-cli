@@ -1,4 +1,5 @@
-//! An SBOM as the domain sees it: its spec version and the flat list of its components (`specs/sbom-reading.md`).
+//! An SBOM as the domain sees it: its spec version, the product it describes and the flat list of its components
+//! (`specs/sbom-reading.md`).
 
 use std::fmt;
 
@@ -7,8 +8,23 @@ use std::fmt;
 pub struct Sbom {
     /// The version of the SBOM specification the document follows.
     pub spec_version: SpecVersion,
+    /// The product the document describes, when it names one; never one of [`Self::components`].
+    pub product: Option<Product>,
     /// Every component of the document, the nested ones included, in document order.
     pub components: Vec<Component>,
+}
+
+/// The product with digital elements an SBOM describes, with who makes it and who supplies it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Product {
+    pub name: String,
+    pub version: Option<String>,
+    /// The package URL, as written in the SBOM.
+    pub purl: Option<String>,
+    /// The manufacturer organisation: its name, else a contact email or a URL.
+    pub manufacturer: Option<String>,
+    /// The supplier organisation: its name, else a contact email or a URL.
+    pub supplier: Option<String>,
 }
 
 /// The version of a CycloneDX specification, `major.minor`.

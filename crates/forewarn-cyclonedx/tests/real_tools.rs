@@ -4,7 +4,7 @@ use std::fs::File;
 use std::path::Path;
 
 use forewarn_cyclonedx::read_json;
-use forewarn_domain::sbom::{Component, Hash, Sbom, SpecVersion};
+use forewarn_domain::sbom::{Component, Hash, Product, Sbom, SpecVersion};
 
 fn read_fixture(name: &str) -> Sbom {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -62,6 +62,39 @@ fn reads_the_sbom_of_syft() {
             },
         ]
     );
+}
+
+// spec: SBR-9, SBR-H3
+#[test]
+fn reads_the_product_of_the_sbom_of_syft() {
+    let sbom = read_fixture("syft.cdx.json");
+    assert_eq!(
+        sbom.product,
+        Some(Product {
+            name: "rollcall-fixture-sample".into(),
+            version: Some("0.1.0".into()),
+            purl: None,
+            manufacturer: None,
+            supplier: None,
+        })
+    );
+}
+
+// spec: SBR-9
+#[test]
+fn reads_the_product_of_the_sboms_of_cargo_cyclonedx_and_cdxgen() {
+    for (fixture, purl) in [
+        (
+            "cargo-cyclonedx.cdx.json",
+            "pkg:cargo/rollcall-fixture-sample@0.1.0?download_url=file://.",
+        ),
+        ("cdxgen.cdx.json", "pkg:cargo/rollcall-fixture-sample@0.1.0"),
+    ] {
+        let product = read_fixture(fixture).product.expect(fixture);
+        assert_eq!(product.name, "rollcall-fixture-sample", "{fixture}");
+        assert_eq!(product.version.as_deref(), Some("0.1.0"), "{fixture}");
+        assert_eq!(product.purl.as_deref(), Some(purl), "{fixture}");
+    }
 }
 
 // spec: SBR-4

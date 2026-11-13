@@ -9,7 +9,8 @@ adrs: [0001, 0002]
 ## Intent
 
 Read a CycloneDX JSON SBOM, produced by an existing tool, into the components of the domain, and tell whether its
-spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness check and the matching work on them.
+spec version meets the BSI TR-03183-2 minimum (1.6), and the product the SBOM describes, so that the completeness
+check and the matching work on the components and a report names the product.
 
 ## Requirements
 
@@ -22,6 +23,9 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
 - **SBR-3** (deterministic) Reading an input that is not a readable CycloneDX JSON SBOM must fail with an error that
   names the cause, from the table of SBR-7.
 - **SBR-4** (deterministic) The SBOMs produced by `cargo-cyclonedx`, `syft` and `cdxgen` must be read without error.
+- **SBR-9** (deterministic) Reading a CycloneDX JSON SBOM must return the product it describes, its name, version,
+  package URL, manufacturer and supplier, when the SBOM has a `metadata.component`, and no product, with no error,
+  when it has none.
 
 ### Contract
 
@@ -61,6 +65,20 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
 - **SBR-8** (deterministic) Reading must not refuse nor drop a component whose type or hash algorithm is a value the
   CycloneDX enumerations do not list.
 
+- **SBR-10** (deterministic) The product must carry the fields of this table, an identity being that of an
+  organization in SBR-5, an absent CycloneDX field giving an absent domain field.
+
+  | Domain field | CycloneDX source |
+  |---|---|
+  | name | `metadata.component.name` |
+  | version | `metadata.component.version` |
+  | package URL | `metadata.component.purl`, as written |
+  | manufacturer | the first identity of `metadata.manufacturer` (1.6), `metadata.component.manufacturer` (1.6), then `metadata.manufacture` (deprecated in 1.6) |
+  | supplier | the first identity of `metadata.supplier`, then `metadata.component.supplier` |
+
+- **SBR-11** (deterministic) Neither `metadata.component` nor the components nested in it must be returned among the
+  components of SBR-1, SBR-2 and SBR-6.
+
 ## Scenarios
 
 - **SBR-H1** (happy; SBR-1, SBR-4, SBR-5) Given an SBOM a vendor generated with `syft` in CycloneDX 1.6, when
@@ -68,6 +86,9 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
   spec version 1.6 with no flag.
 - **SBR-H2** (happy; SBR-2) Given an SBOM in CycloneDX 1.5, when `forewarn` reads it, then it gets its components and
   the warning that 1.5 is below the BSI TR-03183-2 minimum.
+- **SBR-H3** (happy; SBR-9, SBR-4) Given an SBOM a vendor generated with `syft` for their product
+  `rollcall-fixture-sample` 0.1.0, when `forewarn` reads it, then it gets the product `rollcall-fixture-sample` at
+  version 0.1.0, with no manufacturer nor supplier since `syft` writes none.
 - (SBR-7) Given a CycloneDX 1.2 JSON file, when it is read, then it fails with "unsupported spec version" quoting `1.2`.
 - (SBR-7) Given a JSON file with `bomFormat` `CycloneDX` and no `specVersion`, when it is read, then it fails with
   "missing spec version".
@@ -83,6 +104,19 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
   those fields absent or empty, not refused.
 - (SBR-1) Given a valid 1.6 SBOM preceded by a UTF-8 byte-order mark, when it is read, then it is read as without it.
 - (SBR-1) Given a valid 1.6 SBOM with no `components`, when it is read, then it returns an empty list.
+- (SBR-9) Given a valid 1.6 SBOM with no `metadata`, or a `metadata` with no `component`, when it is read, then it
+  returns its components and no product.
+- (SBR-10) Given a 1.6 SBOM whose `metadata.manufacturer` is named `Acme` and whose `metadata.component.manufacturer`
+  is named `Other`, when it is read, then the manufacturer of the product is `Acme`; with no
+  `metadata.manufacturer`, it is `Other`.
+- (SBR-10) Given a 1.5 SBOM whose `metadata.manufacture` is named `Acme`, when it is read, then the manufacturer of the
+  product is `Acme`.
+- (SBR-10) Given a 1.6 SBOM whose `metadata.manufacturer` has the name `"  "` and the URL `https://acme.example`, when
+  it is read, then the manufacturer of the product is that URL.
+- (SBR-10) Given an SBOM with no `metadata.supplier` and a `metadata.component.supplier` named `Acme`, when it is read,
+  then the supplier of the product is `Acme`.
+- (SBR-11) Given an SBOM whose `metadata.component` nests a component `inner`, when it is read, then neither the
+  product nor `inner` is among its components.
 
 ## Non-goals
 
@@ -90,7 +124,9 @@ spec version meets the BSI TR-03183-2 minimum (1.6), so that the completeness ch
 - SPDX input, or converting another format to CycloneDX.
 - Detecting dependencies: the input is always an SBOM produced by another tool.
 - Validating the SBOM against the CycloneDX JSON schema beyond what parsing needs.
-- The component the SBOM describes (`metadata.component`), services, dependencies and VEX statements: later
-  milestones read them.
+- The licenses, hashes and authors of the product, and the other fields of `metadata` (authors, tools, lifecycles):
+  nothing uses them yet.
+- Services, dependencies and VEX statements: later milestones read them.
+- Deciding whether an SBOM without a product, or a product without a manufacturer, is incomplete for the CRA.
 - Deciding whether a field counts as present for the CRA: the completeness check (`specs/sbom-completeness.md`) does.
 - Reading the file from disk or standard input: the command line does.

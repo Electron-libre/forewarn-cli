@@ -1,7 +1,7 @@
 //! Reading a CycloneDX JSON SBOM into the domain (`specs/sbom-reading.md`).
 
 use forewarn_cyclonedx::{ReadError, read_json};
-use forewarn_domain::sbom::{Component, Hash, Sbom, SpecVersion};
+use forewarn_domain::sbom::{Component, Hash, Product, Sbom, SpecVersion};
 use serde_json::{Value, json};
 
 fn bom(spec_version: &str, components: &Value) -> Value {
@@ -339,4 +339,121 @@ fn reports_an_input_that_cannot_be_read() {
     let error = read_json(FailingReader).expect_err("refused");
     assert_eq!(error, ReadError::Io("disk on fire".into()));
     assert_eq!(error.to_string(), "cannot read the input: disk on fire");
+}
+
+fn with_metadata(spec_version: &str, metadata: &Value) -> Value {
+    let mut document = bom(
+        spec_version,
+        &json!([{ "type": "library", "name": "serde" }]),
+    );
+    document["metadata"] = metadata.clone();
+    document
+}
+
+fn product_of(spec_version: &str, metadata: &Value) -> Option<Product> {
+    read(&with_metadata(spec_version, metadata))
+        .expect("readable")
+        .product
+}
+
+fn application(extra: &Value) -> Value {
+    let mut component = json!({ "type": "application", "name": "shop", "version": "2.1.0" });
+    for (key, value) in extra.as_object().expect("an object") {
+        component[key] = value.clone();
+    }
+    component
+}
+
+// spec: SBR-9, SBR-10
+#[test]
+fn reads_the_product_the_sbom_describes() {
+    let metadata = json!({
+        "component": application(&json!({ "purl": "pkg:generic/shop@2.1.0" })),
+        "manufacturer": { "name": "Acme" },
+        "supplier": { "name": "Acme Distribution" },
+    });
+    assert_eq!(
+        product_of("1.6", &metadata),
+        Some(Product {
+            name: "shop".into(),
+            version: Some("2.1.0".into()),
+            purl: Some("pkg:generic/shop@2.1.0".into()),
+            manufacturer: Some("Acme".into()),
+            supplier: Some("Acme Distribution".into()),
+        })
+    );
+}
+
+// spec: SBR-9
+#[test]
+fn reads_no_product_without_a_metadata_component() {
+    let sbom = read(&bom(
+        "1.6",
+        &json!([{ "type": "library", "name": "serde" }]),
+    ))
+    .expect("readable");
+    assert_eq!(sbom.product, None);
+    assert_eq!(sbom.components, vec![named("serde")]);
+    let metadata = json!({ "timestamp": "2026-11-13T09:30:00Z" });
+    assert_eq!(product_of("1.6", &metadata), None);
+}
+
+// spec: SBR-10
+#[test]
+fn takes_the_manufacturer_of_the_metadata_before_that_of_the_product() {
+    let component = application(&json!({ "manufacturer": { "name": "Other" } }));
+    let both = json!({ "component": component, "manufacturer": { "name": "Acme" } });
+    let only_component = json!({ "component": component });
+    assert_eq!(
+        product_of("1.6", &both).and_then(|p| p.manufacturer),
+        Some("Acme".into())
+    );
+    assert_eq!(
+        product_of("1.6", &only_component).and_then(|p| p.manufacturer),
+        Some("Other".into())
+    );
+}
+
+// spec: SBR-10
+#[test]
+fn takes_the_deprecated_manufacture_as_the_manufacturer() {
+    let metadata =
+        json!({ "component": application(&json!({})), "manufacture": { "name": "Acme" } });
+    assert_eq!(
+        product_of("1.5", &metadata).and_then(|p| p.manufacturer),
+        Some("Acme".into())
+    );
+}
+
+// spec: SBR-10
+#[test]
+fn takes_the_identity_of_a_manufacturer_with_a_blank_name() {
+    let metadata = json!({
+        "component": application(&json!({})),
+        "manufacturer": { "name": "  ", "url": ["https://acme.example"] },
+    });
+    assert_eq!(
+        product_of("1.6", &metadata).and_then(|p| p.manufacturer),
+        Some("https://acme.example".into())
+    );
+}
+
+// spec: SBR-10
+#[test]
+fn takes_the_supplier_of_the_product_without_one_in_the_metadata() {
+    let metadata = json!({ "component": application(&json!({ "supplier": { "name": "Acme" } })) });
+    let product = product_of("1.6", &metadata).expect("a product");
+    assert_eq!(product.supplier, Some("Acme".into()));
+    assert_eq!(product.manufacturer, None);
+}
+
+// spec: SBR-11
+#[test]
+fn keeps_the_product_and_its_nested_components_out_of_the_components() {
+    let metadata = json!({
+        "component": application(&json!({ "components": [{ "type": "library", "name": "inner" }] })),
+    });
+    let sbom = read(&with_metadata("1.6", &metadata)).expect("readable");
+    assert_eq!(sbom.components, vec![named("serde")]);
+    assert_eq!(sbom.product.map(|p| p.name), Some("shop".into()));
 }
