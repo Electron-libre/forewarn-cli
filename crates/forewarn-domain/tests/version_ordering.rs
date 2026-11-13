@@ -1,5 +1,5 @@
 //! The version orderings of the `ECOSYSTEM` ranges, observed through the matching of one component against one range
-//! (`specs/vulnerability-matching.md`, VMT-23 to VMT-26).
+//! (`specs/vulnerability-matching.md`, VMT-23 to VMT-28).
 
 use forewarn_domain::matching::{MatchReport, PairReason, Reason, match_components};
 use forewarn_domain::sbom::Component;
@@ -29,6 +29,12 @@ const RUBYGEMS: Package = Package {
     ecosystem: "RubyGems",
     name: "rails",
     purl: "pkg:gem/rails",
+};
+
+const NUGET: Package = Package {
+    ecosystem: "NuGet",
+    name: "Newtonsoft.Json",
+    purl: "pkg:nuget/Newtonsoft.Json",
 };
 
 fn introduced(version: &str) -> Event {
@@ -288,5 +294,69 @@ fn reports_a_rubygems_version_gem_does_not_read_as_invalid() {
         "1.0 beta", "a1", "1a", "1.", "1..0", "1.0-", "1.0-a.", "v1.0", "1_0",
     ] {
         RUBYGEMS.assert_invalid(invalid, "2.0");
+    }
+}
+
+// spec: VMT-9, VMT-23, VMT-27
+#[test]
+fn evaluates_an_ecosystem_range_of_nuget_by_nuget_versioning() {
+    let window = [introduced("0"), fixed("13.0.1")];
+    assert!(NUGET.affects("12.0.3", &window));
+    assert!(!NUGET.affects("13.0.1.0", &window));
+    assert!(NUGET.affects("13.0.1-beta1", &window));
+}
+
+// spec: VMT-27
+#[test]
+fn orders_nuget_versions_by_nuget_versioning() {
+    NUGET.assert_ordered(&[
+        "1.0.0-alpha",
+        "1.0.0-alpha.1",
+        "1.0.0-alpha.beta",
+        "1.0.0-beta",
+        "1.0.0-beta.2",
+        "1.0.0-beta.11",
+        "1.0.0-rc.1",
+        "1.0.0",
+        "1.0.0.1",
+        "1.0.1",
+        "1.2",
+        "1.10",
+        "99999999999999999999",
+        "100000000000000000000",
+    ]);
+    for (a, b) in [
+        ("1.0", "1.0.0.0"),
+        ("1", "1.0.0"),
+        ("1.0.0-BETA", "1.0.0-beta"),
+        ("1.0.0+abc", "1.0.0"),
+        ("1.0.0-rc.1+build-5.x", "1.0.0-RC.1"),
+        (" 1.0 ", "1.0.0"),
+        ("01.2", "1.2"),
+        ("1.0.0-beta.02", "1.0.0-beta.2"),
+    ] {
+        NUGET.assert_equal(a, b);
+    }
+    NUGET.assert_ordered(&["1.0.0-a.b", "1.0.0-a-b"]);
+}
+
+// spec: VMT-27, VMT-10
+#[test]
+fn reports_a_nuget_version_it_does_not_read_as_invalid() {
+    for invalid in [
+        ".",
+        "v1.0",
+        "1.0.0.0.0",
+        "1.0.0-",
+        "1.0.0+",
+        "1..0",
+        "1.0.",
+        "1.0-beta..1",
+        "1.0+a..b",
+        "1.0-be_ta",
+        "1.a",
+        "-1.0",
+    ] {
+        NUGET.assert_invalid(invalid, "2.0");
     }
 }

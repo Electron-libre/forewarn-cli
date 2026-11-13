@@ -206,7 +206,7 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
         "id": "GHSA-1",
         "affected": [{
             "package": {"ecosystem": "NuGet", "name": "Newtonsoft.Json"},
-            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "3.0"}]}],
+            "ranges": [{"type": "GIT", "repo": "https://example.com/r.git", "events": [{"introduced": "def456"}]}],
         }],
     })]);
     let input = bom(

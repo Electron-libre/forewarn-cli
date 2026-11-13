@@ -37,3 +37,46 @@ Match known vulnerabilities (OSV)
 
 # Hints
 * Implement the orderings in the domain, no new dependency (decision of the parent issue).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Give a verdict to the `ECOSYSTEM` ranges of NuGet (`NuGet.Versioning` ordering) and Packagist (Composer normalization,
+then `version_compare`), in the domain, with no new dependency. Every ecosystem VMT-4 maps is then compared: the
+"range not evaluated" tests and scenarios move to `GIT` ranges. Composer `dev-` branches and aliases stay invalid.
+
+## Plan
+1. [x] NuGet: the `NuGet.Versioning` ordering as a `Scheme`; the "range not evaluated" tests (domain and
+   `forewarn match`) and scenarios moved to `GIT` ranges; verified by the NuGet scenarios and the moved tests; makes
+   true VMT-27, VMT-23 (NuGet row), VMT-8, VMT-10, MCH-2, MCH-16. (autonomous)
+2. [ ] Packagist: Composer's normalization and `version_compare` as a `Scheme`; verified by the Packagist scenarios;
+   makes true VMT-28, VMT-23 (Packagist row); the spec set `accepted`.
+3. [ ] Docs (README) and the fixes of the `high` review of the whole issue.
+
+## Decisions
+- Mode: autonomous
+- Base commit: b5c85d4ff9431ac6c5a4b622a0d33e24d6f6ccdb
+- Packagist: Composer's normalization before `version_compare` (`1.0` equals `1.0.0.0`), not the raw `version_compare`
+  of osv-scanner.
+- NuGet: lenient, leading zeros and numbers of any length accepted.
+
+## Deliverable 1: NuGet
+- done: `Scheme::NuGet`, the `NuGet.Versioning` ordering (`NuGet` in `crates/forewarn-domain/src/version.rs`); the
+  "range not evaluated" tests (domain and `forewarn match`) and scenarios use a `GIT` range; README and CLAUDE.md
+  list NuGet among the orderings.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`), spec `draft` until VMT-28 is traced |
+| docs | README, CLAUDE.md |
+| code review | low, see below |
+
+- red: VMT-27, VMT-23: `evaluates_an_ecosystem_range_of_nuget_by_nuget_versioning`: the pair of `12.0.3` was
+  reported `RangeNotEvaluated`.
+- Code review: no findings
+- not verified: none
+- decisions needed: none

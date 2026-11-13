@@ -27,6 +27,8 @@ pub(crate) enum Scheme {
     Maven,
     /// The ordering of `RubyGems`, as `Gem::Version` (VMT-26).
     RubyGems,
+    /// The ordering of `NuGet`, as `NuGet.Versioning` (VMT-27).
+    NuGet,
 }
 
 impl Scheme {
@@ -557,4 +559,81 @@ fn is_gem_version(version: &str) -> bool {
         })
     });
     release_ok && pre_ok
+}
+
+/// The ordering of `NuGet`, as `NuGet.Versioning` reads and compares versions by default (VMT-27).
+pub(crate) struct NuGet;
+
+/// A `NuGet` version, as the fields it is ordered by, its build metadata dropped.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct NuGetKey {
+    /// The four numeric parts, the missing ones as `0`.
+    parts: [Number; 4],
+    /// The pre-release labels, if any.
+    pre: Option<Vec<NuGetLabel>>,
+}
+
+/// A pre-release label of a `NuGet` version: numbers before text, text compared without regard to case.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum NuGetLabel {
+    Number(Number),
+    Text(String),
+}
+
+impl VersionOrder for NuGet {
+    type Key = NuGetKey;
+
+    fn parse(version: &str) -> Option<Self::Key> {
+        let (main, metadata) = match version.trim().split_once('+') {
+            Some((main, metadata)) => (main, Some(metadata)),
+            None => (version.trim(), None),
+        };
+        let (release, pre) = match main.split_once('-') {
+            Some((release, pre)) => (release, Some(pre)),
+            None => (main, None),
+        };
+        let numbers: Vec<&str> = release.split('.').collect();
+        if numbers.len() > 4
+            || !numbers
+                .iter()
+                .all(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        {
+            return None;
+        }
+        if !metadata.is_none_or(are_nuget_labels) || !pre.is_none_or(are_nuget_labels) {
+            return None;
+        }
+        let parts = std::array::from_fn(|i| Number::of(numbers.get(i).copied().unwrap_or("0")));
+        let pre = pre.map(|pre| {
+            pre.split('.')
+                .map(|label| {
+                    if label.bytes().all(|b| b.is_ascii_digit()) {
+                        NuGetLabel::Number(Number::of(label))
+                    } else {
+                        NuGetLabel::Text(label.to_ascii_lowercase())
+                    }
+                })
+                .collect()
+        });
+        Some(NuGetKey { parts, pre })
+    }
+
+    fn compare(a: &Self::Key, b: &Self::Key) -> Ordering {
+        a.parts.cmp(&b.parts).then_with(|| match (&a.pre, &b.pre) {
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => Ordering::Greater,
+            (Some(_), None) => Ordering::Less,
+            (Some(a), Some(b)) => a.cmp(b),
+        })
+    }
+}
+
+/// Whether the text is made of non-empty labels of ASCII letters, digits and `-`, separated by `.`.
+fn are_nuget_labels(text: &str) -> bool {
+    text.split('.').all(|label| {
+        !label.is_empty()
+            && label
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    })
 }

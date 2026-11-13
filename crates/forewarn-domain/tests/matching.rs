@@ -228,17 +228,14 @@ fn reports_apart_each_component_it_could_not_evaluate_with_its_reason() {
     }
 }
 
-// spec: VMT-10, VMT-23
+// spec: VMT-10
 #[test]
 fn reports_a_range_it_does_not_evaluate() {
     let nuget = vulnerability(
         "GHSA-1",
         "NuGet",
         "Newtonsoft.Json",
-        vec![range(
-            RangeKind::Ecosystem,
-            &[introduced("0"), fixed("3.0")],
-        )],
+        vec![range(RangeKind::Git, &[introduced("def456")])],
     );
     let git = vulnerability(
         "GIT-1",
@@ -307,10 +304,7 @@ fn matches_a_listed_version_in_every_ecosystem() {
         "GHSA-1",
         "NuGet",
         "Newtonsoft.Json",
-        vec![range(
-            RangeKind::Ecosystem,
-            &[introduced("0"), fixed("3.0")],
-        )],
+        vec![range(RangeKind::Git, &[introduced("def456")])],
     );
     nuget.affected[0].versions = vec!["2.0".into(), "2.0.1".into()];
     let report = match_components(
