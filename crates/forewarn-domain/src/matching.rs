@@ -197,7 +197,7 @@ pub fn match_components(
             })
             .collect();
         named.dedup_by(|copy, kept| {
-            let same = copy.record.id == kept.record.id;
+            let same = copy.record.id == kept.record.id && !is_blank(&kept.record.id);
             if same {
                 kept.absorb(copy);
             }
@@ -270,7 +270,7 @@ impl<'a> Index<'a> {
 struct Named<'a> {
     record: &'a Vulnerability,
     outcome: Outcome,
-    /// Its id and aliases, each CVE id in upper case (VMT-29).
+    /// Its id and aliases, each CVE id in upper case (VMT-29), the blank ones left out (VMT-30).
     ids: BTreeSet<Cow<'a, str>>,
     /// The CVE ids among them.
     cves: BTreeSet<Cow<'a, str>>,
@@ -280,7 +280,8 @@ impl<'a> Named<'a> {
     fn new(record: &'a Vulnerability, outcome: Outcome) -> Self {
         let mut ids = BTreeSet::new();
         let mut cves = BTreeSet::new();
-        for id in std::iter::once(&record.id).chain(&record.aliases) {
+        let given = std::iter::once(&record.id).chain(&record.aliases);
+        for id in given.filter(|id| !is_blank(id)) {
             match read_cve(id) {
                 Some(cve) => {
                     ids.insert(cve.clone());
@@ -415,15 +416,23 @@ impl<'n> Group<'n> {
         groups
     }
 
-    /// The match of the group: named by its CVE, else its first record id; its aliases without another CVE nor the
+    /// The match of the group: named by its CVE, else its first record id that is not blank, else its first other id,
+    /// else the blank id of its record (VMT-30); its aliases without another CVE nor the
     /// id of a record of another CVE; its records, those not affecting that overlap it included (VMT-16 to VMT-18,
     /// VMT-22).
     fn to_match(&self, component: &Component, named: &[Named]) -> Match {
         let id = self.cve.unwrap_or_else(|| {
-            self.members
-                .iter()
-                .map(|&member| named[member].record.id.as_str())
+            let records = || self.members.iter().map(|&member| &named[member]);
+            records()
+                .map(|record| record.record.id.as_str())
+                .filter(|id| !is_blank(id))
                 .min()
+                .or_else(|| {
+                    records()
+                        .flat_map(|record| record.ids.iter().map(AsRef::as_ref))
+                        .min()
+                })
+                .or_else(|| records().map(|record| record.record.id.as_str()).min())
                 .unwrap_or_default()
         });
         let foreign: BTreeSet<&str> = named
@@ -471,6 +480,11 @@ impl<'n> Group<'n> {
                 .collect(),
         }
     }
+}
+
+/// Whether an id or alias is empty or holds only ASCII whitespace: it then names no record (VMT-30).
+fn is_blank(id: &str) -> bool {
+    id.trim_ascii().is_empty()
 }
 
 /// The pairs not evaluated to report, by record id: those of a record in no match, or holding a `CVE-` id that names

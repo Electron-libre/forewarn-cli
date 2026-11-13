@@ -1090,3 +1090,56 @@ fn compares_an_id_starting_with_cve_without_its_shape_as_written() {
     );
     assert_eq!(ids(&report), [("time", "GHSA-X"), ("time", "RUSTSEC-A")]);
 }
+
+// spec: VMT-30, VMT-15
+#[test]
+fn groups_no_records_through_a_blank_id_or_alias() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[
+            time_record("", "A", &[], "0"),
+            time_record("", "B", &[], "0"),
+            time_record("RUSTSEC-A", "RUSTSEC", &["  "], "0"),
+            time_record("RUSTSEC-B", "RUSTSEC", &["  "], "0"),
+        ],
+    );
+    assert_eq!(
+        ids(&report),
+        [
+            ("time", ""),
+            ("time", ""),
+            ("time", "RUSTSEC-A"),
+            ("time", "RUSTSEC-B")
+        ]
+    );
+    assert!(report.matches().iter().all(|m| m.records.len() == 1));
+    assert!(report.matches().iter().all(|m| m.aliases.is_empty()));
+}
+
+// spec: VMT-30, VMT-16, VMT-17
+#[test]
+fn names_a_record_with_a_blank_id_by_its_other_ids() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[time_record(
+            "  ",
+            "GHSA",
+            &["GHSA-X", "CVE-2023-0001", " "],
+            "0",
+        )],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-2023-0001")]);
+    assert_eq!(report.matches()[0].aliases, ["GHSA-X"]);
+    assert_eq!(report.matches()[0].records, [record("  ", "GHSA")]);
+}
+
+// spec: VMT-30, VMT-16
+#[test]
+fn names_a_record_with_an_empty_id_and_no_cve_by_its_alias() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[time_record("", "GHSA", &["GHSA-X"], "0")],
+    );
+    assert_eq!(ids(&report), [("time", "GHSA-X")]);
+    assert_eq!(report.matches()[0].aliases, Vec::<String>::new());
+}
