@@ -32,4 +32,4 @@ Flag actively exploited vulnerabilities (KEV, EUVD)
 # Resources
 * `crates/forewarn-osv`: the serde model and its conversion into `Vulnerability`.
 * `crates/forewarn-domain/src/cve.rs`: the reading of a CVE id.
-* `issues/share_one_definition_of_a_cve_id_in_the_domain.md`: the measure.
+* `issues/done/share_one_definition_of_a_cve_id_in_the_domain.md`: the measure.
