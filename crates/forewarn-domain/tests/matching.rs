@@ -303,24 +303,24 @@ fn reports_a_version_that_is_not_semantic_versioning() {
 // spec: VMT-8, VMT-10
 #[test]
 fn matches_a_listed_version_in_every_ecosystem() {
-    let mut pypi = vulnerability(
-        "PYSEC-1",
-        "PyPI",
-        "django",
+    let mut nuget = vulnerability(
+        "GHSA-1",
+        "NuGet",
+        "Newtonsoft.Json",
         vec![range(
             RangeKind::Ecosystem,
             &[introduced("0"), fixed("3.0")],
         )],
     );
-    pypi.affected[0].versions = vec!["2.0".into(), "2.0.1".into()];
+    nuget.affected[0].versions = vec!["2.0".into(), "2.0.1".into()];
     let report = match_components(
         &[
-            component("pkg:pypi/django@2.0"),
-            component("pkg:pypi/django@2.0.0"),
+            component("pkg:nuget/Newtonsoft.Json@2.0"),
+            component("pkg:nuget/Newtonsoft.Json@2.0.0"),
         ],
-        &[pypi],
+        &[nuget],
     );
-    assert_eq!(ids(&report), [("django", "PYSEC-1")]);
+    assert_eq!(ids(&report), [("Newtonsoft.Json", "GHSA-1")]);
     assert_eq!(report.not_evaluated().len(), 1, "2.0.0 is not listed");
 }
 

@@ -245,6 +245,39 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
     );
 }
 
+// spec: VMT-23, VMT-24
+#[test]
+fn a_pypi_component_in_an_ecosystem_range_is_affected() {
+    let osv = records(&[json!({
+        "id": "PYSEC-1",
+        "affected": [{
+            "package": {"ecosystem": "PyPI", "name": "django"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "3.0"}]}],
+        }],
+    })]);
+    let input = bom(
+        "1.6",
+        &json!([
+            component("django", "2.1", Some("pkg:pypi/django@2.1")),
+            component(
+                "Django-Rest",
+                "3.0.post1",
+                Some("pkg:pypi/django@3.0.post1")
+            ),
+        ]),
+    );
+    let json = run(
+        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        Some(&input),
+    );
+    assert_eq!(json.code, 1, "{}", json.stderr);
+    let report = json_report(&json);
+    assert_eq!(report["affected"][0]["version"], json!("2.1"));
+    assert_eq!(report["affected"].as_array().map(Vec::len), Some(1));
+    assert_eq!(report["notEvaluated"], json!([]));
+    assert_eq!(report["cleanCount"], json!(1));
+}
+
 // spec: MCH-16
 #[test]
 fn every_reason_has_its_json_name() {

@@ -1,0 +1,174 @@
+//! The version orderings of the `ECOSYSTEM` ranges, observed through the matching of one component against one range
+//! (`specs/vulnerability-matching.md`, VMT-23 to VMT-26).
+
+use forewarn_domain::matching::{MatchReport, PairReason, Reason, match_components};
+use forewarn_domain::sbom::Component;
+use forewarn_domain::vulnerability::{AffectedPackage, Event, Range, RangeKind, Vulnerability};
+
+/// A package of an ecosystem: its OSV ecosystem, its name there, and its package URL without a version.
+#[derive(Clone, Copy)]
+struct Package {
+    ecosystem: &'static str,
+    name: &'static str,
+    purl: &'static str,
+}
+
+const PYPI: Package = Package {
+    ecosystem: "PyPI",
+    name: "django",
+    purl: "pkg:pypi/django",
+};
+
+fn introduced(version: &str) -> Event {
+    Event::Introduced(version.into())
+}
+
+fn fixed(version: &str) -> Event {
+    Event::Fixed(version.into())
+}
+
+fn last_affected(version: &str) -> Event {
+    Event::LastAffected(version.into())
+}
+
+impl Package {
+    /// The report of the component at `version` (given beside its package URL, VMT-7) matched against one
+    /// `ECOSYSTEM` range of these events.
+    fn report(self, version: &str, events: &[Event]) -> MatchReport {
+        let component = Component {
+            name: self.name.into(),
+            version: Some(version.into()),
+            purl: Some(self.purl.into()),
+            ..Component::default()
+        };
+        let vulnerability = Vulnerability {
+            id: "ID-1".into(),
+            source: "GHSA".into(),
+            affected: vec![AffectedPackage {
+                ecosystem: self.ecosystem.into(),
+                name: self.name.into(),
+                versions: vec![],
+                ranges: vec![Range {
+                    kind: RangeKind::Ecosystem,
+                    events: events.to_vec(),
+                }],
+            }],
+            ..Vulnerability::default()
+        };
+        match_components(&[component], &[vulnerability])
+    }
+
+    /// Whether the range of these events affects the version, failing when it was not evaluated.
+    fn affects(self, version: &str, events: &[Event]) -> bool {
+        let report = self.report(version, events);
+        assert_eq!(
+            report.not_evaluated(),
+            [],
+            "{} {version} {events:?}",
+            self.ecosystem
+        );
+        !report.matches().is_empty()
+    }
+
+    /// Asserts that each version orders strictly before the next one.
+    fn assert_ordered(self, versions: &[&str]) {
+        for pair in versions.windows(2) {
+            let (lower, higher) = (pair[0], pair[1]);
+            assert!(
+                self.affects(lower, &[introduced("0"), fixed(higher)]),
+                "{lower} < {higher}"
+            );
+            assert!(
+                !self.affects(higher, &[introduced("0"), last_affected(lower)]),
+                "{higher} > {lower}"
+            );
+        }
+    }
+
+    /// Asserts that two versions are equal in the ordering.
+    fn assert_equal(self, a: &str, b: &str) {
+        assert!(self.affects(b, &[introduced(a)]), "{b} >= {a}");
+        assert!(
+            self.affects(b, &[introduced("0"), last_affected(a)]),
+            "{b} <= {a}"
+        );
+    }
+
+    /// Asserts that the version, as the component's or as an event's, is reported invalid.
+    fn assert_invalid(self, invalid: &str, valid: &str) {
+        for (version, events) in [
+            (invalid, vec![introduced("0"), fixed(valid)]),
+            (valid, vec![introduced("0"), fixed(invalid)]),
+        ] {
+            let report = self.report(version, &events);
+            assert_eq!(
+                report.not_evaluated()[0].reason,
+                Reason::Pair {
+                    vulnerability_id: "ID-1".into(),
+                    reason: PairReason::InvalidVersion,
+                },
+                "{} {version} {events:?}",
+                self.ecosystem
+            );
+        }
+    }
+}
+
+// spec: VMT-9, VMT-23, VMT-24
+#[test]
+fn evaluates_an_ecosystem_range_of_pypi_by_pep_440() {
+    let window = [introduced("0"), fixed("3.0")];
+    assert!(PYPI.affects("2.1", &window));
+    assert!(!PYPI.affects("3.0.0", &window));
+    assert!(!PYPI.affects("3.0.post1", &window));
+    assert!(PYPI.affects("3.0rc1", &window));
+    assert!(PYPI.affects("3.0.dev2", &window));
+}
+
+// spec: VMT-24
+#[test]
+fn orders_pypi_versions_by_pep_440() {
+    PYPI.assert_ordered(&[
+        "1.0.dev1",
+        "1.0a1.dev1",
+        "1.0a1",
+        "1.0b2",
+        "1.0b2.post3",
+        "1.0c1",
+        "1.0",
+        "1.0+abc",
+        "1.0+local.7",
+        "1.0+7",
+        "1.0.post1.dev1",
+        "1.0.post1",
+        "1.0.1",
+        "1.10",
+        "1!0.5",
+    ]);
+    PYPI.assert_equal("1.0-ALPHA.1", "1.0a1");
+    PYPI.assert_equal("v1.0-1", "1.0.post1");
+    PYPI.assert_equal("1.0.0.0", "1");
+    PYPI.assert_equal("1.0_preview_2", "1.0rc2");
+    PYPI.assert_equal("1.0-r", "1.0.post0");
+    PYPI.assert_equal("1.0rev3", "1.0.post3");
+    PYPI.assert_equal("1.0-dev", "1.0.dev0");
+    PYPI.assert_equal("0!1.0", " 1.0 ");
+    PYPI.assert_equal("1.0+Local-7", "1.0+local.7");
+    PYPI.assert_equal("1.0.a.post1", "1.0a0.post1");
+    PYPI.assert_ordered(&["99999999999999999999", "100000000000000000000"]);
+}
+
+// spec: VMT-24, VMT-10
+#[test]
+fn reports_a_pypi_version_pep_440_does_not_read_as_invalid() {
+    for invalid in [
+        "not a version",
+        "1.0-",
+        "1.0+",
+        "1.0+a..b",
+        "1..0",
+        "1.0post1x",
+    ] {
+        PYPI.assert_invalid(invalid, "3.0");
+    }
+}

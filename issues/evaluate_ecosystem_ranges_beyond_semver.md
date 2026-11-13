@@ -50,8 +50,8 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
 1. [x] Ordering per ecosystem, and Go: a domain module giving each ecosystem its version ordering, `in_range` generic
    over it; `Go` compared by Semantic Versioning; the not-evaluated tests move from PyPI to NuGet; verified by the
    domain tests of the Go and NuGet scenarios; makes true VMT-9, VMT-10, VMT-23 (Go row). (autonomous)
-2. [ ] PyPI: PEP 440 parsing and ordering; verified by the PyPI scenarios, one through `forewarn match`; makes true
-   VMT-24, VMT-23 (PyPI row).
+2. [x] PyPI: PEP 440 parsing and ordering; verified by the PyPI scenarios, one through `forewarn match`; makes true
+   VMT-24, VMT-23 (PyPI row). (autonomous)
 3. [ ] Maven: the `ComparableVersion` ordering; verified by the Maven scenarios; makes true VMT-25, VMT-23 (Maven row).
 4. [ ] RubyGems: the `Gem::Version` ordering; verified by the RubyGems scenarios; makes true VMT-26, VMT-23 (RubyGems
    row); the spec set `accepted`.
@@ -77,6 +77,24 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
 
 - red: VMT-9, VMT-23: `evaluates_an_ecosystem_range_of_go_by_semantic_versioning`: the pair of `v1.2.2` was reported
   `RangeNotEvaluated`.
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 2: PyPI
+- done: `Pep440` ordering in the module `version` (epoch, release without trailing zeros, dev/pre/post, local
+  segments, numbers of any length); `PyPI` `ECOSYSTEM` ranges evaluated; the VMT-8 test and scenario moved to NuGet.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`) |
+| docs | VMT-8 scenario in `specs/vulnerability-matching.md`; README unchanged until the last ordering |
+| code review | low, see below |
+
+- red: VMT-9, VMT-23, VMT-24: `evaluates_an_ecosystem_range_of_pypi_by_pep_440` and the ordering tests: the pair of
+  `django` 2.1 was reported `RangeNotEvaluated`; `forewarn match` exited with 0 instead of 1.
 - Code review: no findings
 - not verified: none
 - decisions needed: none
