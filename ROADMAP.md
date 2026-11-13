@@ -65,7 +65,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - State: in issues
 - Issues:
   - [compute_cra_reporting_deadlines](issues/done/compute_cra_reporting_deadlines.md)
-  - [cli_print_reporting_deadlines](issues/cli_print_reporting_deadlines.md)
+  - [cli_print_reporting_deadlines](issues/done/cli_print_reporting_deadlines.md)
   - [tell_overdue_reporting_deadlines](issues/tell_overdue_reporting_deadlines.md)
 
 ## Draft the CRA early warning
