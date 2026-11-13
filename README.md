@@ -32,6 +32,7 @@ forewarn match --refresh offline sbom.cdx.json    # an air-gapped CI: the cache 
 forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
 forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, sending the packages of the SBOM out
 forewarn match --kev kev.json sbom.cdx.json       # a CISA KEV catalog file instead of fetching the catalog
+forewarn match --euvd euvd.json sbom.cdx.json     # an EUVD exploited list file instead of paging the list
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
@@ -52,12 +53,19 @@ catalog and the date it added the CVE as evidence (`exploited` in the JSON repor
 version, release date and number of entries, and when it was downloaded. The catalog is downloaded from CISA
 (`--kev-url` for a mirror) into the directory `cisa-kev` of the same cache, under the same `--refresh` policy, also
 with `--osv` or `--osv-api`: the request names no component. `--kev <file>` reads a downloaded catalog
-(`known_exploited_vulnerabilities.json`) instead, for an air-gapped CI; `--no-kev` flags nothing, and the report says
-so.
+(`known_exploited_vulnerabilities.json`) instead, for an air-gapped CI; `--no-kev` flags nothing against it.
+
+The vulnerabilities ENISA's European Vulnerability Database (EUVD) knows to be exploited flag the matches the same
+way, after the catalog, an entry per CVE of each EUVD record dated by its `exploitedSince`; the report gives their
+number and when they were downloaded. EUVD publishes no single file: the list is paged from its search
+(`exploited=true`, 100 records a page, about 18 requests; `--euvd-url` for a mirror) into the directory
+`euvd-exploited` of the same cache, under the same `--refresh` policy: the requests name no component. `--euvd <file>`
+reads a file of the shape `{"items": [...]}` instead (a copy of `euvd-exploited/exploited.json`), for an air-gapped
+CI; `--no-euvd` flags nothing against it. With `--no-kev` and `--no-euvd`, the report says that no list was used.
 
 It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
-`--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records or the KEV catalog
-cannot be read, fetched or queried; and otherwise as `check` does.
+`--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records, the KEV catalog or the EUVD
+list cannot be read, fetched or queried; and otherwise as `check` does.
 
 ## License
 

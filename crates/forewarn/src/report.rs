@@ -11,7 +11,8 @@ use forewarn_domain::matching::{ComponentReason, ComponentRef, PairReason, Reaso
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
-use forewarn_exploited::kev::Catalog;
+use forewarn_domain::date::Date;
+use forewarn_domain::exploited::ExploitedList;
 use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
@@ -150,26 +151,20 @@ pub enum Source<'a> {
     Local { path: &'a Path, records: usize },
 }
 
-/// Where an exploited list the matches are flagged against came from (MCH-33).
-pub enum ExploitedSource<'a> {
-    /// A KEV catalog file the user gave with `--kev`.
-    Local {
-        catalog: &'a Catalog,
-        path: &'a Path,
-    },
-    /// The KEV catalog, fetched into the cache, with the freshness of its download.
-    Fetched {
-        catalog: &'a Catalog,
-        freshness: &'a Freshness,
-    },
+/// An exploited list the matches are flagged against, and where it came from (MCH-33).
+pub struct ExploitedSource<'a> {
+    pub list: &'a ExploitedList,
+    /// The version and the release date of a catalog that gives them (CISA KEV); none for EUVD.
+    pub release: Option<(&'a str, Date)>,
+    pub origin: Origin<'a>,
 }
 
-impl ExploitedSource<'_> {
-    pub fn catalog(&self) -> &Catalog {
-        match self {
-            Self::Local { catalog, .. } | Self::Fetched { catalog, .. } => catalog,
-        }
-    }
+/// Where an exploited list came from.
+pub enum Origin<'a> {
+    /// A file the user gave (`--kev`, `--euvd`).
+    Local(&'a Path),
+    /// Fetched into the cache, with the freshness of its download.
+    Fetched(&'a Freshness),
 }
 
 /// A time of a download or of a query in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time
@@ -322,27 +317,25 @@ fn push_source(text: &mut String, source: &Source) {
     }
 }
 
-/// Pushes an exploited list with its catalog's version and release date, its entry count and where it came from
-/// (MCH-33).
+/// Pushes an exploited list with its catalog's version and release date when it gives them, its entry count and where
+/// it came from (MCH-33).
 fn push_exploited_source(text: &mut String, source: &ExploitedSource) {
-    let catalog = source.catalog();
     text.push_str("  ");
-    push_escaped(text, &catalog.list.name);
-    text.push_str(": catalog ");
-    push_escaped(text, &catalog.version);
-    let count = catalog.list.entries.len();
-    let _ = write!(
-        text,
-        " released {}, {count} {}, ",
-        catalog.released,
-        entries(count)
-    );
-    match source {
-        ExploitedSource::Local { path, .. } => {
+    push_escaped(text, &source.list.name);
+    text.push_str(": ");
+    if let Some((version, released)) = source.release {
+        text.push_str("catalog ");
+        push_escaped(text, version);
+        let _ = write!(text, " released {released}, ");
+    }
+    let count = source.list.entries.len();
+    let _ = write!(text, "{count} {}, ", entries(count));
+    match source.origin {
+        Origin::Local(path) => {
             text.push_str("local ");
             push_escaped(text, &path.to_string_lossy());
         }
-        ExploitedSource::Fetched { freshness, .. } => push_download(text, freshness),
+        Origin::Fetched(freshness) => push_download(text, freshness),
     }
     text.push('\n');
 }
@@ -447,19 +440,18 @@ pub fn matching_json(
 
 /// An exploited list in the JSON report (MCH-16).
 fn exploited_list_json(source: &ExploitedSource) -> Value {
-    let catalog = source.catalog();
     let mut list = json!({
-        "name": catalog.list.name,
-        "version": catalog.version,
-        "released": catalog.released.to_string(),
-        "entryCount": catalog.list.entries.len(),
+        "name": source.list.name,
+        "version": source.release.map(|(version, _)| version),
+        "released": source.release.map(|(_, released)| released.to_string()),
+        "entryCount": source.list.entries.len(),
     });
-    match source {
-        ExploitedSource::Local { path, .. } => {
+    match source.origin {
+        Origin::Local(path) => {
             list["kind"] = json!("local");
             list["path"] = json!(path.to_string_lossy());
         }
-        ExploitedSource::Fetched { freshness, .. } => {
+        Origin::Fetched(freshness) => {
             list["kind"] = json!("fetched");
             list["url"] = json!(freshness.url);
             list["downloadedAt"] = json!(utc(freshness.downloaded_at));

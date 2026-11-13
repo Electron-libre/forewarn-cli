@@ -113,6 +113,26 @@ impl Mirror {
         );
     }
 
+    /// Serves at `/api/search` one page of EUVD naming `CVE-2020-26235` (`time` 0.1.43), exploited since 2021-12-11.
+    fn serve_euvd(&self) {
+        let page = json!({
+            "items": [{
+                "id": "EUVD-2020-23577",
+                "aliases": "GHSA-wcg3-cvx6-7396\nCVE-2020-26235\n",
+                "exploitedSince": "Dec 11, 2021, 12:00:00 AM",
+            }],
+            "total": 1,
+        });
+        self.routes.lock().expect("the routes").insert(
+            EUVD_PAGE_0.to_owned(),
+            (serde_json::to_vec(&page).expect("serializes"), None),
+        );
+    }
+
+    fn euvd_url(&self) -> String {
+        format!("{}/api/search", self.base)
+    }
+
     fn kev_url(&self) -> String {
         format!("{}/kev.json", self.base)
     }
@@ -121,6 +141,9 @@ impl Mirror {
         self.requests.lock().expect("the requests").clone()
     }
 }
+
+/// The path of page 0 of the EUVD search.
+const EUVD_PAGE_0: &str = "/api/search?exploited=true&size=100&page=0";
 
 const LAST_MODIFIED: &str = "Wed, 11 Nov 2026 08:00:00 GMT";
 
@@ -168,6 +191,7 @@ fn path(path: &Path) -> &str {
 fn fetch(cache: &Path, mirror: &Mirror, args: &[&str], sbom: &[u8]) -> Run {
     let mut all = vec![
         "match",
+        "--no-euvd",
         "--no-kev",
         "--cache",
         path(cache),
@@ -425,7 +449,7 @@ fn osv_paths_exclude_the_options_of_the_fetch() {
         vec!["--refresh", "always"],
         vec!["--osv-url", "http://127.0.0.1:9"],
     ] {
-        let mut args = vec!["match", "--osv", path(&osv), "--no-kev"];
+        let mut args = vec!["match", "--no-euvd", "--osv", path(&osv), "--no-kev"];
         args.extend(extra.iter());
         args.push("-");
         let run = run_with(&args, Some(&crates()), &[]);
@@ -439,7 +463,14 @@ fn the_default_cache_is_under_xdg_cache_home_else_home() {
     let mirror = crates_io_mirror();
     let xdg = TempDir::new().expect("a directory");
     let home = TempDir::new().expect("a directory");
-    let url = ["match", "--no-kev", "--osv-url", &mirror.base, "-"];
+    let url = [
+        "match",
+        "--no-euvd",
+        "--no-kev",
+        "--osv-url",
+        &mirror.base,
+        "-",
+    ];
     let run = run_with(
         &url,
         Some(&crates()),
@@ -468,7 +499,14 @@ fn no_cache_directory_is_an_invalid_argument_unless_nothing_is_fetched() {
     let mirror = crates_io_mirror();
     let unset = [("XDG_CACHE_HOME", None), ("HOME", None)];
     let run = run_with(
-        &["match", "--no-kev", "--osv-url", &mirror.base, "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv-url",
+            &mirror.base,
+            "-",
+        ],
         Some(&crates()),
         &unset,
     );
@@ -479,7 +517,7 @@ fn no_cache_directory_is_an_invalid_argument_unless_nothing_is_fetched() {
     assert_eq!(mirror.requests(), Vec::<String>::new());
     let osv = Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-osv/tests/fixtures");
     let fetched_kev = run_with(
-        &["match", "--osv", path(&osv), "-"],
+        &["match", "--no-euvd", "--osv", path(&osv), "-"],
         Some(&crates()),
         &unset,
     );
@@ -490,7 +528,7 @@ fn no_cache_directory_is_an_invalid_argument_unless_nothing_is_fetched() {
         fetched_kev.stderr
     );
     for kev in [vec!["--no-kev"], vec!["--kev", KEV_FIXTURE]] {
-        let mut args = vec!["match", "--osv", path(&osv)];
+        let mut args = vec!["match", "--no-euvd", "--osv", path(&osv)];
         args.extend(kev.iter());
         args.push("-");
         let local = run_with(&args, Some(&crates()), &unset);
@@ -506,7 +544,14 @@ fn a_relative_xdg_cache_home_is_ignored() {
     let work = TempDir::new().expect("a directory");
     let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_forewarn"));
     let output = command
-        .args(["match", "--no-kev", "--osv-url", &mirror.base, "-"])
+        .args([
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv-url",
+            &mirror.base,
+            "-",
+        ])
         .current_dir(work.path())
         .env("XDG_CACHE_HOME", ".cache")
         .env("HOME", home.path())
@@ -530,7 +575,14 @@ fn a_relative_xdg_cache_home_is_ignored() {
 /// Runs `forewarn match` with `args` on `sbom`, the cache in `cache`, the archives and the KEV catalog from `mirror`.
 fn fetch_with_kev(cache: &Path, mirror: &Mirror, args: &[&str], sbom: &[u8]) -> Run {
     let kev_url = mirror.kev_url();
-    let mut all = vec!["match", "--cache", path(cache), "--kev-url", &kev_url];
+    let mut all = vec![
+        "match",
+        "--no-euvd",
+        "--cache",
+        path(cache),
+        "--kev-url",
+        &kev_url,
+    ];
     all.extend_from_slice(args);
     all.push("-");
     run_with(&all, Some(sbom), &[])
@@ -660,6 +712,7 @@ fn a_kev_file_or_no_kev_sends_no_request_for_the_catalog() {
         let cache = TempDir::new().expect("a cache");
         let mut args = vec![
             "match",
+            "--no-euvd",
             "--cache",
             path(cache.path()),
             "--osv-url",
@@ -685,10 +738,186 @@ fn the_kev_options_exclude_each_other() {
         vec!["--kev", KEV_FIXTURE, "--kev-url", "http://127.0.0.1:9"],
         vec!["--no-kev", "--kev-url", "http://127.0.0.1:9"],
     ] {
-        let mut args = vec!["match", "--osv", KEV_FIXTURE];
+        let mut args = vec!["match", "--no-euvd", "--osv", KEV_FIXTURE];
         args.extend(kev.iter());
         args.push("-");
         let run = run_with(&args, Some(&crates()), &[]);
         assert_eq!(run.code, 2, "{kev:?}: {}", run.stderr);
     }
+}
+
+/// Runs `forewarn match` with `args` on `sbom`, the cache in `cache`, the EUVD list and, unless `args` names `--kev`
+/// or `--no-kev`, the KEV catalog from `mirror`.
+fn fetch_with_euvd(cache: &Path, mirror: &Mirror, args: &[&str], sbom: &[u8]) -> Run {
+    let (kev_url, euvd_url) = (mirror.kev_url(), mirror.euvd_url());
+    let mut all = vec!["match", "--cache", path(cache), "--euvd-url", &euvd_url];
+    if !args.iter().any(|arg| ["--kev", "--no-kev"].contains(arg)) {
+        all.extend(["--kev-url", &kev_url]);
+    }
+    all.extend_from_slice(args);
+    all.push("-");
+    run_with(&all, Some(sbom), &[])
+}
+
+fn osv_fixtures() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-osv/tests/fixtures")
+}
+
+// spec: MCH-H6, MCH-36, MCH-33, MCH-29, MCH-40, MCH-41, MCH-16
+#[test]
+fn a_ci_job_pages_the_euvd_list_into_its_cache_and_sees_its_evidence_after_kev() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = Mirror::new();
+    mirror.serve_kev();
+    mirror.serve_euvd();
+    let osv = osv_fixtures();
+    let json = fetch_with_euvd(
+        cache.path(),
+        &mirror,
+        &["--osv", path(&osv), "--format", "json"],
+        &crates(),
+    );
+    assert_eq!(json.code, 6, "{}", json.stderr);
+    assert_eq!(mirror.requests(), ["/kev.json", EUVD_PAGE_0]);
+    assert!(cache.path().join("euvd-exploited").is_dir());
+    let report = json_report(&json);
+    let euvd = &report["exploitedLists"][1];
+    let at = euvd["downloadedAt"].as_str().expect("a time").to_owned();
+    OffsetDateTime::parse(&at, &Rfc3339).expect("RFC 3339");
+    assert_eq!(report["exploitedLists"][0]["name"], "CISA KEV");
+    assert_eq!(
+        *euvd,
+        json!({
+            "kind": "fetched",
+            "name": "EUVD",
+            "version": null,
+            "released": null,
+            "url": mirror.euvd_url(),
+            "downloadedAt": at,
+            "lastModified": null,
+            "entryCount": 1,
+        })
+    );
+    assert_eq!(
+        report["affected"][0]["exploited"],
+        json!([
+            {"list": "CISA KEV", "cve": "CVE-2020-26235", "dateAdded": "2021-12-10"},
+            {"list": "EUVD", "cve": "CVE-2020-26235", "dateAdded": "2021-12-11"},
+        ])
+    );
+    let human = fetch_with_euvd(cache.path(), &mirror, &["--osv", path(&osv)], &crates());
+    assert_eq!(human.code, 6, "{}", human.stderr);
+    assert!(
+        human.stdout.contains(&format!(
+            "\n  EUVD: 1 entry, downloaded {at} from {}\n",
+            mirror.euvd_url()
+        )),
+        "{}",
+        human.stdout
+    );
+    assert!(
+        human.stdout.contains(
+            "actively exploited: CISA KEV CVE-2020-26235 added 2021-12-10; EUVD CVE-2020-26235 added 2021-12-11\n"
+        ),
+        "{}",
+        human.stdout
+    );
+}
+
+// spec: MCH-36, MCH-41
+#[test]
+fn the_cached_euvd_list_is_read_back_offline_without_a_request() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = Mirror::new();
+    mirror.serve_euvd();
+    let osv = osv_fixtures();
+    let args = ["--osv", path(&osv), "--no-kev", "--format", "json"];
+    let first = fetch_with_euvd(cache.path(), &mirror, &args, &crates());
+    assert_eq!(first.code, 6, "{}", first.stderr);
+    let offline = [&args[..], &["--refresh", "offline"]].concat();
+    let second = fetch_with_euvd(cache.path(), &mirror, &offline, &crates());
+    assert_eq!(second.code, 6, "{}", second.stderr);
+    assert_eq!(mirror.requests(), [EUVD_PAGE_0]);
+    assert_eq!(
+        json_report(&second)["exploitedLists"],
+        json_report(&first)["exploitedLists"]
+    );
+}
+
+// spec: MCH-38, MCH-37
+#[test]
+fn an_euvd_file_or_no_euvd_sends_no_request_to_euvd() {
+    let mirror = Mirror::new();
+    mirror.serve_euvd();
+    let osv = osv_fixtures();
+    let directory = TempDir::new().expect("a directory");
+    let file = directory.path().join("euvd.json");
+    fs::write(&file, r#"{"items": []}"#).expect("written");
+    let euvd_url = mirror.euvd_url();
+    for euvd in [vec!["--euvd", path(&file)], vec!["--no-euvd"]] {
+        let mut args = vec!["match", "--osv", path(&osv), "--kev", KEV_FIXTURE];
+        args.extend(euvd.iter());
+        args.push("-");
+        let run = run_with(&args, Some(&crates()), &[]);
+        assert_eq!(run.code, 1, "{euvd:?}: {}", run.stderr);
+    }
+    let mut paged = vec!["match", "--osv", path(&osv), "--kev", KEV_FIXTURE];
+    let cache = TempDir::new().expect("a cache");
+    paged.extend(["--cache", path(cache.path()), "--euvd-url", &euvd_url, "-"]);
+    assert_eq!(run_with(&paged, Some(&crates()), &[]).code, 6);
+    assert_eq!(
+        mirror.requests(),
+        [EUVD_PAGE_0],
+        "paged only without --euvd nor --no-euvd"
+    );
+}
+
+// spec: MCH-10, MCH-14, MCH-36
+#[test]
+fn an_euvd_list_that_cannot_be_paged_is_named_and_exits_with_5() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = Mirror::new();
+    let osv = osv_fixtures();
+    let run = fetch_with_euvd(
+        cache.path(),
+        &mirror,
+        &["--osv", path(&osv), "--no-kev"],
+        &crates(),
+    );
+    assert_eq!(run.code, 5, "{}", run.stderr);
+    assert_eq!(run.stdout, "");
+    assert_eq!(run.stderr.lines().count(), 1, "{}", run.stderr);
+    assert!(
+        run.stderr.contains("EUVD") && run.stderr.contains("cannot download"),
+        "{}",
+        run.stderr
+    );
+}
+
+// spec: MCH-10
+#[test]
+fn the_euvd_options_exclude_each_other_and_cache_applies_to_the_euvd_list() {
+    for euvd in [
+        vec!["--euvd", KEV_FIXTURE, "--no-euvd"],
+        vec!["--euvd", KEV_FIXTURE, "--euvd-url", "http://127.0.0.1:9"],
+        vec!["--no-euvd", "--euvd-url", "http://127.0.0.1:9"],
+        vec!["--no-euvd", "--cache", "cache"],
+    ] {
+        let mut args = vec!["match", "--osv", KEV_FIXTURE, "--kev", KEV_FIXTURE];
+        args.extend(euvd.iter());
+        args.push("-");
+        let run = run_with(&args, Some(&crates()), &[]);
+        assert_eq!(run.code, 2, "{euvd:?}: {}", run.stderr);
+    }
+    let cache = TempDir::new().expect("a cache");
+    let mirror = Mirror::new();
+    mirror.serve_euvd();
+    let osv = osv_fixtures();
+    let run = fetch_with_euvd(
+        cache.path(),
+        &mirror,
+        &["--osv", path(&osv), "--kev", KEV_FIXTURE],
+        &crates(),
+    );
+    assert_eq!(run.code, 6, "{}", run.stderr);
 }

@@ -137,7 +137,14 @@ fn crates() -> Vec<u8> {
 
 /// Runs `forewarn match --osv-api` with `args` on `sbom` from standard input, the API at `api`.
 fn query(api: &OsvApi, args: &[&str], sbom: &[u8]) -> Run {
-    let mut all = vec!["match", "--no-kev", "--osv-api", "--osv-api-url", &api.base];
+    let mut all = vec![
+        "match",
+        "--no-euvd",
+        "--no-kev",
+        "--osv-api",
+        "--osv-api-url",
+        &api.base,
+    ];
     all.extend_from_slice(args);
     all.push("-");
     run_with(&all, Some(sbom), &[])
@@ -230,6 +237,7 @@ fn without_the_flag_the_api_is_not_queried() {
     let run = run_with(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--cache",
             cache.path().to_str().expect("UTF-8"),
@@ -255,14 +263,20 @@ fn the_api_excludes_the_options_of_the_archives_and_the_local_records() {
         vec!["--refresh", "always"],
         vec!["--osv-url", "http://127.0.0.1:9"],
     ] {
-        let mut args = vec!["match", "--osv-api", "--no-kev"];
+        let mut args = vec!["match", "--no-euvd", "--osv-api", "--no-kev"];
         args.extend(extra.iter());
         args.push("-");
         let run = run_with(&args, Some(&crates()), &[]);
         assert_eq!(run.code, 2, "{extra:?}: {}", run.stderr);
     }
     let run = run_with(
-        &["match", "--osv-api-url", "http://127.0.0.1:9", "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--osv-api-url",
+            "http://127.0.0.1:9",
+            "-",
+        ],
         Some(&crates()),
         &[],
     );
@@ -277,6 +291,7 @@ fn the_api_needs_no_cache_directory() {
     let run = run_with(
         &[
             "match",
+            "--no-euvd",
             "--osv-api",
             "--no-kev",
             "--osv-api-url",
@@ -310,7 +325,7 @@ fn a_failed_query_is_named_and_exits_with_5() {
 // spec: MCH-28
 #[test]
 fn the_help_says_what_the_api_receives() {
-    let run = run_with(&["match", "--help"], None, &[]);
+    let run = run_with(&["match", "--no-euvd", "--help"], None, &[]);
 
     assert_eq!(run.code, 0, "{}", run.stderr);
     let help = run.stdout.split_whitespace().collect::<Vec<_>>().join(" ");

@@ -1,7 +1,7 @@
 ---
 id: MCH
 status: accepted
-adrs: [0001, 0004, 0006, 0008]
+adrs: [0001, 0004, 0006, 0008, 0009]
 ---
 
 # The `forewarn match` command
@@ -49,12 +49,21 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   (KEV-3) under the refresh policy of MCH-11, also with `--osv` or `--osv-api`, and flag the matches against it.
 - **MCH-31** (deterministic) `forewarn match --kev <path> <sbom>` must flag the matches against the KEV catalog of that
   file (KEV-1) and send no request for the catalog.
-- **MCH-32** (deterministic) `forewarn match --no-kev <sbom>` must flag no match, send no request for the catalog, and
-  print that no exploited list was used.
+- **MCH-32** (deterministic) `forewarn match --no-kev <sbom>` must flag no match against the CISA KEV catalog and send
+  no request for it.
 - **MCH-33** (deterministic) `forewarn match <sbom>` must print the freshness of each exploited list it used: its name,
-  the version and the release date of the catalog (KEV-2), its number of entries, and, for a fetched catalog, the UTC
-  time it was downloaded, its URL and its `Last-Modified` when the server sent one (KEV-3), or, for a file given with
-  `--kev`, its path.
+  for CISA KEV the version and the release date of the catalog (KEV-2), its number of entries, and, for a fetched
+  list, the UTC time it was downloaded, its URL and its `Last-Modified` when the server sent one (KEV-3, EUV-3), or,
+  for a file given with `--kev` or `--euvd`, its path.
+- **MCH-36** (deterministic) Without `--euvd` nor `--no-euvd`, `forewarn match <sbom>` must fetch the exploited list of
+  EUVD (EUV-3) under the refresh policy of MCH-11, also with `--osv` or `--osv-api`, and flag the matches against it,
+  after the CISA KEV catalog.
+- **MCH-37** (deterministic) `forewarn match --euvd <path> <sbom>` must flag the matches against the EUVD list of that
+  file (EUV-1) and send no request to EUVD.
+- **MCH-38** (deterministic) `forewarn match --no-euvd <sbom>` must flag no match against EUVD and send no request to
+  it.
+- **MCH-39** (deterministic) `forewarn match --no-kev --no-euvd <sbom>` must flag no match and print that no exploited
+  list was used.
 
 ### Contract
 
@@ -62,9 +71,9 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
 
   | Situation | Exit code |
   |---|---|
-  | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--osv-url` or `--osv-api`, `--osv-api` with `--osv-url`, `--osv-api-url` without `--osv-api`, `--kev` with `--no-kev` or `--kev-url`, `--no-kev` with `--kev-url`, `--cache` or `--refresh` when nothing is fetched (`--osv` or `--osv-api`, with `--kev` or `--no-kev`), no SBOM given, no cache directory MCH-12 can find when an OSV archive or the KEV catalog is fetched) | 2 |
+  | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--osv-url` or `--osv-api`, `--osv-api` with `--osv-url`, `--osv-api-url` without `--osv-api`, `--kev` with `--no-kev` or `--kev-url`, `--no-kev` with `--kev-url`, `--euvd` with `--no-euvd` or `--euvd-url`, `--no-euvd` with `--euvd-url`, `--cache` or `--refresh` when nothing is fetched (`--osv` or `--osv-api`, with `--kev` or `--no-kev`, and with `--euvd` or `--no-euvd`), no SBOM given, no cache directory MCH-12 can find when an OSV archive, the KEV catalog or the EUVD list is fetched) | 2 |
   | the SBOM cannot be read (any error of SBR-7) | 3 |
-  | the OSV records cannot be read (OSR-9), fetched (OSR-18) or queried (OSR-31), or the KEV catalog cannot be read (KEV-16) or fetched (KEV-15) | 5 |
+  | the OSV records cannot be read (OSR-9), fetched (OSR-18) or queried (OSR-31), the KEV catalog cannot be read (KEV-16) or fetched (KEV-15), or the EUVD list cannot be read (EUV-16) or fetched (EUV-15) | 5 |
   | the report cannot be written to standard output, a closed pipe aside (MCH-20) | 4 |
   | a match is actively exploited (MCH-29), with or without `--allow-affected` | 6 |
   | a component is affected, without `--allow-affected` | 1 |
@@ -77,10 +86,10 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   when `XDG_CACHE_HOME` is an absolute path, else `$HOME/.cache/forewarn/osv` when `HOME` is set and not empty.
 - **MCH-13** (deterministic) The archives must be downloaded from `--osv-url <url>` when given, else from the OSV
   bucket of OSR-14.
-- **MCH-14** (deterministic) An SBOM, OSV records or a KEV catalog that cannot be read, fetched or queried must print
-  nothing on standard output and one line on standard error naming the path of the SBOM (`standard input` for `-`),
-  the file, the ecosystem, the OSV API or `CISA KEV`, and the error of SBR-7, OSR-9, OSR-18, OSR-31, KEV-15 or
-  KEV-16.
+- **MCH-14** (deterministic) An SBOM, OSV records, a KEV catalog or an EUVD list that cannot be read, fetched or
+  queried must print nothing on standard output and one line on standard error naming the path of the SBOM (`standard
+  input` for `-`), the file, the ecosystem, the OSV API, `CISA KEV` or `EUVD`, and the error of SBR-7, OSR-9, OSR-18,
+  OSR-31, KEV-15, KEV-16, EUV-15 or EUV-16.
 - **MCH-15** (deterministic) The report, in either format, must be printed on standard output and nothing else on
   standard error.
 - **MCH-20** (deterministic) A report that cannot be written to standard output must print one line on standard error
@@ -93,7 +102,7 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   | `componentCount` | the number of components matched, nested ones included |
   | `cleanCount` | the number of clean components (MCH-3) |
   | `osv` | an array, in the order of MCH-5 or of the `--osv` paths, of objects `{"kind": "archive", "ecosystem", "url", "downloadedAt", "lastModified", "recordCount"}` (`downloadedAt` in RFC 3339, UTC, to the second, ending in `Z`; `lastModified` a string or `null`), `{"kind": "api", "url", "queriedAt", "recordCount"}` (`queriedAt` as `downloadedAt`) or `{"kind": "local", "path", "recordCount"}` (`recordCount` the number of MCH-22) |
-  | `exploitedLists` | an array of objects `{"kind": "fetched", "name", "version", "released", "url", "downloadedAt", "lastModified", "entryCount"}` or `{"kind": "local", "name", "version", "released", "path", "entryCount"}` (`released` a date `YYYY-MM-DD`, `downloadedAt` and `lastModified` as in `osv`), empty with `--no-kev` |
+  | `exploitedLists` | an array of objects `{"kind": "fetched", "name", "version", "released", "url", "downloadedAt", "lastModified", "entryCount"}` or `{"kind": "local", "name", "version", "released", "path", "entryCount"}` in the order of MCH-36 (`version` a string and `released` a date `YYYY-MM-DD` for CISA KEV, both `null` for EUVD, `downloadedAt` and `lastModified` as in `osv`), empty with `--no-kev` and `--no-euvd` |
   | `exploitedCount` | the number of matches actively exploited (MCH-29) |
   | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated), `exploited` (an array of objects `{"list", "cve", "dateAdded"}`, in the order of EXF-5, `dateAdded` a date `YYYY-MM-DD` or `null`, empty when no list names the match) |
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
@@ -116,6 +125,10 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   of KEV-10.
 - **MCH-35** (deterministic) The fetched KEV catalog must be kept in the directory `cisa-kev` of the cache directory of
   MCH-12, beside the OSV archives, so that a later run with `--refresh offline` reads it back.
+- **MCH-40** (deterministic) The EUVD list must be paged from `--euvd-url <url>` when given, else from the URL of
+  EUV-7.
+- **MCH-41** (deterministic) The fetched EUVD list must be kept in the directory `euvd-exploited` of the cache
+  directory of MCH-12 (EUV-14), so that a later run with `--refresh offline` reads it back.
 
 ## Scenarios
 
@@ -146,6 +159,12 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   request is sent, `exploitedLists` gives the file with its path, version and release date, the match of
   `log4j-core` carries `"exploited": [{"list": "CISA KEV", "cve": "CVE-2021-44228", "dateAdded": "2021-12-10"}]`,
   that of `time` an empty `exploited`, and `exploitedCount` is 1.
+- **MCH-H6** (happy; MCH-36, MCH-33, MCH-29, MCH-40, MCH-41, MCH-16) Given an SBOM with `log4j-core` 2.14.1, a KEV
+  catalog file and an EUVD mirror both naming `CVE-2021-44228`, when a CI job runs `forewarn match --osv records/ --kev
+  kev.json --cache cache/ --euvd-url <mirror> --format json sbom.json`, then the EUVD list is paged into
+  `cache/euvd-exploited`, `exploitedLists` gives `CISA KEV` then `EUVD` with its number of entries, download time and
+  URL, the match of `log4j-core` carries the evidence of `CISA KEV` then of `EUVD` with the date EUVD gives, and the
+  command exits with 6.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.
 - (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no OSV archive
@@ -170,9 +189,23 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   names that file and "not JSON", and the command exits with 5.
 - (MCH-10) Given `--kev` with `--no-kev` or `--kev-url`, or `--no-kev` with `--kev-url`, when the command runs, then it
   exits with 2.
-- (MCH-32, MCH-16) Given `--no-kev`, when an SBOM with an affected component is matched, then the human report says
-  that no exploited list was used, the JSON report gives an empty `exploitedLists`, every `exploited` is empty, no
-  request is sent for the catalog, and the command exits with 1.
+- (MCH-32, MCH-16) Given `--no-kev` and `--no-euvd`, when an SBOM with an affected component is matched, then every
+  `exploited` is empty, no request is sent for the catalog, and the command exits with 1.
+- (MCH-37, MCH-33) Given an air-gapped job with an EUVD file naming `CVE-2021-44228`, when it runs `forewarn match
+  --osv records/ --no-kev --euvd euvd.json sbom.json`, then no request is sent, the report gives `EUVD` with the path
+  and its number of entries, and the `log4j-core` match is marked with `EUVD`.
+- (MCH-38, MCH-39, MCH-16) Given `--no-kev --no-euvd`, when an SBOM with an affected component is matched, then the
+  human report says that no exploited list was used and the JSON report gives an empty `exploitedLists`; given
+  `--no-kev` alone, the EUVD list is paged and used.
+- (MCH-10) Given `--euvd` with `--no-euvd` or `--euvd-url`, or `--no-euvd` with `--euvd-url`, when the command runs,
+  then it exits with 2; given `--osv`, `--kev` and `--no-euvd` with `--cache`, it exits with 2, and given `--osv` and
+  `--kev` alone with `--cache`, it runs and pages the EUVD list.
+- (MCH-10, MCH-14, MCH-37) Given `--euvd` naming a file that is not JSON, when the SBOM is matched, then standard error
+  names that file and "not JSON", and the command exits with 5.
+- (MCH-10, MCH-14, MCH-36) Given an EUVD mirror answering 404, when the SBOM is matched, then standard error names
+  `EUVD` and "cannot download", and the command exits with 5.
+- (MCH-36, MCH-41) Given a cache holding the EUVD list paged by a previous run, when `forewarn match --refresh offline`
+  runs, then no request is sent and the report gives the download time of the previous run.
 - (MCH-30, MCH-35) Given a cache holding the KEV catalog downloaded by a previous run, when `forewarn match --refresh
   offline` runs, then no request is sent and the report gives the download time of the previous run.
 - (MCH-18) Given a KEV catalog whose `catalogVersion` holds an escape sequence, when the human report prints it, then
@@ -215,6 +248,5 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
 - Showing the progress of a download.
 - An environment variable that turns on `--osv-api`: sending the inventory out stays a choice made on the command line.
 - Severity, deadlines and draft early warnings: later milestones.
-- The exploited list of EUVD (`issues/read_euvd_exploited_list.md`): only CISA KEV is wired.
 - Flagging a component or a pair not evaluated (EXF): an exploited CVE among the records not evaluated is not shown.
-- Sending the inventory to fetch the exploited lists: the catalog request names no component.
+- Sending the inventory to fetch the exploited lists: neither the catalog request nor the EUVD pages name a component.

@@ -69,7 +69,15 @@ fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1
     let osv = osv_fixtures();
     let kev = kev_fixture();
     let run = run(
-        &["match", "--osv", path(&osv), "--kev", path(&kev), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--osv",
+            path(&osv),
+            "--kev",
+            path(&kev),
+            "-",
+        ],
         Some(&three_components()),
     );
     assert_eq!(run.code, 1, "{}", run.stderr);
@@ -97,6 +105,7 @@ fn prints_the_same_result_as_json() {
     let run = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -151,6 +160,7 @@ fn reads_several_osv_paths_files_or_directories_in_order() {
     let run = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -191,7 +201,14 @@ fn an_sbom_no_record_affects_is_clean_and_exits_with_0() {
         &json!([component("time", "0.2.23", Some("pkg:cargo/time@0.2.23"))]),
     );
     let run = run(
-        &["match", "--no-kev", "--osv", path(&osv_fixtures()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(&osv_fixtures()),
+            "-",
+        ],
         Some(&input),
     );
     assert_eq!(run.code, 0, "{}", run.stderr);
@@ -209,12 +226,13 @@ fn an_sbom_no_record_affects_is_clean_and_exits_with_0() {
 fn allow_affected_exits_with_0_and_leaves_the_report_unchanged() {
     let osv = osv_fixtures();
     let failing = run(
-        &["match", "--no-kev", "--osv", path(&osv), "-"],
+        &["match", "--no-euvd", "--no-kev", "--osv", path(&osv), "-"],
         Some(&three_components()),
     );
     let allowed = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--allow-affected",
             "--osv",
@@ -246,7 +264,14 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
         )]),
     );
     let human = run(
-        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     );
     assert_eq!(human.code, 0, "{}", human.stderr);
@@ -261,6 +286,7 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
     let json = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -304,6 +330,7 @@ fn a_pypi_component_in_an_ecosystem_range_is_affected() {
     let json = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -344,6 +371,7 @@ fn every_reason_has_its_json_name() {
     let run = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -379,7 +407,14 @@ fn an_unreadable_record_names_its_file_and_exits_with_5() {
     let broken = osv.path().join("broken.json");
     fs::write(&broken, "not json").expect("the file is written");
     let run = run(
-        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&three_components()),
     );
     assert_eq!(run.code, 5);
@@ -393,7 +428,14 @@ fn an_unreadable_record_names_its_file_and_exits_with_5() {
 #[test]
 fn an_unreadable_sbom_names_standard_input_and_exits_with_3() {
     let run = run(
-        &["match", "--no-kev", "--osv", path(&osv_fixtures()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(&osv_fixtures()),
+            "-",
+        ],
         Some(b"not json"),
     );
     assert_eq!(run.code, 3);
@@ -408,6 +450,7 @@ fn an_unreadable_sbom_is_reported_before_the_osv_records() {
     let run = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--osv",
             "/does/not/exist",
@@ -431,6 +474,7 @@ fn invalid_arguments_exit_with_2() {
     for args in [
         vec![
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "xml",
@@ -438,8 +482,8 @@ fn invalid_arguments_exit_with_2() {
             path(&osv),
             "-",
         ],
-        vec!["match", "--no-kev", "--osv", path(&osv)],
-        vec!["match", "--no-kev", "--unknown", "-"],
+        vec!["match", "--no-euvd", "--no-kev", "--osv", path(&osv)],
+        vec!["match", "--no-euvd", "--no-kev", "--unknown", "-"],
     ] {
         let run = run(&args, Some(&input));
         assert_eq!(run.code, 2, "{args:?}: {}", run.stderr);
@@ -449,6 +493,7 @@ fn invalid_arguments_exit_with_2() {
         run(
             &[
                 "match",
+                "--no-euvd",
                 "--no-kev",
                 "--format",
                 "human",
@@ -479,7 +524,14 @@ fn escapes_the_control_characters_of_the_sbom_and_the_records() {
         &json!([component("time", "0.1.43", Some("pkg:cargo/time@0.1.43"))]),
     );
     let run = run(
-        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     );
     assert_eq!(run.code, 1, "{}", run.stderr);
@@ -511,7 +563,14 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
     let osv = records(&[rustsec, mirror]);
     let input = three_components();
     let human = run(
-        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     );
     assert_eq!(human.code, 1, "{}", human.stderr);
@@ -527,6 +586,7 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
     let report = json_report(&run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -578,7 +638,14 @@ fn marks_the_records_that_do_not_affect_the_component_or_were_not_evaluated() {
     let osv = records(&[rustsec, fixed, git]);
     let input = three_components();
     let human = run(
-        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     );
     assert!(
@@ -592,6 +659,7 @@ fn marks_the_records_that_do_not_affect_the_component_or_were_not_evaluated() {
     let report = json_report(&run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -634,6 +702,7 @@ fn a_report_that_cannot_be_written_is_named_and_exits_with_4() {
     let output = Command::new(env!("CARGO_BIN_EXE_forewarn"))
         .args([
             "match",
+            "--no-euvd",
             "--no-kev",
             "--osv",
             path(&osv_fixtures()),
@@ -656,6 +725,7 @@ fn a_record_read_twice_is_matched_once() {
     let run = run(
         &[
             "match",
+            "--no-euvd",
             "--no-kev",
             "--format",
             "json",
@@ -684,7 +754,14 @@ fn a_directory_whose_records_are_in_subdirectories_shows_0_records() {
     )
     .expect("the record is copied");
     let run = run(
-        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&three_components()),
     );
     assert_eq!(run.code, 0, "{}", run.stderr);
@@ -703,7 +780,14 @@ fn an_error_naming_a_file_with_a_newline_stays_on_one_line() {
     let osv = TempDir::new().expect("a temporary directory");
     fs::write(osv.path().join("a\n\u{1b}[2Jb.json"), "not json").expect("the file is written");
     let run = run(
-        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&three_components()),
     );
     assert_eq!(run.code, 5);

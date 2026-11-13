@@ -10,22 +10,21 @@ use std::fs::File;
 use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::slice;
 use std::time::{Duration, SystemTime};
 
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
-use forewarn_domain::exploited::flag_exploited;
+use forewarn_domain::exploited::{ExploitedList, flag_exploited};
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
 use forewarn_domain::vulnerability::Vulnerability;
-use forewarn_exploited::kev;
+use forewarn_exploited::{euvd, kev};
 use forewarn_osv::api::{Api, Package};
 use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
-use report::{ExploitedSource, Source};
+use report::{ExploitedSource, Origin, Source};
 
 /// Check a CycloneDX SBOM for the fields the EU Cyber Resilience Act expects, and match its components against known
 /// vulnerabilities.
@@ -40,9 +39,9 @@ struct Cli {
 enum Command {
     /// Print the spec version of an SBOM and the components missing a supplier, a license or a hash.
     Check(CheckArgs),
-    /// Print the components of an SBOM affected by known OSV vulnerabilities, those the CISA KEV catalog names marked
-    /// actively exploited, and those that could not be evaluated.
-    Match(MatchArgs),
+    /// Print the components of an SBOM affected by known OSV vulnerabilities, those the CISA KEV catalog or EUVD names
+    /// marked actively exploited, and those that could not be evaluated.
+    Match(Box<MatchArgs>),
 }
 
 #[derive(Args)]
@@ -58,6 +57,10 @@ struct CheckArgs {
 }
 
 #[derive(Args)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each bool is a flag of the command line"
+)]
 struct MatchArgs {
     /// The CycloneDX JSON SBOM to match, `-` for standard input (`./-` for a file named `-`).
     sbom: PathBuf,
@@ -65,12 +68,13 @@ struct MatchArgs {
     /// archives; repeat it for several.
     #[arg(long, conflicts_with = "osv_url")]
     osv: Vec<PathBuf>,
-    /// The cache of the OSV archives and of the CISA KEV catalog (`cisa-kev`) [default:
+    /// The cache of the OSV archives, of the CISA KEV catalog (`cisa-kev`) and of the EUVD list (`euvd-exploited`)
+    /// [default:
     /// `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`].
     #[arg(long)]
     cache: Option<PathBuf>,
-    /// When to download an archive or the CISA KEV catalog again: `offline`, `if-missing`, `always`, or when older
-    /// than an age (`30m`, `12h`, `7d`) [default: 1d].
+    /// When to download an archive, the CISA KEV catalog or the EUVD list again: `offline`, `if-missing`, `always`, or
+    /// when older than an age (`30m`, `12h`, `7d`) [default: 1d].
     #[arg(long, value_parser = parse_refresh)]
     refresh: Option<Refresh>,
     /// The URL the OSV archives are downloaded from (`<url>/<ecosystem>/all.zip`), a mirror for example
@@ -88,13 +92,25 @@ struct MatchArgs {
     /// of fetching the catalog into the cache.
     #[arg(long, conflicts_with_all = ["no_kev", "kev_url"])]
     kev: Option<PathBuf>,
-    /// Flag no match as actively exploited: neither fetch nor read a CISA KEV catalog.
+    /// Flag no match against the CISA KEV catalog: neither fetch nor read it.
     #[arg(long, conflicts_with = "kev_url")]
     no_kev: bool,
     /// The URL the CISA KEV catalog is downloaded from, a mirror for example [default:
     /// `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`].
     #[arg(long)]
     kev_url: Option<String>,
+    /// An EUVD exploited list file (`{"items": [...]}`, the pages of its search or a copy of the cache's
+    /// `euvd-exploited/exploited.json`) the matches are flagged against, read instead of paging the list into the
+    /// cache.
+    #[arg(long, conflicts_with_all = ["no_euvd", "euvd_url"])]
+    euvd: Option<PathBuf>,
+    /// Flag no match against the exploited list of EUVD: neither page nor read it.
+    #[arg(long, conflicts_with = "euvd_url")]
+    no_euvd: bool,
+    /// The URL of the EUVD search the exploited list is paged from, a mirror for example [default:
+    /// `https://euvdservices.enisa.europa.eu/api/search`].
+    #[arg(long)]
+    euvd_url: Option<String>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -141,22 +157,29 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
     let fetches_archives = args.osv.is_empty() && !args.osv_api;
     let fetches_kev = args.kev.is_none() && !args.no_kev;
-    if !fetches_archives && !fetches_kev && (args.cache.is_some() || args.refresh.is_some()) {
+    let fetches_euvd = args.euvd.is_none() && !args.no_euvd;
+    let fetches_any = fetches_archives || fetches_kev || fetches_euvd;
+    if !fetches_any && (args.cache.is_some() || args.refresh.is_some()) {
         usage_error(
             clap::error::ErrorKind::ArgumentConflict,
-            "--cache and --refresh apply to what is fetched: neither the OSV archives (--osv, --osv-api) nor the \
-             CISA KEV catalog (--kev, --no-kev) are",
+            "--cache and --refresh apply to what is fetched: neither the OSV archives (--osv, --osv-api), the \
+             CISA KEV catalog (--kev, --no-kev) nor the EUVD list (--euvd, --no-euvd) are",
         );
     }
-    let cache = (fetches_archives || fetches_kev).then(|| cache_directory(args, fetches_archives));
+    let cache =
+        fetches_any.then(|| cache_directory(args, fetches_archives, fetches_kev, fetches_euvd));
     let refresh = args.refresh.unwrap_or(DEFAULT_REFRESH);
     let archives = cache
         .clone()
         .filter(|_| fetches_archives)
         .map(|cache| archives(args, cache, refresh));
     let feed = cache
+        .clone()
         .filter(|_| fetches_kev)
         .map(|cache| kev_feed(args, cache, refresh));
+    let euvd_feed = cache
+        .filter(|_| fetches_euvd)
+        .map(|cache| euvd_feed(args, cache, refresh));
     let sbom = read_sbom(&args.sbom)?;
     let mut records = Records::default();
     let mut fetched = Vec::new();
@@ -182,26 +205,18 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         let read = read_osv(path).map_err(|error| no_records(&error))?;
         local.push((path, records.add(read)));
     }
-    // The catalog comes after the OSV records, so that a local error is reported before a download.
-    let catalog = match (&args.kev, feed) {
-        (Some(path), _) => Some(KevCatalog::Local(
-            kev::read_file(path).map_err(|error| no_records(&error))?,
-            path,
-        )),
-        (None, Some(feed)) => Some(KevCatalog::Fetched(
-            feed.fetch(SystemTime::now)
-                .map_err(|error| no_records(&error))?,
-        )),
-        (None, None) => None,
-    };
-    let lists = catalog
-        .as_ref()
-        .map_or(&[][..], |catalog| slice::from_ref(&catalog.catalog().list));
+    // The exploited lists come after the OSV records, so that a local error is reported before a download.
+    let (catalog, euvd_list) = exploited_lists(args, feed, euvd_feed)?;
+    // CISA KEV, then EUVD: the order of the evidence (EXF-5, MCH-36).
+    let exploited: Vec<ExploitedSource> = catalog
+        .iter()
+        .map(KevCatalog::source)
+        .chain(euvd_list.iter().map(EuvdList::source))
+        .collect();
     let matching = flag_exploited(
         match_components(&sbom.components, &records.vulnerabilities),
-        lists,
+        exploited.iter().map(|source| source.list),
     );
-    let exploited: Vec<ExploitedSource> = catalog.iter().map(KevCatalog::source).collect();
     let sources: Vec<Source> = fetched
         .iter()
         .map(|(ecosystem, freshness, records)| Source::Archive {
@@ -228,6 +243,42 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
 }
 
+/// The CISA KEV catalog and the EUVD list of a run, the files given read before a list is fetched (MCH-30, MCH-31,
+/// MCH-36, MCH-37).
+fn exploited_lists(
+    args: &MatchArgs,
+    kev_feed: Option<kev::Feed>,
+    euvd_feed: Option<euvd::Feed>,
+) -> Result<(Option<KevCatalog<'_>>, Option<EuvdList<'_>>), u8> {
+    let mut catalog = match &args.kev {
+        Some(path) => Some(KevCatalog::Local(
+            kev::read_file(path).map_err(|error| no_records(&error))?,
+            path,
+        )),
+        None => None,
+    };
+    let mut euvd_list = match &args.euvd {
+        Some(path) => Some(EuvdList::Local(
+            euvd::read_file(path).map_err(|error| no_records(&error))?,
+            path,
+        )),
+        None => None,
+    };
+    if let Some(feed) = kev_feed {
+        catalog = Some(KevCatalog::Fetched(
+            feed.fetch(SystemTime::now)
+                .map_err(|error| no_records(&error))?,
+        ));
+    }
+    if let Some(feed) = euvd_feed {
+        euvd_list = Some(EuvdList::Fetched(
+            feed.fetch(SystemTime::now)
+                .map_err(|error| no_records(&error))?,
+        ));
+    }
+    Ok((catalog, euvd_list))
+}
+
 /// The CISA KEV catalog of a run: a file given with `--kev`, or fetched into the cache (MCH-30, MCH-31).
 enum KevCatalog<'a> {
     Local(kev::Catalog, &'a Path),
@@ -235,20 +286,35 @@ enum KevCatalog<'a> {
 }
 
 impl KevCatalog<'_> {
-    fn catalog(&self) -> &kev::Catalog {
-        match self {
-            Self::Local(catalog, _) => catalog,
-            Self::Fetched(fetched) => &fetched.catalog,
+    fn source(&self) -> ExploitedSource<'_> {
+        let (catalog, origin) = match self {
+            Self::Local(catalog, path) => (catalog, Origin::Local(path)),
+            Self::Fetched(fetched) => (&fetched.catalog, Origin::Fetched(&fetched.freshness)),
+        };
+        ExploitedSource {
+            list: &catalog.list,
+            release: Some((&catalog.version, catalog.released)),
+            origin,
         }
     }
+}
 
+/// The exploited list of EUVD of a run: a file given with `--euvd`, or paged into the cache (MCH-36, MCH-37).
+enum EuvdList<'a> {
+    Local(ExploitedList, &'a Path),
+    Fetched(euvd::FetchedList),
+}
+
+impl EuvdList<'_> {
     fn source(&self) -> ExploitedSource<'_> {
-        match self {
-            Self::Local(catalog, path) => ExploitedSource::Local { catalog, path },
-            Self::Fetched(fetched) => ExploitedSource::Fetched {
-                catalog: &fetched.catalog,
-                freshness: &fetched.freshness,
-            },
+        let (list, origin) = match self {
+            Self::Local(list, path) => (list, Origin::Local(path)),
+            Self::Fetched(fetched) => (&fetched.list, Origin::Fetched(&fetched.freshness)),
+        };
+        ExploitedSource {
+            list,
+            release: None,
+            origin,
         }
     }
 }
@@ -264,9 +330,14 @@ fn usage_error(kind: clap::error::ErrorKind, message: &str) -> ! {
         .exit()
 }
 
-/// The cache directory of MCH-12; exits with 2 when none can be found, naming `--kev` and `--no-kev` when only the
-/// CISA KEV catalog needs it.
-fn cache_directory(args: &MatchArgs, fetches_archives: bool) -> PathBuf {
+/// The cache directory of MCH-12; exits with 2 when none can be found, naming the options that fetch no exploited list
+/// when only those lists need it.
+fn cache_directory(
+    args: &MatchArgs,
+    fetches_archives: bool,
+    fetches_kev: bool,
+    fetches_euvd: bool,
+) -> PathBuf {
     args.cache
         .clone()
         .or_else(default_cache)
@@ -274,7 +345,14 @@ fn cache_directory(args: &MatchArgs, fetches_archives: bool) -> PathBuf {
             let mut message =
                 "no cache directory: give --cache, or set XDG_CACHE_HOME or HOME".to_owned();
             if !fetches_archives {
-                message.push_str(", or give --kev <file> or --no-kev to fetch no CISA KEV catalog");
+                if fetches_kev {
+                    message.push_str(
+                        ", or give --kev <file> or --no-kev to fetch no CISA KEV catalog",
+                    );
+                }
+                if fetches_euvd {
+                    message.push_str(", or give --euvd <file> or --no-euvd to fetch no EUVD list");
+                }
             }
             usage_error(clap::error::ErrorKind::MissingRequiredArgument, &message)
         })
@@ -287,6 +365,15 @@ fn archives(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> Archives {
         archives.base_url.clone_from(url);
     }
     archives
+}
+
+/// The EUVD list the arguments name, kept in the entry `euvd-exploited` of the cache (MCH-40, MCH-41).
+fn euvd_feed(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> euvd::Feed {
+    let mut feed = euvd::Feed::new(cache, refresh);
+    if let Some(url) = &args.euvd_url {
+        feed.url.clone_from(url);
+    }
+    feed
 }
 
 /// The CISA KEV catalog the arguments name, kept in the entry `cisa-kev` of the cache (MCH-34, MCH-35).
@@ -484,9 +571,10 @@ mod tests {
     use forewarn_osv::api::OSV_API;
     use forewarn_osv::fetch::OSV_ARCHIVES;
 
+    use forewarn_exploited::euvd::EUVD_SEARCH;
     use forewarn_exploited::kev::KEV_CATALOG;
 
-    use super::{Cli, Command, DEFAULT_REFRESH, api, archives, kev_feed};
+    use super::{Cli, Command, DEFAULT_REFRESH, api, archives, euvd_feed, kev_feed};
 
     // spec: MCH-27 (internal: a query of the OSV API needs the network)
     #[test]
@@ -544,5 +632,25 @@ mod tests {
         assert_eq!(url(&["forewarn", "match", "-"]), KEV_CATALOG);
         let mirror = ["forewarn", "match", "--kev-url", "http://m/kev.json", "-"];
         assert_eq!(url(&mirror), "http://m/kev.json");
+    }
+
+    // spec: MCH-40 (internal: paging the EUVD search needs the network)
+    #[test]
+    fn the_euvd_list_comes_from_enisa_unless_a_url_is_given() {
+        let url = |args: &[&str]| {
+            let Command::Match(args) = Cli::parse_from(args).command else {
+                panic!("a match command")
+            };
+            euvd_feed(&args, "c".into(), DEFAULT_REFRESH).url
+        };
+        assert_eq!(url(&["forewarn", "match", "-"]), EUVD_SEARCH);
+        let mirror = [
+            "forewarn",
+            "match",
+            "--euvd-url",
+            "http://m/api/search",
+            "-",
+        ];
+        assert_eq!(url(&mirror), "http://m/api/search");
     }
 }
