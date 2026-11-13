@@ -1,5 +1,6 @@
-//! `forewarn match` fetching the OSV archives of the ecosystems of an SBOM into a cache (`specs/cli-match.md`),
-//! against a loopback HTTP server: no test needs the network.
+//! `forewarn match` fetching the OSV archives of the ecosystems of an SBOM, the CISA KEV catalog and the EUVD list into
+//! a cache (`specs/cli-match.md`, `specs/cli-match-exploited.md`), against a loopback HTTP server: no test needs the
+//! network.
 
 mod common;
 
@@ -730,7 +731,7 @@ fn a_kev_file_or_no_kev_sends_no_request_for_the_catalog() {
     );
 }
 
-// spec: MCH-10
+// spec: MCH-10, MXL-3, MXL-4
 #[test]
 fn the_kev_options_exclude_each_other() {
     for kev in [
@@ -894,7 +895,7 @@ fn an_euvd_list_that_cannot_be_paged_is_named_and_exits_with_5() {
     );
 }
 
-// spec: MCH-10
+// spec: MCH-10, MXL-7, MXL-8
 #[test]
 fn the_euvd_options_exclude_each_other_and_cache_applies_to_the_euvd_list() {
     for euvd in [

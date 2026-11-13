@@ -144,11 +144,11 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   with 2.
 - (MCH-10, MCH-12) Given neither `--cache`, `XDG_CACHE_HOME` nor `HOME`, when the command runs without `--osv`, or
   with `--osv` alone, then it exits with 2; with `--osv` and `--kev` or `--no-kev`, it runs.
-- (MCH-10) Given `--osv` and `--kev`, with `--cache` or `--refresh always`, when the command runs, then it exits with
+- (MCH-10, MXL-2) Given `--osv` and `--kev`, with `--cache` or `--refresh always`, when the command runs, then it exits with
   2; given `--osv` alone with `--refresh always`, it runs and downloads the KEV catalog again.
-- (MCH-9, MCH-10) Given an SBOM whose only match is actively exploited, when it is matched with `--allow-affected`,
+- (MCH-9, MCH-10, MXL-1) Given an SBOM whose only match is actively exploited, when it is matched with `--allow-affected`,
   then the command exits with 6; given a match no list names, it exits with 0.
-- (MCH-18) Given a KEV catalog whose `catalogVersion` holds an escape sequence, when the human report prints it, then
+- (MCH-18, MXL-5) Given a KEV catalog whose `catalogVersion` holds an escape sequence, when the human report prints it, then
   `\u{1b}` is written out.
 - (MCH-2, MCH-16) Given a `NuGet` component and a record naming it with only a `GIT` range, when it is matched,
   then it is reported not evaluated with `range not evaluated` and the record's id, and is not counted clean.

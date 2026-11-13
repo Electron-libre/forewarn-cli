@@ -1,5 +1,5 @@
 //! The report formats of `forewarn check` and `forewarn match`: adapters from the domain's results to text or JSON
-//! (`specs/cli-check.md`, `specs/cli-match.md`).
+//! (`specs/cli-check.md`, `specs/cli-match.md`, `specs/cli-match-exploited.md`).
 
 use std::collections::HashSet;
 use std::fmt::Write;

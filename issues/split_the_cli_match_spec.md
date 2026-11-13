@@ -64,3 +64,11 @@ MCH-16 keep their rows, pointing to MXL ids. No behaviour changes: only citation
   non-goals of `exploited-flagging.md` and `euvd-reading.md` point to the new spec.
 - red: none (no test added: the existing tests are only re-cited).
 - Code review: no findings
+
+## Deliverable 2: high review fixes
+2. [x] Fix the five findings of the high review of the issue: the tests of the conflicting KEV and EUVD options and of
+   an unreadable KEV file also cite MXL-3, MXL-4, MXL-7, MXL-8; three MCH scenarios name MXL-1, MXL-2, MXL-5; the
+   module docs of `report.rs` and `fetching.rs` and the non-goal of `kev-reading.md` point to the new spec; verified by
+   project-check and check-specs. (autonomous)
+- red: none (citations and docs only).
+- Code review: no findings
