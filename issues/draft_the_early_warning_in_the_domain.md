@@ -64,6 +64,10 @@ cannot fill listed as to complete. Out of scope: any format, the CLI. No contact
    `draft_early_warnings`), spec `early-warning-draft` and ADR 0012; verified by
    `crates/forewarn-domain/tests/early_warning.rs` (~600 lines); makes true EWD-1 to EWD-11. (autonomous)
 
+2. [x] Fixes of the `high` review: the manufacturer never listed to complete (the SRP fills it, read-only), a
+   component listed twice named once; follow-ups `keep_the_euvd_id_of_an_exploited_entry` and
+   `tell_a_manufacturer_name_from_its_contact`; verified by `tests/early_warning.rs`; amends EWD-3, EWD-9. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 8e41c409dbc758dfed70763a8fc82e55f0d74fe9
@@ -82,5 +86,17 @@ cannot fill listed as to complete. Out of scope: any format, the CLI. No contact
   import `forewarn_domain::early_warning`.
 - Code review: 1 findings: deadlines refused with no exploited match (fixed: computed only when a draft is given,
   EWD-11 narrowed, test added).
+- not verified: none.
+- decisions needed: none.
+
+## Deliverable 2 (high review fixes)
+- done: `ToComplete::ManufacturerName` removed (field 4 is read-only in the SRP, ADR 0012); duplicate components of a
+  CVE named once; EWD-3 and EWD-9 amended; two follow-up issues.
+- checks: project-check (fmt, clippy, tests, specs) pass.
+- red: EWD-3: not observed, the test of the duplicate component was written with its fix.
+- Code review: no findings (low); 7 findings (high): 3 and 4 fixed here; 1 (EUVD id dropped by the EUVD adapter) and 2 (an email shown
+  as manufacturer name) became issues; 5 (product and deadlines repeated in each draft) kept, each draft stands alone
+  for one file per CVE; 6 (linear grouping) kept, the CVEs of one SBOM are few; 7 (evidence of the first match only)
+  kept, equal by CVE today, revisited by `keep_the_euvd_id_of_an_exploited_entry`.
 - not verified: none.
 - decisions needed: none.

@@ -25,11 +25,12 @@ authorised representative who submits.
   (`specs/early-warning-draft.md`, EWD-9), plus the optional fields the tool fills exactly: the component, the CVE id,
   the EUVD id, the evidence of exploitation and the deadlines.
 - **A required field the tool cannot fill exactly is listed as to complete**, never written as prose: the title, the
-  summary and the Member States always; the manufacturer, the product name and version when the SBOM does not give
-  them. The notification type is implied by the draft (always an AEV) and not listed.
+  summary and the Member States always; the product name and version when the SBOM does not give them. The
+  notification type is implied by the draft (always an AEV) and not listed.
 - **One draft per CVE of the product**, listing each affected component: a notification is about a vulnerability of
   a product, and one draft per match would lead to two notifications of one CVE affecting two components.
 - **The manufacturer is still taken from the SBOM**, although the platform fills its own: the vendor compares the two.
+  It is never listed to complete: the vendor cannot edit that field of the form.
 - **The domain names the fields, not the form**: the labels, numbers and order of the SRP form are written by the
   adapter (`write_the_early_warning_in_an_adapter`).
 

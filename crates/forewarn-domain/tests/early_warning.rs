@@ -222,6 +222,28 @@ fn drafts_nothing_for_matches_no_list_names() {
     assert_eq!(draft(&four_matches(&[unrelated]), Some(&shop())), []);
 }
 
+// spec: EWD-3
+#[test]
+fn names_a_component_listed_twice_once() {
+    let log4j = component("org.apache.logging.log4j", "log4j-core", "2.14.1");
+    let report = flag_exploited(
+        match_components(
+            &[log4j.clone(), log4j],
+            &[record(
+                "GHSA-jfh8-c2jp-5v3q",
+                &["CVE-2021-44228"],
+                "org.apache.logging.log4j:log4j-core",
+            )],
+        ),
+        &[kev()],
+    );
+    assert_eq!(report.matches().len(), 2);
+    assert_eq!(
+        component_names(&draft(&report, Some(&shop()))[0]),
+        ["log4j-core"]
+    );
+}
+
 // spec: EWD-1
 #[test]
 fn drafts_nothing_for_a_report_with_no_match() {
@@ -268,7 +290,6 @@ fn lists_the_fields_of_an_sbom_naming_no_product_to_complete() {
         [
             ToComplete::Title,
             ToComplete::Summary,
-            ToComplete::ManufacturerName,
             ToComplete::MemberStates,
             ToComplete::ProductName,
             ToComplete::ProductVersion,
@@ -287,7 +308,6 @@ fn lists_the_version_and_manufacturer_a_product_lacks_to_complete() {
         [
             ToComplete::Title,
             ToComplete::Summary,
-            ToComplete::ManufacturerName,
             ToComplete::MemberStates,
             ToComplete::ProductVersion,
         ]
@@ -307,7 +327,6 @@ fn reads_a_blank_value_of_the_product_as_absent() {
         [
             ToComplete::Title,
             ToComplete::Summary,
-            ToComplete::ManufacturerName,
             ToComplete::MemberStates,
             ToComplete::ProductName,
             ToComplete::ProductVersion,

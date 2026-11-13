@@ -13,7 +13,6 @@ use crate::sbom::Product;
 pub enum ToComplete {
     Title,
     Summary,
-    ManufacturerName,
     MemberStates,
     ProductName,
     ProductVersion,
@@ -33,9 +32,10 @@ pub struct EarlyWarning {
     /// The name of the product, `None` when the SBOM gives none (EWD-10).
     pub product_name: Option<String>,
     pub product_version: Option<String>,
-    /// The manufacturer of the product, as the SBOM gives it; the platform fills its own (ADR 0012).
+    /// The manufacturer of the product, as the SBOM gives it, never to complete: the platform fills its own
+    /// (ADR 0012).
     pub manufacturer: Option<String>,
-    /// Each component the CVE affects, in the order of the report (EWD-3).
+    /// Each component the CVE affects, in the order of the report, each once (EWD-3).
     pub components: Vec<AffectedComponent>,
     /// The CVE id, in upper case (EWD-7).
     pub cve: String,
@@ -68,7 +68,6 @@ pub fn draft_early_warnings(
     let to_complete = [
         (ToComplete::Title, false),
         (ToComplete::Summary, false),
-        (ToComplete::ManufacturerName, manufacturer.is_some()),
         (ToComplete::MemberStates, false),
         (ToComplete::ProductName, product_name.is_some()),
         (ToComplete::ProductVersion, product_version.is_some()),
@@ -97,13 +96,16 @@ pub fn draft_early_warnings(
             product_name: product_name.clone(),
             product_version: product_version.clone(),
             manufacturer: manufacturer.clone(),
-            components: matches
-                .iter()
-                .map(|flagged| AffectedComponent {
+            components: matches.iter().fold(Vec::new(), |mut components, flagged| {
+                let affected = AffectedComponent {
                     component: flagged.found.component.clone(),
                     vulnerability: flagged.found.id.clone(),
-                })
-                .collect(),
+                };
+                if !components.contains(&affected) {
+                    components.push(affected);
+                }
+                components
+            }),
             cve: cve.to_owned(),
             euvd: matches
                 .iter()
