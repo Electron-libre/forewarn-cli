@@ -271,6 +271,20 @@ fn an_alias_left_empty_is_dropped() {
     assert_eq!(vulnerability.aliases, ["CVE-2026-49977".to_owned()]);
 }
 
+// spec: OSR-36
+#[test]
+fn a_record_whose_id_is_empty_or_blank_is_invalid() {
+    for id in ["", " \t"] {
+        let error = read_value(&json!({ "id": id })).expect_err("the record is refused");
+
+        assert!(matches!(error.cause, Cause::Invalid(_)), "{id:?}: {error}");
+        assert!(
+            error.to_string().contains("invalid OSV record"),
+            "{id:?}: {error}"
+        );
+    }
+}
+
 // spec: OSR-6
 #[test]
 fn a_withdrawn_record_is_kept_flagged_withdrawn() {

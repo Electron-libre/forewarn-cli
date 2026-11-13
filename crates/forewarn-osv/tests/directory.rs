@@ -90,6 +90,23 @@ fn a_record_that_cannot_be_read_fails_the_directory_naming_the_file() {
     assert!(message.contains("not JSON"), "{message}");
 }
 
+// spec: OSR-36, OSR-3
+#[test]
+fn a_record_with_a_blank_id_fails_the_directory_naming_the_file() {
+    let dir = TempDir::new().expect("a temporary directory");
+    copy_fixture(&dir, "RUSTSEC-2020-0071.json");
+    let blank = dir.path().join("blank.json");
+    fs::write(&blank, r#"{ "id": " " }"#).expect("written");
+
+    let error = read_directory(dir.path()).expect_err("the directory is refused");
+
+    assert!(matches!(error.cause, Cause::Invalid(_)), "{error}");
+    assert_eq!(error.path, blank);
+    let message = error.to_string();
+    assert!(message.contains("blank.json"), "{message}");
+    assert!(message.contains("invalid OSV record"), "{message}");
+}
+
 // spec: OSR-3, OSR-9
 #[test]
 fn a_missing_directory_cannot_be_read_and_is_named() {

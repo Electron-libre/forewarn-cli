@@ -69,6 +69,8 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   is kept as written.
 - **OSR-35** (deterministic) Reading must drop an alias that is empty or holds only ASCII whitespace, so that it
   names no other record.
+- **OSR-36** (deterministic) Reading must refuse a record whose `id` is empty or holds only ASCII whitespace, with
+  the error "invalid OSV record" of OSR-9, so that unrelated records never share an empty id.
 - **OSR-6** (deterministic) Reading must keep a withdrawn record, flagged withdrawn, so that the matching drops it
   (VMT-12).
 - **OSR-7** (deterministic) Reading a directory must read only the files of that directory whose name ends in
@@ -83,7 +85,7 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   | the file or the directory cannot be read (an I/O error) | cannot read the input, with the system's reason |
   | the file is not JSON | not JSON |
   | `schema_version` names a major version other than 1 | unsupported schema version, quoting it |
-  | `id` is absent or not a string, a field of the table of OSR-4 has the wrong type or appears twice, a range `type` is not one of the three, or an event holds none of `introduced`, `fixed`, `last_affected` and `limit` | invalid OSV record, with the parser's reason |
+  | `id` is absent, not a string, or empty once trimmed (OSR-36), a field of the table of OSR-4 has the wrong type or appears twice, a range `type` is not one of the three, or an event holds none of `introduced`, `fixed`, `last_affected` and `limit` | invalid OSV record, with the parser's reason or the empty `id` |
 
 - **OSR-13** (deterministic) Fetching must download the archive of an ecosystem only as the refresh policy of this
   table says, and otherwise read the snapshot of its cache directory.
@@ -175,6 +177,10 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   space is kept: it is not ASCII whitespace.
 - (OSR-35) Given a record whose aliases are `CVE-2026-49977`, ` `, an empty alias and a tab, when it is read, then
   its only alias is `CVE-2026-49977`.
+- (OSR-36) Given a record whose `id` is empty, or a space and a tab, when it is read, then it fails with "invalid OSV
+  record".
+- (OSR-36, OSR-3) Given a directory with a valid record and a file `blank.json` whose `id` is a space, when it is
+  read, then it fails with "invalid OSV record" naming `blank.json`.
 - (OSR-6) Given a withdrawn record, when it is read, then it is returned flagged withdrawn.
 - (OSR-8, OSR-9) Given a record with `schema_version` `2.0.0`, when it is read, then it fails with "unsupported
   schema version" quoting `2.0.0`; with `1.7.4`, it is read.

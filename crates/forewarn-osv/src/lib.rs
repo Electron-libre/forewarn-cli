@@ -31,7 +31,7 @@ pub enum Cause {
     NotJson(String),
     /// `schema_version` names a major version other than 1.
     UnsupportedSchemaVersion(String),
-    /// The record does not have the shape of an OSV record; the parser's reason.
+    /// The record does not have the shape of an OSV record, or its `id` is empty; the reason.
     Invalid(String),
 }
 
@@ -71,6 +71,10 @@ fn parse_record(bytes: &[u8]) -> Result<Vulnerability, Cause> {
     match serde_json::from_slice::<Record>(bytes) {
         Ok(record) => {
             check_schema_version(record.schema_version.as_ref())?;
+            // An empty id would group unrelated records under one name (OSR-36).
+            if record.id.trim_ascii().is_empty() {
+                return Err(Cause::Invalid("`id` is empty".to_owned()));
+            }
             Ok(record.into())
         }
         // A shape error: the schema version, when the document is JSON, is the cause that comes first.
