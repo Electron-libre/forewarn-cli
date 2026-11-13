@@ -250,33 +250,28 @@ fn exploited_lists(
     kev_feed: Option<kev::Feed>,
     euvd_feed: Option<euvd::Feed>,
 ) -> Result<(Option<KevCatalog<'_>>, Option<EuvdList<'_>>), u8> {
-    let mut catalog = match &args.kev {
-        Some(path) => Some(KevCatalog::Local(
-            kev::read_file(path).map_err(|error| no_records(&error))?,
-            path,
-        )),
-        None => None,
-    };
-    let mut euvd_list = match &args.euvd {
-        Some(path) => Some(EuvdList::Local(
-            euvd::read_file(path).map_err(|error| no_records(&error))?,
-            path,
-        )),
-        None => None,
-    };
-    if let Some(feed) = kev_feed {
-        catalog = Some(KevCatalog::Fetched(
-            feed.fetch(SystemTime::now)
-                .map_err(|error| no_records(&error))?,
-        ));
-    }
-    if let Some(feed) = euvd_feed {
-        euvd_list = Some(EuvdList::Fetched(
-            feed.fetch(SystemTime::now)
-                .map_err(|error| no_records(&error))?,
-        ));
-    }
-    Ok((catalog, euvd_list))
+    // A list is either given or fetched, never both (MCH-10).
+    let local_kev = args
+        .kev
+        .as_ref()
+        .map(|path| kev::read_file(path).map(|catalog| KevCatalog::Local(catalog, path)))
+        .transpose()
+        .map_err(|error| no_records(&error))?;
+    let local_euvd = args
+        .euvd
+        .as_ref()
+        .map(|path| euvd::read_file(path).map(|list| EuvdList::Local(list, path)))
+        .transpose()
+        .map_err(|error| no_records(&error))?;
+    let fetched_kev = kev_feed
+        .map(|feed| feed.fetch(SystemTime::now).map(KevCatalog::Fetched))
+        .transpose()
+        .map_err(|error| no_records(&error))?;
+    let fetched_euvd = euvd_feed
+        .map(|feed| feed.fetch(SystemTime::now).map(EuvdList::Fetched))
+        .transpose()
+        .map_err(|error| no_records(&error))?;
+    Ok((local_kev.or(fetched_kev), local_euvd.or(fetched_euvd)))
 }
 
 /// The CISA KEV catalog of a run: a file given with `--kev`, or fetched into the cache (MCH-30, MCH-31).
@@ -345,14 +340,15 @@ fn cache_directory(
             let mut message =
                 "no cache directory: give --cache, or set XDG_CACHE_HOME or HOME".to_owned();
             if !fetches_archives {
-                if fetches_kev {
-                    message.push_str(
-                        ", or give --kev <file> or --no-kev to fetch no CISA KEV catalog",
-                    );
-                }
-                if fetches_euvd {
-                    message.push_str(", or give --euvd <file> or --no-euvd to fetch no EUVD list");
-                }
+                message.push_str(match (fetches_kev, fetches_euvd) {
+                    (true, true) => {
+                        ", or give --kev <file> or --no-kev, and --euvd <file> or --no-euvd, to fetch no \
+                         exploited list"
+                    }
+                    (true, false) => ", or give --kev <file> or --no-kev to fetch no CISA KEV catalog",
+                    (false, true) => ", or give --euvd <file> or --no-euvd to fetch no EUVD list",
+                    (false, false) => "",
+                });
             }
             usage_error(clap::error::ErrorKind::MissingRequiredArgument, &message)
         })

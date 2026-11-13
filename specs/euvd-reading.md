@@ -33,7 +33,8 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   otherwise read the copy of its cache.
 - **EUV-7** (deterministic) A download must request its pages with a `GET` and no body of
   `<url>?exploited=true&size=100&page=<n>`, `<n>` from 0 up by one, `<url>` the one the caller gives,
-  `https://euvdservices.enisa.europa.eu/api/search` unless it gives another; no other parameter is sent.
+  `https://euvdservices.enisa.europa.eu/api/search` unless it gives another, the `?` an `&` when `<url>` already holds
+  a `?`; no other parameter is sent.
 - **EUV-8** (deterministic) A download must stop paging after the first page whose `items` is empty, or once the
   records it collected, told apart by their `id`, number at least the `total` of its page 0.
 - **EUV-9** (deterministic) A download must store in the cache one file of the shape `{"items": [...]}` holding each
@@ -82,6 +83,8 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   <AM|PM>`, `<Mon>` among `Jan` to `Dec`, `<D>` one or two digits, a date of the Gregorian calendar, its time not read.
 - **EUV-19** (deterministic) Reading must ignore the members of the file and of its records other than those of the
   table of EUV-16.
+- **EUV-20** (deterministic) A download must fail with "cannot download" (EUV-15), naming the page it was at, once it
+  has paged for the time the caller gives, 30 minutes unless it gives another, shorter than the wait of EUV-5.
 
 ## Scenarios
 
@@ -114,6 +117,10 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   then it fails with "list changed while paged" after 3 attempts.
 - (EUV-11) Given a server that ignores `page` and answers page 0 to every request, when the list is fetched, then it
   fails with "page repeated" naming page 1, after two requests.
+- (EUV-7) Given the URL `<mirror>/api/search?key=x`, when the list is fetched, then page 0 is requested at
+  `<mirror>/api/search?key=x&exploited=true&size=100&page=0`.
+- (EUV-20, EUV-13) Given a paging limit of 500 ms and a server that takes 3 s to answer page 1, when the list is
+  fetched, then it fails with "cannot download" naming page 1 within the limit, and the former copy stays.
 - (EUV-13, EUV-15) Given a copy in the cache and a server answering 503 to page 1, when the list is fetched under
   `always`, then it fails with "cannot download" naming the URL of page 1 and 503, and a later `offline` fetch returns
   the former copy.

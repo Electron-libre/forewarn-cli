@@ -105,7 +105,8 @@ pub struct Cache {
 }
 
 /// How a source downloads a URL into a file, returning the `Last-Modified` header it records.
-pub type DownloadFn<E> = dyn Fn(&ureq::Agent, &str, &Path) -> Result<Option<String>, Error<E>>;
+pub type DownloadFn<'a, E> =
+    dyn Fn(&ureq::Agent, &str, &Path) -> Result<Option<String>, Error<E>> + 'a;
 
 /// What a fetch does with a download, and how it reads an entry.
 pub struct Source<'a, T, E> {
@@ -113,7 +114,7 @@ pub struct Source<'a, T, E> {
     pub url: String,
     /// Downloads the URL (second argument) into a file (third argument) and returns the `Last-Modified` header it
     /// records: [`get`], one `GET`, for a single file; a paginated source pages there (ADR 0009).
-    pub download: &'a DownloadFn<E>,
+    pub download: &'a DownloadFn<'a, E>,
     /// Turns the downloaded file (first argument) into the files of an entry directory (second argument).
     pub unpack: &'a dyn Fn(&Path, &Path) -> Result<(), E>,
     /// Reads an entry directory.
@@ -382,23 +383,70 @@ fn read_freshness<E>(directory: &Path) -> Result<Option<Freshness>, Error<E>> {
 /// [`Error::Download`] when the server cannot be reached or does not answer 200, [`Error::Cache`] when the file
 /// cannot be written.
 pub fn get<E>(agent: &ureq::Agent, url: &str, file: &Path) -> Result<Option<String>, Error<E>> {
-    let failed = |reason: String| Error::Download {
-        url: url.to_owned(),
-        reason,
-    };
-    let response = agent.get(url).call().map_err(|e| failed(e.to_string()))?;
+    let (response, last_modified) = call(agent, url, None)?;
+    let mut output = File::create(file).map_err(|e| cache_error(&e))?;
+    io::copy(&mut response.into_body().into_reader(), &mut output)
+        .map_err(|e| download_error(url, &e))?;
+    Ok(last_modified)
+}
+
+/// Downloads a URL into memory with one `GET`, its body at most `limit` bytes and the whole request at most `timeout`
+/// when one is given; returns the body and the `Last-Modified` header the server sent.
+///
+/// # Errors
+///
+/// [`Error::Download`] when the server cannot be reached, does not answer 200, sends a larger body or takes longer.
+pub fn get_body<E>(
+    agent: &ureq::Agent,
+    url: &str,
+    limit: u64,
+    timeout: Option<Duration>,
+) -> Result<(Vec<u8>, Option<String>), Error<E>> {
+    let (response, last_modified) = call(agent, url, timeout)?;
+    let body = response
+        .into_body()
+        .with_config()
+        .limit(limit)
+        .read_to_vec()
+        .map_err(|e| download_error(url, &e))?;
+    Ok((body, last_modified))
+}
+
+/// Sends a `GET` and checks that the server answers 200; returns the response and its `Last-Modified` header.
+fn call<E>(
+    agent: &ureq::Agent,
+    url: &str,
+    timeout: Option<Duration>,
+) -> Result<(ureq::http::Response<ureq::Body>, Option<String>), Error<E>> {
+    let request = agent.get(url);
+    let response = match timeout {
+        Some(timeout) => request
+            .config()
+            .timeout_global(Some(timeout))
+            .build()
+            .call(),
+        None => request.call(),
+    }
+    .map_err(|e| download_error(url, &e))?;
     if response.status() != 200 {
-        return Err(failed(format!("the server answered {}", response.status())));
+        return Err(Error::Download {
+            url: url.to_owned(),
+            reason: format!("the server answered {}", response.status()),
+        });
     }
     let last_modified = response
         .headers()
         .get("last-modified")
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
-    let mut output = File::create(file).map_err(|e| cache_error(&e))?;
-    io::copy(&mut response.into_body().into_reader(), &mut output)
-        .map_err(|e| failed(e.to_string()))?;
-    Ok(last_modified)
+    Ok((response, last_modified))
+}
+
+fn download_error<E>(url: &str, error: &impl fmt::Display) -> Error<E> {
+    Error::Download {
+        url: url.to_owned(),
+        reason: error.to_string(),
+    }
 }
 
 fn cache_error<E>(error: &io::Error) -> Error<E> {

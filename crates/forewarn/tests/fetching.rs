@@ -921,3 +921,35 @@ fn the_euvd_options_exclude_each_other_and_cache_applies_to_the_euvd_list() {
     );
     assert_eq!(run.code, 6, "{}", run.stderr);
 }
+
+// spec: MCH-10, MCH-12
+#[test]
+fn no_cache_directory_names_every_list_to_give_or_skip() {
+    let unset = [("XDG_CACHE_HOME", None), ("HOME", None)];
+    let osv = osv_fixtures();
+    let run = run_with(
+        &["match", "--osv", path(&osv), "-"],
+        Some(&crates()),
+        &unset,
+    );
+    assert_eq!(run.code, 2, "{}", run.stderr);
+    assert!(
+        run.stderr
+            .contains("give --kev <file> or --no-kev, and --euvd <file> or --no-euvd, to fetch no exploited list"),
+        "{}",
+        run.stderr
+    );
+    let euvd_only = run_with(
+        &["match", "--osv", path(&osv), "--no-kev", "-"],
+        Some(&crates()),
+        &unset,
+    );
+    assert_eq!(euvd_only.code, 2, "{}", euvd_only.stderr);
+    assert!(
+        euvd_only
+            .stderr
+            .contains("give --euvd <file> or --no-euvd to fetch no EUVD list"),
+        "{}",
+        euvd_only.stderr
+    );
+}
