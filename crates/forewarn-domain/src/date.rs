@@ -137,6 +137,13 @@ impl Moment {
         Self::from_seconds(self.seconds().checked_add(seconds)?)
     }
 
+    /// The seconds from this moment to `later`, every day counting 86 400 seconds (RDL-15); zero when `later` is not
+    /// after it.
+    #[must_use]
+    pub fn seconds_until(self, later: Self) -> u64 {
+        later.seconds().saturating_sub(self.seconds())
+    }
+
     /// The seconds since `0001-01-01T00:00:00Z`.
     fn seconds(self) -> u64 {
         days_from_civil(self.date) * SECONDS_PER_DAY

@@ -1,7 +1,9 @@
 //! The CRA reporting deadlines and the moments they are computed from (`specs/reporting-deadlines.md`).
 
 use forewarn_domain::date::{Date, InvalidTime, Moment};
-use forewarn_domain::deadlines::{DeadlinePastRange, ReportingDeadlines, reporting_deadlines};
+use forewarn_domain::deadlines::{
+    DeadlinePastRange, DeadlineState, DeadlineStates, ReportingDeadlines, reporting_deadlines,
+};
 
 const HOUR: u64 = 3600;
 const DAY: u64 = 24 * HOUR;
@@ -232,5 +234,67 @@ fn counts_the_final_report_from_a_measure_that_precedes_the_awareness() {
             "2026-11-16T09:30:00Z",
             Some("2026-11-15T08:00:00Z")
         )
+    );
+}
+
+// spec: RDL-H3, RDL-12, RDL-13, RDL-14
+#[test]
+fn tells_a_deadline_overdue_and_one_still_ahead_and_no_final_report() {
+    let deadlines = reporting_deadlines(at(2026, 11, 13, 9, 30, 0), None).unwrap();
+    assert_eq!(
+        deadlines.at(at(2026, 11, 15, 10, 0, 0)),
+        DeadlineStates {
+            early_warning: DeadlineState::Overdue(24 * HOUR + 30 * 60),
+            notification: DeadlineState::Left(23 * HOUR + 30 * 60),
+            final_report: None,
+        }
+    );
+}
+
+// spec: RDL-12, RDL-13
+#[test]
+fn tells_each_deadline_due_until_its_second_then_overdue() {
+    let deadlines =
+        reporting_deadlines(at(2026, 11, 13, 9, 30, 0), Some(at(2026, 11, 15, 17, 0, 0))).unwrap();
+    let bounds = [
+        Some(DeadlineState::Left(1)),
+        Some(DeadlineState::Left(0)),
+        Some(DeadlineState::Overdue(1)),
+    ];
+    let early_warning = [(9, 29, 59), (9, 30, 0), (9, 30, 1)]
+        .map(|(h, m, s)| Some(deadlines.at(at(2026, 11, 14, h, m, s)).early_warning));
+    let notification = [(9, 29, 59), (9, 30, 0), (9, 30, 1)]
+        .map(|(h, m, s)| Some(deadlines.at(at(2026, 11, 16, h, m, s)).notification));
+    let final_report = [(16, 59, 59), (17, 0, 0), (17, 0, 1)]
+        .map(|(h, m, s)| deadlines.at(at(2026, 11, 29, h, m, s)).final_report);
+    assert_eq!(early_warning, bounds);
+    assert_eq!(notification, bounds);
+    assert_eq!(final_report, bounds);
+}
+
+// spec: RDL-12
+#[test]
+fn tells_the_time_left_from_a_moment_before_awareness() {
+    let deadlines = reporting_deadlines(at(2026, 11, 13, 9, 30, 0), None).unwrap();
+    assert_eq!(
+        deadlines.at(at(2026, 11, 13, 8, 30, 0)).early_warning,
+        DeadlineState::Left(25 * HOUR)
+    );
+}
+
+// spec: RDL-15
+#[test]
+fn counts_the_seconds_left_across_the_29th_of_february_and_a_new_year() {
+    assert_eq!(
+        DeadlineState::at(at(2028, 3, 2, 12, 0, 0), at(2028, 2, 28, 12, 0, 0)),
+        DeadlineState::Left(3 * DAY)
+    );
+    assert_eq!(
+        DeadlineState::at(at(2027, 1, 1, 0, 0, 0), at(2026, 12, 31, 23, 59, 59)),
+        DeadlineState::Left(1)
+    );
+    assert_eq!(
+        DeadlineState::at(at(2026, 12, 31, 23, 59, 59), at(2027, 3, 1, 0, 0, 0)),
+        DeadlineState::Overdue(59 * DAY + 1)
     );
 }

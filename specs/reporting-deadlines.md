@@ -10,7 +10,8 @@ adrs: [0011]
 
 Tell a vendor, for an actively exploited vulnerability, by when CRA article 14(2) requires its early warning, its
 notification and its final report, from the moment the vendor became aware of it and the moment a corrective or
-mitigating measure became available, so that no deadline is computed later than the regulation allows.
+mitigating measure became available, so that no deadline is computed later than the regulation allows, and, at a
+given moment, how long is left before each deadline or how long it is overdue.
 
 ## Requirements
 
@@ -24,6 +25,12 @@ mitigating measure became available, so that no deadline is computed later than 
   must give the final report deadline 14 days of 24 hours after that moment.
 - **RDL-4** (deterministic) Computing the deadlines with no moment of a corrective or mitigating measure must give no
   final report deadline, the report being due once a measure is available.
+- **RDL-12** (deterministic) Telling the deadlines at a moment must give, for each deadline the moment does not pass,
+  the time left before it in seconds, zero for a deadline reached exactly, the report being still on time.
+- **RDL-13** (deterministic) Telling the deadlines at a moment must give, for each deadline the moment passes, the
+  time overdue in seconds, one for a moment one second after the deadline.
+- **RDL-14** (deterministic) Telling the deadlines at a moment must give no state for a final report with no deadline
+  (RDL-4).
 
 ### Contract
 
@@ -39,6 +46,8 @@ mitigating measure became available, so that no deadline is computed later than 
   `9999-12-31T23:59:59Z`.
 - **RDL-11** (deterministic) The final report deadline must be computed from the moment of the measure alone, even
   when that moment precedes the moment of awareness.
+- **RDL-15** (deterministic) The time left or overdue must be the exact count of seconds between the two moments,
+  across the ends of days, months and years and the 29th of February, every day counting 86 400 seconds (ADR 0011).
 
 ## Scenarios
 
@@ -48,6 +57,9 @@ mitigating measure became available, so that no deadline is computed later than 
 - **RDL-H2** (happy; RDL-1, RDL-2, RDL-3) Given a vendor aware since `2026-11-13T09:30:00Z` and a corrective release
   published at `2026-11-15T17:00:00Z`, when the deadlines are computed, then the early warning is due by
   `2026-11-14T09:30:00Z`, the notification by `2026-11-16T09:30:00Z` and the final report by `2026-11-29T17:00:00Z`.
+- **RDL-H3** (happy; RDL-12, RDL-13, RDL-14) Given a vendor aware since `2026-11-13T09:30:00Z` and no corrective
+  measure, when the deadlines are told at `2026-11-15T10:00:00Z`, then the early warning is overdue by 88 200 seconds
+  (24 h 30 min), the notification has 84 600 seconds left (23 h 30 min), and the final report has no state.
 - (RDL-9) Given an awareness at `2026-12-31T23:00:00Z`, when the deadlines are computed, then the early warning is due
   by `2027-01-01T23:00:00Z` and the notification by `2027-01-03T23:00:00Z`.
 - (RDL-9) Given an awareness at `2028-02-28T12:00:00Z`, when the deadlines are computed, then the early warning is due
@@ -69,6 +81,15 @@ mitigating measure became available, so that no deadline is computed later than 
 - (RDL-11) Given an awareness at `2026-11-13T09:30:00Z` and a measure available since `2026-11-01T08:00:00Z`, when the
   deadlines are computed, then the final report is due by `2026-11-15T08:00:00Z`, before the notification.
 
+- (RDL-12, RDL-13) Given an early warning due by `2026-11-14T09:30:00Z`, when it is told at `2026-11-14T09:29:59Z`,
+  then 1 second is left; at `2026-11-14T09:30:00Z`, 0 seconds are left; at `2026-11-14T09:30:01Z`, it is overdue by 1
+  second. The same holds one second before, at and after the notification `2026-11-16T09:30:00Z` and a final report
+  `2026-11-29T17:00:00Z`.
+- (RDL-12) Given a moment before the moment of awareness, `2026-11-13T08:30:00Z`, when the deadlines from
+  `2026-11-13T09:30:00Z` are told, then the early warning has 90 000 seconds left.
+- (RDL-15) Given a notification due by `2028-03-02T12:00:00Z`, when it is told at `2028-02-28T12:00:00Z`, then
+  259 200 seconds are left; given a deadline `2027-01-01T00:00:00Z` told at `2026-12-31T23:59:59Z`, 1 second is left.
+
 ## Non-goals
 
 - Reading a clock or the moment of awareness: the caller gives each moment (the CLI, `cli_print_reporting_deadlines`).
@@ -77,6 +98,7 @@ mitigating measure became available, so that no deadline is computed later than 
   next hour, a period in days starting at the next day and ending on a working day): the deadlines computed are never
   later than those, a vendor meeting them meets the regulation.
 - The deadlines of a severe incident (article 14(4)) and the one-month final report of an incident.
-- Telling the time left before a deadline or that it is overdue (`tell_overdue_reporting_deadlines`).
+- Reading the clock for the moment the deadlines are told at: the caller gives it (the CLI).
+- Writing a time left or overdue in days, hours and minutes: an adapter does (`specs/cli-match-exploited.md`).
 - The content of the reports, the member states the early warning names (milestone "Draft the CRA early warning").
 - Remembering when a vulnerability was first seen across runs.

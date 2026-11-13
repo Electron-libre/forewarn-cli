@@ -64,3 +64,47 @@ pub fn reporting_deadlines(
             .transpose()?,
     })
 }
+
+/// Where a moment stands against a deadline (RDL-12, RDL-13).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeadlineState {
+    /// The seconds left before the deadline, zero for a deadline reached exactly: the report is still on time.
+    Left(u64),
+    /// The seconds since the deadline passed.
+    Overdue(u64),
+}
+
+impl DeadlineState {
+    /// Where `now` stands against `deadline`, in exact seconds (RDL-15).
+    #[must_use]
+    pub fn at(deadline: Moment, now: Moment) -> Self {
+        if now <= deadline {
+            Self::Left(now.seconds_until(deadline))
+        } else {
+            Self::Overdue(deadline.seconds_until(now))
+        }
+    }
+}
+
+/// Where a moment stands against each deadline of [`ReportingDeadlines`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DeadlineStates {
+    pub early_warning: DeadlineState,
+    pub notification: DeadlineState,
+    /// `None` for a final report with no deadline (RDL-14).
+    pub final_report: Option<DeadlineState>,
+}
+
+impl ReportingDeadlines {
+    /// Where `now` stands against each deadline: the time left or overdue (RDL-12 to RDL-14).
+    #[must_use]
+    pub fn at(&self, now: Moment) -> DeadlineStates {
+        DeadlineStates {
+            early_warning: DeadlineState::at(self.early_warning, now),
+            notification: DeadlineState::at(self.notification, now),
+            final_report: self
+                .final_report
+                .map(|deadline| DeadlineState::at(deadline, now)),
+        }
+    }
+}

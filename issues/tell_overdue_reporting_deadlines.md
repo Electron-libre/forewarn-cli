@@ -27,3 +27,48 @@ Compute CRA reporting deadlines
 # Resources
 * `specs/reporting-deadlines.md` and the instant type of `compute_cra_reporting_deadlines`.
 * The flags and output of `cli_print_reporting_deadlines`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+At a moment, the domain tells for each deadline the seconds left (zero when reached exactly: still on time) or the
+seconds overdue; `forewarn match` prints it next to each deadline in the human report, at `--now` or the moment of
+the run. The JSON report is left as is (non-goal of MXL).
+
+## Plan
+1. [x] Domain state of a deadline at a moment (`ReportingDeadlines::at`, time left or overdue in seconds); verified by
+   the scenarios of `crates/forewarn-domain/tests/reporting_deadlines.rs` one second before, at and after each
+   deadline; makes true RDL-12 to RDL-15. (autonomous)
+2. [ ] `forewarn match --now` and the time left or overdue printed next to each deadline, with the moment of the check;
+   verified by end-to-end tests of `crates/forewarn/tests/exploited.rs` at the bounds of each deadline; makes true
+   MXL-22 to MXL-26.
+
+## Decisions
+- Mode: autonomous
+- Base commit: cc2d1123f819c0f390d861615befc1ef83e99e32
+- A deadline reached exactly is due, not overdue (`due now`).
+- The flag fixing the moment of the check is `--now`, visible.
+- The JSON report gets no time left (non-goal).
+- Durations as `2d 3h 4m 5s`, the leading zero units left out.
+
+## Deliverable 1
+
+done: `DeadlineState` (`Left` / `Overdue` seconds), `ReportingDeadlines::at`, `Moment::seconds_until`; spec RDL
+accepted; CLAUDE.md status line.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | CLAUDE.md |
+| code review | low, clean |
+
+red: RDL-H3, RDL-12, RDL-13, RDL-14, RDL-15: unresolved imports `forewarn_domain::deadlines::DeadlineState`, `DeadlineStates`; no method named `at` found for struct `ReportingDeadlines`
+
+Code review: no findings
+
+not verified: none
+decisions needed: none
