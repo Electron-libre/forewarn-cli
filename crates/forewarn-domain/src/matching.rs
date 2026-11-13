@@ -108,6 +108,19 @@ pub struct RecordRef {
     pub id: String,
     /// The database the record comes from (`RUSTSEC`, `GHSA`).
     pub source: String,
+    /// Whether the record affects the component (VMT-18).
+    pub status: RecordStatus,
+}
+
+/// What a record of a match says of the component (VMT-18).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecordStatus {
+    /// The record affects the component's version.
+    Affects,
+    /// The record names the component's package but not its version.
+    DoesNotAffect,
+    /// The record names the component's package and could not be evaluated (VMT-10).
+    NotEvaluated,
 }
 
 /// A component, or a pair, matching could not evaluate: never to be read as unaffected.
@@ -365,7 +378,7 @@ impl<'a> Group<'a> {
             .filter(|alias| *alias != id)
             .filter(|alias| !alias.starts_with("CVE-") && !foreign.contains(alias))
             .collect();
-        let mut records: Vec<&Vulnerability> = named
+        let mut records: Vec<&Named> = named
             .iter()
             .enumerate()
             .filter(|(place, record)| {
@@ -376,18 +389,23 @@ impl<'a> Group<'a> {
                             .iter()
                             .any(|alias| *alias == id || aliases.contains(alias)))
             })
-            .map(|(_, record)| record.record)
+            .map(|(_, record)| record)
             .collect();
-        records.sort_by(|a, b| a.id.cmp(&b.id));
+        records.sort_by(|a, b| a.record.id.cmp(&b.record.id));
         Match {
             component: component.into(),
             id: id.to_owned(),
             aliases: aliases.into_iter().map(str::to_owned).collect(),
             records: records
                 .into_iter()
-                .map(|record| RecordRef {
-                    id: record.id.clone(),
-                    source: record.source.clone(),
+                .map(|named| RecordRef {
+                    id: named.record.id.clone(),
+                    source: named.record.source.clone(),
+                    status: match named.outcome {
+                        Outcome::Affected => RecordStatus::Affects,
+                        Outcome::NotEvaluated(_) => RecordStatus::NotEvaluated,
+                        Outcome::NotAffected | Outcome::NotNamed => RecordStatus::DoesNotAffect,
+                    },
                 })
                 .collect(),
         }

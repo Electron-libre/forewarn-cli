@@ -2,7 +2,7 @@
 
 use forewarn_domain::matching::{
     ComponentReason, ComponentRef, Match, MatchReport, NotEvaluated, PairReason, Reason, RecordRef,
-    match_components,
+    RecordStatus, match_components,
 };
 use forewarn_domain::sbom::Component;
 use forewarn_domain::vulnerability::{AffectedPackage, Event, Range, RangeKind, Vulnerability};
@@ -74,9 +74,14 @@ fn affects(events: &[Event], version: &str) -> bool {
 }
 
 fn record(id: &str, source: &str) -> RecordRef {
+    record_with(id, source, RecordStatus::Affects)
+}
+
+fn record_with(id: &str, source: &str, status: RecordStatus) -> RecordRef {
     RecordRef {
         id: id.into(),
         source: source.into(),
+        status,
     }
 }
 
@@ -667,7 +672,7 @@ fn lists_the_records_of_a_match_by_id_with_their_source() {
     );
 }
 
-// spec: VMT-19
+// spec: VMT-18, VMT-19
 #[test]
 fn groups_records_that_disagree_on_the_affected_versions() {
     let rustsec = time_record("RUSTSEC-2020-0071", "RUSTSEC", &["GHSA-1"], "0");
@@ -681,20 +686,26 @@ fn groups_records_that_disagree_on_the_affected_versions() {
     assert_eq!(
         report.matches()[0].records,
         [
-            record("GHSA-1", "GHSA"),
+            record_with("GHSA-1", "GHSA", RecordStatus::DoesNotAffect),
             record("RUSTSEC-2020-0071", "RUSTSEC")
         ]
     );
 }
 
-// spec: VMT-20
+// spec: VMT-18, VMT-20
 #[test]
 fn drops_a_pair_not_evaluated_of_a_record_grouped_into_a_match() {
     let rustsec = time_record("RUSTSEC-2020-0071", "RUSTSEC", &["GHSA-1"], "0");
     let mut ghsa = time_record("GHSA-1", "GHSA", &["RUSTSEC-2020-0071"], "0");
     ghsa.affected[0].ranges = vec![range(RangeKind::Git, &[introduced("abc")])];
     let report = match_components(&[component("pkg:cargo/time@0.1.43")], &[rustsec, ghsa]);
-    assert_eq!(report.matches().len(), 1);
+    assert_eq!(
+        report.matches()[0].records,
+        [
+            record_with("GHSA-1", "GHSA", RecordStatus::NotEvaluated),
+            record("RUSTSEC-2020-0071", "RUSTSEC")
+        ]
+    );
     assert_eq!(report.not_evaluated(), []);
 }
 

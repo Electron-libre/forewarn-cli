@@ -6,7 +6,9 @@ use std::fmt::Write;
 use std::path::Path;
 
 use forewarn_domain::completeness::{CompletenessReport, Field};
-use forewarn_domain::matching::{ComponentReason, ComponentRef, MatchReport, PairReason, Reason};
+use forewarn_domain::matching::{
+    ComponentReason, ComponentRef, MatchReport, PairReason, Reason, RecordStatus,
+};
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
@@ -228,6 +230,11 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
             push_escaped(&mut text, &record.id);
             text.push_str(" from ");
             push_escaped(&mut text, &record.source);
+            match record.status {
+                RecordStatus::Affects => {}
+                RecordStatus::DoesNotAffect => text.push_str(" (does not affect)"),
+                RecordStatus::NotEvaluated => text.push_str(" (not evaluated)"),
+            }
         }
         text.push('\n');
     }
@@ -296,7 +303,14 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
                 "records": found
                     .records
                     .iter()
-                    .map(|record| json!({"id": record.id, "source": record.source}))
+                    .map(|record| {
+                        let affects = match record.status {
+                            RecordStatus::Affects => Some(true),
+                            RecordStatus::DoesNotAffect => Some(false),
+                            RecordStatus::NotEvaluated => None,
+                        };
+                        json!({"id": record.id, "source": record.source, "affects": affects})
+                    })
                     .collect::<Vec<Value>>(),
             })
         })

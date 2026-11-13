@@ -55,10 +55,10 @@ each record of a match carries its status (affects, does not, not evaluated). Ou
    aliases leave out foreign CVEs and the ids of records of another CVE; pairs not evaluated kept when a CVE of their
    record names no match; verified by domain tests of the new VMT scenarios; makes true VMT-15, VMT-16, VMT-17,
    VMT-19, VMT-20, VMT-21, VMT-22. (autonomous)
-2. [ ] Record status: `RecordRef.status` (`Affects`, `DoesNotAffect`, `NotEvaluated`) in the domain, `affects`
+2. [x] Record status: `RecordRef.status` (`Affects`, `DoesNotAffect`, `NotEvaluated`) in the domain, `affects`
    (`true`, `false`, `null`) in the JSON `records`, `(does not affect)` / `(not evaluated)` after the record in the
    human report; verified by domain tests and a `forewarn match --osv` test on a RUSTSEC record and a mirror fixed
-   earlier; makes true VMT-18, MCH-1, MCH-16.
+   earlier; makes true VMT-18, MCH-1, MCH-16. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -79,3 +79,12 @@ each record of a match carries its status (affects, does not, not evaluated). Ou
   `naming` returns the places in id order (vulnerabilities sorted by id before indexing), so equal ids are adjacent.
 - Decision: VMT-17 leaves out the id of a record of another CVE only among the records affecting or not evaluated, so
   a mirror not affecting stays among the aliases through the affecting record that names it.
+
+## Deliverable 2: summary
+- done: `RecordRef.status` (`Affects`, `DoesNotAffect`, `NotEvaluated`); the human report adds `(does not affect)` or
+  `(not evaluated)` after a record, the JSON `records` carry `affects` (`true`, `false`, `null`); both specs back to
+  `accepted`; README mentions the mark.
+- checks: `cardinal run project-check` passes (fmt, clippy, tests, specs).
+- red: VMT-18, MCH-1, MCH-16: domain tests did not compile (`struct RecordRef has no field named status`), 3 of 19
+  `forewarn match` tests failed (`records` without `affects`).
+- Code review: no findings (`low`).

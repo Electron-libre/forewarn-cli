@@ -104,7 +104,7 @@ fn prints_the_same_result_as_json() {
                 "purl": "pkg:cargo/time@0.1.43",
                 "id": "CVE-2020-26235",
                 "aliases": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
-                "records": [{"id": "RUSTSEC-2020-0071", "source": "RUSTSEC"}],
+                "records": [{"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true}],
             }],
             "notEvaluated": [{
                 "name": "bare",
@@ -421,10 +421,57 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
             "id": "CVE-2020-26235",
             "aliases": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
             "records": [
-                {"id": "GHSA-wcg3-cvx6-7396", "source": "GHSA"},
-                {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC"},
+                {"id": "GHSA-wcg3-cvx6-7396", "source": "GHSA", "affects": true},
+                {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true},
             ],
         }])
+    );
+}
+
+// spec: MCH-1, MCH-16
+#[test]
+fn marks_the_records_that_do_not_affect_the_component_or_were_not_evaluated() {
+    let mirror = |id: &str, ranges: Value| {
+        json!({
+            "id": id,
+            "aliases": ["RUSTSEC-2020-0071"],
+            "affected": [{"package": {"ecosystem": "crates.io", "name": "time"}, "ranges": ranges}],
+        })
+    };
+    let fixed = mirror(
+        "GHSA-fixed",
+        json!([{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "0.1.40"}]}]),
+    );
+    let git = mirror(
+        "GHSA-git",
+        json!([{"type": "GIT", "repo": "https://example.com/time", "events": [{"introduced": "abc"}]}]),
+    );
+    let rustsec: Value = serde_json::from_slice(
+        &fs::read(osv_fixture("RUSTSEC-2020-0071.json")).expect("the fixture"),
+    )
+    .expect("the fixture is JSON");
+    let osv = records(&[rustsec, fixed, git]);
+    let input = three_components();
+    let human = run(&["match", "--osv", path(osv.path()), "-"], Some(&input));
+    assert!(
+        human.stdout.contains(
+            "records GHSA-fixed from GHSA (does not affect), GHSA-git from GHSA (not evaluated), \
+             RUSTSEC-2020-0071 from RUSTSEC\n"
+        ),
+        "{}",
+        human.stdout
+    );
+    let report = json_report(&run(
+        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        Some(&input),
+    ));
+    assert_eq!(
+        report["affected"][0]["records"],
+        json!([
+            {"id": "GHSA-fixed", "source": "GHSA", "affects": false},
+            {"id": "GHSA-git", "source": "GHSA", "affects": null},
+            {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true},
+        ])
     );
 }
 
