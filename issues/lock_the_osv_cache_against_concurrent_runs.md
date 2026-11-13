@@ -47,6 +47,9 @@ system releases the lock of a killed run. Out of scope: caches shared over a net
    bound on `Archives`, `FetchCause::Locked`, `rust-version` 1.89, ADR 0005, ADR 0004 and CLAUDE.md updated; verified
    by tests in `crates/forewarn-osv/tests/fetching.rs` (a lock held by the test, a second thread waiting on it); makes
    true OSR-19 to OSR-23. (autonomous)
+2. [x] Fixes of the high review of the issue: a lock file another user created is locked read-only, a file system
+   refusing advisory locks reads without the lock, no overflow on a huge `lock_wait`, the killed holder of the test
+   cleaned on failure; verified by `a_lock_file_the_run_can_only_read_still_locks`; makes true OSR-19. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -75,4 +78,40 @@ file was created. OSR-20 and OSR-21 passed before the lock (they guard against a
 Code review: no findings
 
 not verified: Windows (`LockFileEx`), a cache on a network file system (non-goal).
+decisions needed: none.
+
+## Deliverable 2
+
+done: fixes of the `high` review (9 findings) of `bcc6cbf..586ad86`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | ADR 0005 (read-only handle, unsupported locks, two consequences), ROADMAP.md |
+| code review | low, 2 findings, fixed |
+
+red: OSR-19: a lock file of mode 0444 failed the fetch with "cannot use the cache: Permission denied".
+
+High review, 9 findings:
+1. Write-only open of the lock file: fixed (read-only fallback), tested.
+2. A lock error (ENOLCK, unsupported) failed the fetch: partly fixed, a platform without file locks
+   (`ErrorKind::Unsupported`) reads without the lock; any other lock error still fails with "cannot use the cache"
+   and its reason, so that two runs never write unlocked (the low review of this deliverable flagged ignoring them
+   all); stated in ADR 0005; not tested, no such file system in the tests.
+3. The bound covers one download, not a queue: not fixed, stated in ADR 0005.
+4. Overflow of `Instant + lock_wait`: fixed (`checked_add`, no deadline).
+5. Readers wait for each other: issue `share_the_osv_cache_lock_between_readers`.
+6. The OSR-21 holder leaked on a failed test, zero wait: fixed (kill-on-drop guard, 5 s wait).
+7. `Duration` printed with `Debug` ("2400s"): not fixed, readable and exact.
+8. Duplicated open-and-lock in the tests: fixed (`lock_file`).
+9. `offline` creates lock files for ecosystems never fetched: not fixed, empty dotfiles, and skipping them would
+   read unlocked while a first run fills the cache.
+
+Code review: 2 findings
+1. The read-only fallback hid the reason of the failed write ("not found" for "permission denied"): fixed.
+2. Every `try_lock` error read without the lock: fixed, only `Unsupported` does.
+
+not verified: Windows; a file system refusing locks.
 decisions needed: none.

@@ -233,7 +233,8 @@ impl Archives {
 
     /// Takes the lock of an ecosystem, `.lock-<ecosystem>` in the cache, waiting at most `lock_wait` for another
     /// fetch to release it (ADR 0005); the system releases it when the returned file is closed or the process ends.
-    /// Under `offline`, a cache the lock file cannot be created in is read without it (OSR-23).
+    /// A lock file another user created is locked through a read-only handle. Under `offline`, a cache the lock file
+    /// cannot be opened in is read without it (OSR-23); so is any cache on a platform without file locks (ADR 0005).
     fn lock(&self, ecosystem: &str) -> Result<Option<File>, FetchCause> {
         let path = self.cache.join(format!(".lock-{ecosystem}"));
         let offline = self.refresh == Refresh::Offline;
@@ -244,24 +245,32 @@ impl Archives {
             .create(true)
             .truncate(false)
             .write(true)
-            .open(&path);
+            .open(&path)
+            // Keeps the reason of the write when the lock file cannot be read either (a cache it cannot write in).
+            .or_else(|error| File::open(&path).map_err(|_| error));
         let file = match opened {
             Ok(file) => file,
             Err(_) if offline => return Ok(None),
             Err(e) => return Err(cache_error(&e)),
         };
-        let deadline = Instant::now() + self.lock_wait;
+        // A bound too large to add to now waits without one.
+        let deadline = Instant::now().checked_add(self.lock_wait);
         loop {
             match file.try_lock() {
                 Ok(()) => return Ok(Some(file)),
                 Err(TryLockError::WouldBlock) => {
-                    let left = deadline.saturating_duration_since(Instant::now());
+                    let left = deadline.map_or(LOCK_POLL, |deadline| {
+                        deadline.saturating_duration_since(Instant::now())
+                    });
                     if left.is_zero() {
                         return Err(FetchCause::Locked {
                             waited: self.lock_wait,
                         });
                     }
                     thread::sleep(left.min(LOCK_POLL));
+                }
+                Err(TryLockError::Error(e)) if e.kind() == io::ErrorKind::Unsupported => {
+                    return Ok(None);
                 }
                 Err(TryLockError::Error(e)) => return Err(cache_error(&e)),
             }

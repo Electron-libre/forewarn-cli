@@ -692,17 +692,32 @@ fn each_download_records_the_time_it_started() {
     assert_eq!(snapshots[1].freshness.downloaded_at, at(2_000));
 }
 
-/// Locks the lock file of an ecosystem as another run would, until the returned file is dropped.
-fn hold_lock(cache: &Path, ecosystem: &str) -> fs::File {
-    fs::create_dir_all(cache).expect("the cache");
+/// Locks a lock file as another run would, until the returned file is dropped.
+fn lock_file(path: &Path) -> fs::File {
     let file = fs::OpenOptions::new()
         .create(true)
         .truncate(false)
         .write(true)
-        .open(cache.join(format!(".lock-{ecosystem}")))
+        .open(path)
         .expect("the lock file");
     file.lock().expect("the lock");
     file
+}
+
+/// Locks the lock file of an ecosystem as another run would, until the returned file is dropped.
+fn hold_lock(cache: &Path, ecosystem: &str) -> fs::File {
+    fs::create_dir_all(cache).expect("the cache");
+    lock_file(&cache.join(format!(".lock-{ecosystem}")))
+}
+
+/// A child process, killed when dropped, so that a failed test never leaves it holding a lock.
+struct Child(std::process::Child);
+
+impl Drop for Child {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }
 
 /// Waits until the server has received `count` requests.
@@ -771,13 +786,7 @@ fn lock_holder_process() {
     let Some(path) = std::env::var_os(HOLDER_LOCK) else {
         return;
     };
-    let file = fs::OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(path)
-        .expect("the lock file");
-    file.lock().expect("the lock");
+    let _file = lock_file(Path::new(&path));
     println!("locked");
     std::io::stdout().flush().expect("flushed");
     thread::sleep(Duration::from_secs(600));
@@ -789,18 +798,20 @@ fn a_lock_left_by_a_killed_run_does_not_block() {
     let cache = TempDir::new().expect("a cache");
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
-    let mut holder = std::process::Command::new(std::env::current_exe().expect("the test binary"))
-        .args([
-            "--exact",
-            "lock_holder_process",
-            "--nocapture",
-            "--test-threads=1",
-        ])
-        .env(HOLDER_LOCK, cache.path().join(".lock-crates.io"))
-        .stdout(std::process::Stdio::piped())
-        .spawn()
-        .expect("the holder starts");
-    let mut output = std::io::BufReader::new(holder.stdout.take().expect("its output"));
+    let mut holder = Child(
+        std::process::Command::new(std::env::current_exe().expect("the test binary"))
+            .args([
+                "--exact",
+                "lock_holder_process",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env(HOLDER_LOCK, cache.path().join(".lock-crates.io"))
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("the holder starts"),
+    );
+    let mut output = std::io::BufReader::new(holder.0.stdout.take().expect("its output"));
     let mut line = String::new();
     while !line.contains("locked") {
         line.clear();
@@ -810,10 +821,10 @@ fn a_lock_left_by_a_killed_run_does_not_block() {
             "the holder ended before locking"
         );
     }
-    holder.kill().expect("the holder is killed");
-    holder.wait().expect("the holder ends");
+    drop(holder);
+    // A short wait: Windows releases the locks of an ended process asynchronously.
     let after = Archives {
-        lock_wait: Duration::ZERO,
+        lock_wait: Duration::from_secs(5),
         ..archives(cache.path(), &server, Refresh::IfMissing)
     };
 
@@ -892,4 +903,45 @@ fn an_offline_run_reads_a_cache_it_cannot_write_in() {
 
     fs::set_permissions(cache.path(), fs::Permissions::from_mode(0o755)).expect("writable");
     assert_eq!(read.expect("the snapshot is read"), filled);
+}
+
+// spec: OSR-19
+#[cfg(unix)]
+#[test]
+fn a_lock_file_the_run_can_only_read_still_locks() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    // Created by another user of a shared cache, with a umask leaving others read only.
+    let lock = cache.path().join(".lock-crates.io");
+    fs::write(&lock, "").expect("a lock file");
+    fs::set_permissions(&lock, fs::Permissions::from_mode(0o444)).expect("read-only");
+    let held = lock_file_read_only(&lock);
+    let waiting = Archives {
+        lock_wait: Duration::from_millis(300),
+        ..archives(cache.path(), &server, Refresh::IfMissing)
+    };
+
+    let error = waiting
+        .fetch(&["crates.io"], || at(1_000))
+        .expect_err("the fetch waits for the lock");
+    drop(held);
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched once the lock is released");
+
+    assert!(
+        matches!(error.cause, FetchCause::Locked { .. }),
+        "{error:?}"
+    );
+    assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
+}
+
+#[cfg(unix)]
+fn lock_file_read_only(path: &Path) -> fs::File {
+    let file = fs::File::open(path).expect("the lock file");
+    file.lock().expect("the lock");
+    file
 }

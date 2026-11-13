@@ -29,7 +29,11 @@ and keeps it until it is done with the ecosystem; it gives up after a bound the 
 longer than the 31.5 minutes the timeouts of a download allow (ADR 0004), so that a waiting run outlasts any live
 download but not a suspended process. The workspace `rust-version` goes from 1.86 to 1.89.
 
-A fetch under `offline` that cannot create the lock file (a read-only cache filled elsewhere) reads without the lock.
+A lock file another user of a shared cache created, which this run can only read, is locked through a read-only
+handle. A fetch under `offline` that cannot open the lock file (a read-only cache filled elsewhere) reads without the
+lock, and so does any fetch on a platform where the standard library has no file locks. A file system that refuses
+the lock (`ENOLCK` on a network file system without a lock daemon) fails the fetch with "cannot use the cache" and the
+system's reason, rather than letting two runs write unlocked.
 
 ## Consequences
 
@@ -38,5 +42,8 @@ A fetch under `offline` that cannot create the lock file (a read-only cache fill
 - A killed run never blocks the cache: its lock goes with its process.
 - Different ecosystems do not wait for each other.
 - A cache on a network file system shared by several machines is not protected.
+- The bound covers one download, not a queue: a run behind two others that both download (`always`, an expired age)
+  can give up although none is stuck.
+- Runs that only read a snapshot also wait for each other while it is parsed.
 - A run waits silently; the CLI says nothing while it waits.
 - Building needs Rust 1.89.
