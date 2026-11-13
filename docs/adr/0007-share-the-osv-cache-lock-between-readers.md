@@ -16,7 +16,9 @@ run is stuck.
 A fetch takes the shared lock of the lock file (`File::try_lock_shared`, polled as the exclusive one) to read the
 freshness and, when its refresh policy reads the snapshot, the records. When the policy asks for a download, or a
 stopped run left the former snapshot aside (`.former-<ecosystem>` to put back), it releases the shared lock, takes the
-exclusive one, and reads the freshness again before deciding: another run may have downloaded meanwhile. The bound of
+exclusive one, and reads the freshness again before deciding: another run may have downloaded meanwhile, and the
+fetch then releases the exclusive lock and reads that snapshot under the shared one, beside the other readers. A
+fetch under `always`, which never reads the snapshot, takes the exclusive lock first. The bound of
 the wait covers both locks: one deadline, set when the fetch first asks for the lock.
 
 Releasing then taking, rather than converting the lock in place: `flock` converts a shared lock non-atomically
@@ -31,5 +33,5 @@ file locks reads and writes without them.
 - A download waits for the fetches reading the snapshot it replaces, so no reader sees it half replaced.
 - A download is not served before the reads that start after it: reads that keep overlapping can hold it back until
   its bound is over. Runners mixing `always` with reading policies on one cache are the case; the next run downloads.
-- Two fetches that both find the snapshot too old download it once: the second reads it again under the exclusive
-  lock and finds it fresh.
+- Two fetches that both find the snapshot too old download it once: the second reads the freshness again under the
+  exclusive lock, finds it fresh, and parses the records under the shared lock.

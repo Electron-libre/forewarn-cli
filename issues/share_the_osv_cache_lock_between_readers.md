@@ -63,3 +63,19 @@ wait bound across both locks (OSR-22). Fairness between a waiting download and n
   test fails with 3 downloads instead of 2 when the second freshness read is removed).
 - Code review: no findings
 - not verified: Windows (`LockFileEx` shared), reasoned in ADR 0007 only.
+2. [x] Fixes of the `high` review: a run finding the snapshot fresh under the exclusive lock reads it under the shared
+   one; `always` takes the exclusive lock first; the re-check test synchronised on the clock; OSR-19 and OSR-33 cover
+   putting back a snapshot left aside; README; verified by `putting_back_a_snapshot_waits_for_the_runs_reading` and
+   `two_runs_finding_the_snapshot_too_old_download_it_once`. (autonomous)
+
+## Deliverable 2 summary
+- done: `snapshot` loops over the two lock modes (no duplicated read), `always` goes straight to the exclusive lock,
+  a fresh snapshot found after the exclusive wait is parsed under the shared lock; spec, ADR 0007 and README amended.
+- checks: tests pass, clippy pedantic clean, `check-specs` clean, docs updated.
+- red: OSR-33: none (the restore already waited under the exclusive lock; the new test traces it). The re-check test
+  fails with 3 downloads instead of 2 when the re-check under the exclusive lock is removed, three runs out of three.
+- Code review: no findings
+- not verified: no test proves that the records are parsed under the shared rather than the exclusive lock after a
+  wait (not observable without a hook); Windows.
+
+Done: both deliverables committed; the `high` review of the issue gave 6 findings, all fixed in deliverable 2.

@@ -28,12 +28,13 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   archive was downloaded, the URL it was downloaded from, and the `Last-Modified` header of that download when the
   server sent one.
 - **OSR-12** (deterministic) Fetching under the policy `offline` must send no request.
-- **OSR-19** (deterministic) A fetch of an ecosystem that another fetch into the same cache is downloading must wait
-  until that fetch is done with the ecosystem, then read its snapshot or download its archive as OSR-13 says.
+- **OSR-19** (deterministic) A fetch of an ecosystem that another fetch into the same cache is downloading, or is
+  putting back the snapshot a stopped fetch left aside, must wait until that fetch is done with the ecosystem, then read its snapshot or download its archive as OSR-13 says.
 - **OSR-32** (deterministic) Fetches of an ecosystem into the same cache that each read its cached snapshot without
   downloading must not wait for each other.
-- **OSR-33** (deterministic) A fetch that downloads the archive of an ecosystem must wait until every other fetch
-  reading the snapshot of that ecosystem in the same cache is done with it.
+- **OSR-33** (deterministic) A fetch that downloads the archive of an ecosystem, or puts back the snapshot a stopped
+  fetch left aside, must wait until every other fetch reading the snapshot of that ecosystem in the same cache is done
+  with it.
 - **OSR-20** (deterministic) Fetches of two different ecosystems into the same cache must not wait for each other.
 - **OSR-21** (deterministic) A fetch stopped before it was done with an ecosystem (a killed process) must not make a
   later fetch of that ecosystem wait.
@@ -187,6 +188,8 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 - (OSR-33, OSR-22) Given a run reading the snapshot of `crates.io` from a cache, when a second run fetches
   `crates.io` into it under `always`, then it waits, and fails with "cache locked by another run" once its wait is
   over, the cache keeping its snapshot.
+- (OSR-33) Given a snapshot of `crates.io` left aside by a stopped run and a run reading the cache, when
+  `crates.io` is fetched with a short wait, then it fails with "cache locked by another run".
 - (OSR-19, OSR-13) Given a snapshot of `crates.io` older than an age, when two runs fetch it under `older-than` that
   age at the same time, then the archive is downloaded once, the second run reading the snapshot the first stored.
 - (OSR-20) Given a run fetching `crates.io` into a cache, when a second run fetches `npm` into it, then the second

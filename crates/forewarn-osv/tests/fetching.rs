@@ -840,17 +840,52 @@ fn a_download_waits_for_the_runs_reading_the_snapshot() {
     assert_eq!(after, before);
 }
 
+// spec: OSR-33
+#[test]
+fn putting_back_a_snapshot_waits_for_the_runs_reading() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    fs::rename(
+        cache.path().join("crates.io"),
+        cache.path().join(".former-crates.io"),
+    )
+    .expect("moved aside");
+    let _reading = hold_shared_lock(cache.path(), "crates.io");
+    let restoring = Archives {
+        lock_wait: Duration::from_millis(300),
+        ..archives(cache.path(), &server, Refresh::IfMissing)
+    };
+
+    let error = restoring
+        .fetch(&["crates.io"], || at(2_000))
+        .expect_err("putting back waits for the reader");
+
+    assert!(
+        matches!(error.cause, FetchCause::Locked { .. }),
+        "{error:?}"
+    );
+    assert!(cache.path().join(".former-crates.io").is_dir());
+}
+
 // spec: OSR-19, OSR-13
 #[test]
 fn two_runs_finding_the_snapshot_too_old_download_it_once() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     let cache = TempDir::new().expect("a cache");
     let server = Server::new();
     server.route("/crates.io/all.zip", ok(crates_io_archive()));
     archives(cache.path(), &server, Refresh::IfMissing)
         .fetch(&["crates.io"], || at(0))
         .expect("the archive is fetched");
-    // Holds both runs after they read the old freshness, until each asks for the exclusive lock.
+    // Held until both runs have read the old freshness: each then needs the exclusive lock to download.
     let reading = hold_shared_lock(cache.path(), "crates.io");
+    let readings = Arc::new(AtomicUsize::new(0));
     let runs: Vec<_> = (0..2)
         .map(|_| {
             let run = archives(
@@ -858,10 +893,25 @@ fn two_runs_finding_the_snapshot_too_old_download_it_once() {
                 &server,
                 Refresh::OlderThan(Duration::from_secs(3_600)),
             );
-            thread::spawn(move || run.fetch(&["crates.io"], || at(7_200)))
+            let readings = Arc::clone(&readings);
+            thread::spawn(move || {
+                run.fetch(&["crates.io"], || {
+                    readings.fetch_add(1, Ordering::SeqCst);
+                    at(7_200)
+                })
+            })
         })
         .collect();
-    thread::sleep(Duration::from_millis(300));
+    for _ in 0..500 {
+        if readings.load(Ordering::SeqCst) >= 2 {
+            break;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(
+        readings.load(Ordering::SeqCst) >= 2,
+        "both runs read the freshness"
+    );
     drop(reading);
 
     let snapshots: Vec<_> = runs

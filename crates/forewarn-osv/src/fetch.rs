@@ -186,33 +186,44 @@ impl Archives {
         // A run stopped between the two renames of a download left the snapshot there.
         let left_aside = || !directory.exists() && former.is_dir();
 
-        // Under the shared lock, runs that read the snapshot read it together (OSR-32).
-        self.wait_for(&mut lock, Mode::Shared, deadline)?;
-        if !left_aside()
-            && let Some(freshness) = self.cached(&directory, clock)?
-        {
-            return Ok(Snapshot {
-                ecosystem: ecosystem.to_owned(),
-                vulnerabilities: read_records(&directory)?,
-                freshness,
-            });
-        }
-
-        // A download, or putting the snapshot back, waits for every other run (OSR-19, OSR-33); another run may have
-        // downloaded meanwhile, so the freshness is read again under the exclusive lock.
-        if let Some(file) = &lock {
-            file.unlock().map_err(|e| cache_error(&e))?;
-        }
-        self.wait_for(&mut lock, Mode::Exclusive, deadline)?;
-        if left_aside() {
-            fs::rename(&former, &directory).map_err(|e| cache_error(&e))?;
-        }
-        if let Some(freshness) = self.cached(&directory, clock)? {
-            return Ok(Snapshot {
-                ecosystem: ecosystem.to_owned(),
-                vulnerabilities: read_records(&directory)?,
-                freshness,
-            });
+        // Under the shared lock, runs that read the snapshot read it together (OSR-32); `always` never reads it.
+        let mut mode = if self.refresh == Refresh::Always {
+            Mode::Exclusive
+        } else {
+            Mode::Shared
+        };
+        loop {
+            self.wait_for(&mut lock, mode, deadline)?;
+            if mode == Mode::Exclusive && left_aside() {
+                fs::rename(&former, &directory).map_err(|e| cache_error(&e))?;
+            }
+            let freshness = if left_aside() {
+                None
+            } else {
+                self.cached(&directory, clock)?
+            };
+            match (freshness, mode) {
+                (Some(freshness), Mode::Shared) => {
+                    return Ok(Snapshot {
+                        ecosystem: ecosystem.to_owned(),
+                        vulnerabilities: read_records(&directory)?,
+                        freshness,
+                    });
+                }
+                (None, Mode::Exclusive) => break,
+                // A download, or putting the snapshot back, waits for every other run (OSR-19, OSR-33). Another run
+                // may have downloaded while this one waited for the exclusive lock: it then reads the snapshot under
+                // the shared lock, beside the other readers.
+                (None, Mode::Shared) | (Some(_), Mode::Exclusive) => {
+                    if let Some(file) = &lock {
+                        file.unlock().map_err(|e| cache_error(&e))?;
+                    }
+                    mode = match mode {
+                        Mode::Shared => Mode::Exclusive,
+                        Mode::Exclusive => Mode::Shared,
+                    };
+                }
+            }
         }
         let download = Download {
             agent,
@@ -318,7 +329,7 @@ impl Archives {
 }
 
 /// How a fetch holds the lock of an ecosystem: shared to read its snapshot, exclusive to replace it (ADR 0007).
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Shared,
     Exclusive,

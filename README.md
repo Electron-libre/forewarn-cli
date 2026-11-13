@@ -40,9 +40,10 @@ apart from the components it could not evaluate (no package URL, no version, a v
 not read, such as a Composer `dev-` branch, a record whose only ranges are `GIT` ranges), how many are clean, and how fresh the OSV data is; `--format json` and `--allow-affected` work as for `check`. Only the
 names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from the OSV bucket (`--osv-url` for a
 mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--cache` for another), again once a day
-(`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). Runs that share a cache on one machine read it
-together, and wait for a run that downloads, at most 40 minutes per ecosystem. `--osv-api` queries the OSV API instead (`--osv-api-url` for
-another): no archive is downloaded, but the OSV ecosystem, name and version of each component leave the CI, and the
+(`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). Runs that share a cache on one machine read
+it together; a run that downloads waits for the runs reading, and they for it, at most 40 minutes per ecosystem (runs
+that keep reading can hold a `--refresh always` run back that long). `--osv-api` queries the OSV API instead
+(`--osv-api-url` for another): no archive is downloaded, but the OSV ecosystem, name and version of each component leave the CI, and the
 answer depends on the moment of the query, which the report gives; it is never on by default. It exits with 1 when a
 component is affected, 5 when the OSV records cannot be read, fetched or queried, and otherwise as `check` does.
 
