@@ -1,6 +1,6 @@
 [package]
 name = "forewarn-domain"
-description = "Domain of forewarn: SBOM components, completeness, vulnerability matching, CRA reporting deadlines"
+description = "Domain of forewarn: SBOM components, completeness, vulnerability matching, exploited flagging, CRA reporting deadlines"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -155,6 +155,12 @@ impl MatchReport {
     pub fn not_evaluated(&self) -> &[NotEvaluated] {
         &self.not_evaluated
     }
+
+    /// The matches and what could not be evaluated, taken out of the report.
+    #[must_use]
+    pub fn into_parts(self) -> (Vec<Match>, Vec<NotEvaluated>) {
+        (self.matches, self.not_evaluated)
+    }
 }
 
 /// Matches each component against the vulnerabilities naming its package, found through an index by ecosystem and

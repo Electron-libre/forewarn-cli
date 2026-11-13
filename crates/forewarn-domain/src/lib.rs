@@ -2,6 +2,7 @@
 //! exploited vulnerabilities and CRA reporting deadlines. It performs no I/O and depends on no adapter.
 
 pub mod completeness;
+pub mod date;
 pub mod exploited;
 pub mod matching;
 mod purl;
