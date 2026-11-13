@@ -33,3 +33,48 @@ Flag actively exploited vulnerabilities (KEV, EUVD)
 * `crates/forewarn-osv`: the serde model and its conversion into `Vulnerability`.
 * `crates/forewarn-domain/src/cve.rs`: the reading of a CVE id.
 * `issues/done/share_one_definition_of_a_cve_id_in_the_domain.md`: the measure.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+The OSV adapter reads the `id` and each alias of a record without the ASCII whitespace around them (candidate 1), the
+source taken from the trimmed id, so the domain reads ` CVE-2026-49977 ` as a CVE id. Applies to files, archives and
+the OSV API, which share the parsing. Out of scope: the domain (candidate 2), `related`/`upstream` (not read).
+
+## Plan
+1. [x] Trim the id and aliases in the OSV adapter: `From<Record> for Vulnerability` trims them; verified by tests of
+   `crates/forewarn-osv/tests/reading.rs` on the two scenarios of OSR-34; makes true OSR-34. (autonomous)
+
+## Measure
+2026-11-13, the `all.zip` archives of `crates.io`, `Go`, `Maven`, `npm`, `NuGet`, `Packagist`, `PyPI`, `RubyGems`:
+293,984 records, 293,984 ids, 122,697 aliases, 4,867 `related`. Only two values have whitespace around them, both
+aliases with ASCII spaces: `CVE-2020-13665 ` (`DRUPAL-CORE-2020-006`), ` CVE-2026-49977 ` (`DRUPAL-CONTRIB-2026-040`).
+No id, alias or `related` holds whitespace inside.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 96c81188715676cd14af6fd42abd559ac9df5448
+
+## Deliverable 1
+done: `From<Record> for Vulnerability` trims the ASCII whitespace around the id and each alias (`str::trim_ascii`),
+the source read from the trimmed id; OSR-34 added, `specs/osv-reading.md` accepted.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | spec only; no other page describes the reading of ids and aliases |
+| code review | pass |
+
+red: OSR-34: `left: [" CVE-2026-49977 ", "CVE-2020-13665 "]` / `right: ["CVE-2026-49977", "CVE-2020-13665"]`, and
+`left: "\u{c} GHSA-xxxx-yyyy-zzzz\t\n\r"` / `right: "GHSA-xxxx-yyyy-zzzz"`
+
+Code review: no findings
+
+not verified: a `forewarn match` run on the Packagist archive flagging `DRUPAL-CONTRIB-2026-040` (the domain is
+covered by its own tests).
+
+decisions needed: none

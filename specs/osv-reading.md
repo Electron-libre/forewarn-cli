@@ -51,8 +51,8 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 
   | Domain field | OSV source |
   |---|---|
-  | id | `id` |
-  | aliases | `aliases`, in order |
+  | id | `id`, without the whitespace around it (OSR-34) |
+  | aliases | `aliases`, in order, each without the whitespace around it (OSR-34) |
   | source | the database prefix of `id`: the text before its first `-` (`RUSTSEC`, `GHSA`), or the whole `id` when it has none or that text is empty |
   | withdrawn | set when `withdrawn` is present and not `null` |
   | affected packages | each entry of `affected` that has a `package`, in order |
@@ -64,6 +64,9 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 
 - **OSR-5** (deterministic) Reading must skip, without failing, an entry of `affected` with no `package`, an event
   holding only `limit`, and every field of the record the table of OSR-4 does not name.
+- **OSR-34** (deterministic) Reading must take the `id` and each alias of a record without the ASCII whitespace
+  around it (space, tab, line feed, form feed, carriage return), and read the source from that id; the text inside
+  is kept as written.
 - **OSR-6** (deterministic) Reading must keep a withdrawn record, flagged withdrawn, so that the matching drops it
   (VMT-12).
 - **OSR-7** (deterministic) Reading a directory must read only the files of that directory whose name ends in
@@ -162,6 +165,10 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   read, then that entry is skipped and the others are kept.
 - (OSR-5) Given a range whose events hold `introduced` `0` and `limit` `2.0.0`, when it is read, then the range has
   the single event introduced `0`.
+- (OSR-34) Given a record `DRUPAL-CONTRIB-2026-040` whose aliases are ` CVE-2026-49977 ` and `CVE-2020-13665 `,
+  when it is read, then its aliases are `CVE-2026-49977` and `CVE-2020-13665`.
+- (OSR-34) Given a record whose `id` is `GHSA-xxxx-yyyy-zzzz` followed by a tab and a line feed, when it is read, then
+  its id is `GHSA-xxxx-yyyy-zzzz` and its source `GHSA`.
 - (OSR-6) Given a withdrawn record, when it is read, then it is returned flagged withdrawn.
 - (OSR-8, OSR-9) Given a record with `schema_version` `2.0.0`, when it is read, then it fails with "unsupported
   schema version" quoting `2.0.0`; with `1.7.4`, it is read.
