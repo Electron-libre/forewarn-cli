@@ -874,3 +874,36 @@ fn reports_the_pair_of_a_record_in_two_unaffected_groups_once() {
     assert_eq!(report.matches(), []);
     assert_eq!(report.not_evaluated().len(), 1);
 }
+
+// spec: VMT-21
+#[test]
+fn never_links_records_without_cve_through_the_id_of_a_record_with_one() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-1"], "0"),
+            time_record("RUSTSEC-B", "RUSTSEC", &["CVE-2"], "0"),
+            time_record("GHSA-Y", "GHSA", &["RUSTSEC-A"], "0"),
+            time_record("GHSA-W", "GHSA", &["RUSTSEC-A", "RUSTSEC-B"], "0"),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-1"), ("time", "CVE-2")]);
+    assert_eq!(
+        record_ids(&report.matches()[0]),
+        ["GHSA-W", "GHSA-Y", "RUSTSEC-A"]
+    );
+    assert_eq!(record_ids(&report.matches()[1]), ["GHSA-W", "RUSTSEC-B"]);
+}
+
+// spec: VMT-18
+#[test]
+fn merges_the_copies_of_a_record_given_twice() {
+    let fixed_copy = fixed_time_record("GHSA-X", &[]);
+    let affecting_copy = time_record("GHSA-X", "GHSA", &["CVE-1"], "0");
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[fixed_copy, affecting_copy],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-1")]);
+    assert_eq!(report.matches()[0].records, [record("GHSA-X", "GHSA")]);
+}

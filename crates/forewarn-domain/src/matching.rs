@@ -90,15 +90,18 @@ impl From<&Component> for ComponentRef {
     }
 }
 
-/// A component affected by a vulnerability, known by one record or several whose ids or aliases overlap.
+/// A component affected by a vulnerability, known by one record or several whose ids or aliases overlap, never by
+/// records of two CVEs (VMT-15, VMT-21).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Match {
     pub component: ComponentRef,
-    /// The id naming the vulnerability: its first CVE, else the first id of its records (VMT-16).
+    /// The id naming the vulnerability: the CVE its records share, else the first id of its records affecting the
+    /// component or not evaluated (VMT-16).
     pub id: String,
-    /// Every other id and alias of its records, in byte order (VMT-17).
+    /// Every other id and alias of those records, in byte order, without another CVE nor the id of a record of
+    /// another CVE (VMT-17).
     pub aliases: Vec<String>,
-    /// The records that hold it, by id (VMT-18).
+    /// Its records by id, each with its status: those not affecting the component are listed too (VMT-18, VMT-22).
     pub records: Vec<RecordRef>,
 }
 
@@ -184,15 +187,21 @@ pub fn match_components(
                 outcome => Some(Named::new(record, outcome)),
             })
             .collect();
-        named.dedup_by(|a, b| a.record.id == b.record.id);
+        named.dedup_by(|copy, kept| {
+            let same = copy.record.id == kept.record.id;
+            if same {
+                kept.absorb(copy);
+            }
+            same
+        });
         let groups = Group::of(&named);
         let mut matches: Vec<Match> = groups
             .iter()
-            .filter(|group| group.affected(&named))
+            .filter(|group| group.affected)
             .map(|group| group.to_match(component, &named))
             .collect();
         matches.sort_by(|a, b| a.id.cmp(&b.id));
-        let pairs = reported_pairs(&named, &groups, &matches);
+        let pairs = reported_pairs(&named, &groups);
         report.matches.extend(matches);
         for (record, reason) in pairs {
             report.not_evaluated.push(NotEvaluated {
@@ -281,6 +290,21 @@ impl<'a> Named<'a> {
     fn is_active(&self) -> bool {
         !matches!(self.outcome, Outcome::NotAffected)
     }
+
+    /// Takes in another copy of the same record: its ids, and its outcome when it says more (affected, then not
+    /// evaluated, then not affected).
+    fn absorb(&mut self, copy: &Self) {
+        let weight = |outcome: Outcome| match outcome {
+            Outcome::Affected => 2,
+            Outcome::NotEvaluated(_) => 1,
+            Outcome::NotAffected | Outcome::NotNamed => 0,
+        };
+        if weight(copy.outcome) > weight(self.outcome) {
+            self.outcome = copy.outcome;
+        }
+        self.ids.extend(&copy.ids);
+        self.cves.extend(&copy.cves);
+    }
 }
 
 /// The records naming one component that stand for one vulnerability (VMT-15, VMT-21): those holding its CVE, or
@@ -290,21 +314,31 @@ struct Group<'a> {
     cve: Option<&'a str>,
     /// Its records that affect the component or could not be evaluated, by their place among the named records.
     members: BTreeSet<usize>,
+    /// Whether one of them affects the component.
+    affected: bool,
 }
 
 impl<'a> Group<'a> {
     /// The groups of the named records: one per `CVE-` id the active records hold, each with the records holding it
     /// and the clusters of active records without CVE overlapping them; a cluster overlapping none is a group of its
-    /// own (VMT-21).
+    /// own. Records without CVE are clustered through the ids no record holding a CVE carries, so that two of them
+    /// never meet through a record of one CVE (VMT-21).
     fn of(named: &[Named<'a>]) -> Vec<Self> {
+        let anchored: BTreeSet<&str> = named
+            .iter()
+            .filter(|record| record.is_active() && !record.cves.is_empty())
+            .flat_map(|record| record.ids.iter().copied())
+            .collect();
         let mut by_cve: BTreeMap<&str, BTreeSet<usize>> = BTreeMap::new();
+        // The ids a cluster is linked through, and its records.
         let mut clusters: Vec<(BTreeSet<&str>, BTreeSet<usize>)> = Vec::new();
         for (place, record) in named.iter().enumerate() {
             if !record.is_active() {
                 continue;
             }
             if record.cves.is_empty() {
-                let mut merged = (record.ids.clone(), BTreeSet::from([place]));
+                let own = record.ids.difference(&anchored).copied().collect();
+                let mut merged = (own, BTreeSet::from([place]));
                 clusters.retain(|(ids, members)| {
                     if ids.is_disjoint(&merged.0) {
                         return true;
@@ -324,33 +358,42 @@ impl<'a> Group<'a> {
             .map(|(cve, members)| Self {
                 cve: Some(cve),
                 members,
+                affected: false,
             })
             .collect();
-        let anchored = groups.len();
-        for (ids, members) in clusters {
+        let with_cve = groups.len();
+        for (_, members) in clusters {
             let mut joined = false;
-            for group in &mut groups[..anchored] {
+            for group in &mut groups[..with_cve] {
                 let overlaps = group
                     .members
                     .iter()
-                    .any(|&member| !named[member].ids.is_disjoint(&ids));
+                    .filter(|&&member| !named[member].cves.is_empty())
+                    .any(|&member| {
+                        members
+                            .iter()
+                            .any(|&other| !named[member].ids.is_disjoint(&named[other].ids))
+                    });
                 if overlaps {
                     group.members.extend(&members);
                     joined = true;
                 }
             }
             if !joined {
-                groups.push(Self { cve: None, members });
+                groups.push(Self {
+                    cve: None,
+                    members,
+                    affected: false,
+                });
             }
         }
+        for group in &mut groups {
+            group.affected = group
+                .members
+                .iter()
+                .any(|&member| matches!(named[member].outcome, Outcome::Affected));
+        }
         groups
-    }
-
-    /// Whether one of its records affects the component.
-    fn affected(&self, named: &[Named]) -> bool {
-        self.members
-            .iter()
-            .any(|&member| matches!(named[member].outcome, Outcome::Affected))
     }
 
     /// The match of the group: named by its CVE, else its first record id; its aliases without another CVE nor the
@@ -417,7 +460,6 @@ impl<'a> Group<'a> {
 fn reported_pairs<'a>(
     named: &[Named<'a>],
     groups: &[Group],
-    matches: &[Match],
 ) -> Vec<(&'a Vulnerability, PairReason)> {
     let mut pairs: Vec<(&Vulnerability, PairReason)> = named
         .iter()
@@ -426,12 +468,13 @@ fn reported_pairs<'a>(
             Outcome::NotEvaluated(reason) => {
                 let in_match = groups
                     .iter()
-                    .any(|group| group.members.contains(&place) && group.affected(named));
-                let named_cves = record
-                    .cves
-                    .iter()
-                    .all(|cve| matches.iter().any(|found| found.id == *cve));
-                (!in_match || !named_cves).then_some((record.record, reason))
+                    .any(|group| group.affected && group.members.contains(&place));
+                let cves_matched = record.cves.iter().all(|cve| {
+                    groups
+                        .iter()
+                        .any(|group| group.affected && group.cve == Some(*cve))
+                });
+                (!in_match || !cves_matched).then_some((record.record, reason))
             }
             _ => None,
         })

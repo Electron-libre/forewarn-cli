@@ -59,6 +59,10 @@ each record of a match carries its status (affects, does not, not evaluated). Ou
    (`true`, `false`, `null`) in the JSON `records`, `(does not affect)` / `(not evaluated)` after the record in the
    human report; verified by domain tests and a `forewarn match --osv` test on a RUSTSEC record and a mirror fixed
    earlier; makes true VMT-18, MCH-1, MCH-16. (autonomous)
+3. [x] Fixes of the `high` review: copies of one record merged (ids, strongest outcome), records without CVE never
+   linked through the id of a record holding a CVE, `affected` computed once per group, doc comments of `Match`;
+   verified by `merges_the_copies_of_a_record_given_twice` and
+   `never_links_records_without_cve_through_the_id_of_a_record_with_one`; makes true VMT-18, VMT-21. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -88,3 +92,19 @@ each record of a match carries its status (affects, does not, not evaluated). Ou
 - red: VMT-18, MCH-1, MCH-16: domain tests did not compile (`struct RecordRef has no field named status`), 3 of 19
   `forewarn match` tests failed (`records` without `affects`).
 - Code review: no findings (`low`).
+
+## Deliverable 3: summary
+- done: copies of one record merged before grouping (ids united, outcome the strongest); clusters of records without
+  CVE linked only through ids no record holding a CVE carries, and joined to a CVE group through its CVE holders
+  only; `Group.affected` computed once, pairs derived from the groups; `Match` doc comments follow VMT-16 to VMT-22;
+  VMT-21 reworded, two scenarios added.
+- checks: `cardinal run project-check` passes (fmt, clippy, tests, specs).
+- Code review: no findings (`low`).
+- red: VMT-18, VMT-21: `left: []` / `right: [("time", "CVE-1")]` (a later affecting copy dropped), and
+  `left: ["GHSA-W", "GHSA-Y", "RUSTSEC-B"]` / `right: ["GHSA-W", "RUSTSEC-B"]` (`GHSA-Y` in the match of `CVE-2`).
+- `high` review (7 findings): fixed the dropped copies (2 findings), the cluster leaking into another CVE, the doc
+  comments, the repeated `affected` scan and the pairs read back from the matches. Not fixed: the `foreign` set built
+  per group (per component, over the records naming its package only).
+
+## Done
+- Three deliverables committed; nothing left.
