@@ -6,12 +6,12 @@ use std::fmt::Write;
 use std::path::Path;
 
 use forewarn_domain::completeness::{CompletenessReport, Field};
-use forewarn_domain::matching::{
-    ComponentReason, ComponentRef, MatchReport, PairReason, Reason, RecordStatus,
-};
+use forewarn_domain::exploited::{Evidence, FlaggedMatch, FlaggedReport};
+use forewarn_domain::matching::{ComponentReason, ComponentRef, PairReason, Reason, RecordStatus};
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
+use forewarn_exploited::kev::Catalog;
 use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
@@ -150,6 +150,23 @@ pub enum Source<'a> {
     Local { path: &'a Path, records: usize },
 }
 
+/// Where an exploited list the matches are flagged against came from (MCH-33).
+pub enum ExploitedSource<'a> {
+    /// A KEV catalog file the user gave with `--kev`.
+    Local {
+        catalog: &'a Catalog,
+        path: &'a Path,
+    },
+}
+
+impl ExploitedSource<'_> {
+    fn catalog(&self) -> &Catalog {
+        match self {
+            Self::Local { catalog, .. } => catalog,
+        }
+    }
+}
+
 /// A time of a download or of a query in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time
 /// the calendar of `time` cannot write (before 1970 or after the year 9999), which a damaged cache or a clock set
 /// wrong could give.
@@ -171,9 +188,19 @@ fn records(count: usize) -> &'static str {
     if count == 1 { "record" } else { "records" }
 }
 
-/// The text report of `forewarn match` for a person: the SBOM, the sources of the records, the matches, the
-/// components and pairs not evaluated, and the count of clean components.
-pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -> String {
+fn entries(count: usize) -> &'static str {
+    if count == 1 { "entry" } else { "entries" }
+}
+
+/// The text report of `forewarn match` for a person: the SBOM, the sources of the records and the exploited lists,
+/// the matches with the evidence of those actively exploited, the components and pairs not evaluated, and the count
+/// of clean components.
+pub fn matching_human(
+    sbom: &Sbom,
+    sources: &[Source],
+    exploited: &[ExploitedSource],
+    matching: &FlaggedReport,
+) -> String {
     let count = sbom.components.len();
     let mut text = format!(
         "SBOM: CycloneDX {}, {count} {}\n",
@@ -188,8 +215,22 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
     for source in sources {
         push_source(&mut text, source);
     }
-    let _ = writeln!(text, "Affected ({}):", matching.matches().len());
-    for found in matching.matches() {
+    if exploited.is_empty() {
+        text.push_str("Exploited lists: none, no match flagged\n");
+    } else {
+        text.push_str("Exploited lists:\n");
+    }
+    for source in exploited {
+        push_exploited_source(&mut text, source);
+    }
+    let _ = writeln!(
+        text,
+        "Affected ({}, {} actively exploited):",
+        matching.matches().len(),
+        exploited_count(matching)
+    );
+    for flagged in matching.matches() {
+        let found = &flagged.found;
         push_component_ref(&mut text, &found.component);
         text.push_str(": ");
         push_escaped(&mut text, &found.id);
@@ -213,6 +254,9 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
             }
         }
         text.push('\n');
+        if flagged.is_exploited() {
+            push_evidence(&mut text, &flagged.evidence);
+        }
     }
     let _ = writeln!(text, "Not evaluated ({}):", matching.not_evaluated().len());
     for gap in matching.not_evaluated() {
@@ -282,6 +326,56 @@ fn push_source(text: &mut String, source: &Source) {
     }
 }
 
+/// Pushes an exploited list with its catalog's version and release date, its entry count and where it came from
+/// (MCH-33).
+fn push_exploited_source(text: &mut String, source: &ExploitedSource) {
+    let catalog = source.catalog();
+    text.push_str("  ");
+    push_escaped(text, &catalog.list.name);
+    text.push_str(": catalog ");
+    push_escaped(text, &catalog.version);
+    let count = catalog.list.entries.len();
+    let _ = write!(
+        text,
+        " released {}, {count} {}, ",
+        catalog.released,
+        entries(count)
+    );
+    match source {
+        ExploitedSource::Local { path, .. } => {
+            text.push_str("local ");
+            push_escaped(text, &path.to_string_lossy());
+        }
+    }
+    text.push('\n');
+}
+
+/// Pushes the line marking a match actively exploited, with each list naming it (MCH-29).
+fn push_evidence(text: &mut String, evidence: &[Evidence]) {
+    text.push_str("    actively exploited: ");
+    for (i, named) in evidence.iter().enumerate() {
+        if i > 0 {
+            text.push_str("; ");
+        }
+        push_escaped(text, &named.list);
+        text.push(' ');
+        push_escaped(text, &named.cve);
+        if let Some(added) = named.added {
+            let _ = write!(text, " added {added}");
+        }
+    }
+    text.push('\n');
+}
+
+/// The number of matches actively exploited (MCH-29).
+pub fn exploited_count(matching: &FlaggedReport) -> usize {
+    matching
+        .matches()
+        .iter()
+        .filter(|found| found.is_exploited())
+        .count()
+}
+
 fn push_component_ref(text: &mut String, component: &ComponentRef) {
     push_component(
         text,
@@ -292,7 +386,12 @@ fn push_component_ref(text: &mut String, component: &ComponentRef) {
 }
 
 /// The JSON report of `forewarn match` for a machine: one object whose members MCH-16 lists, ending with a newline.
-pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -> String {
+pub fn matching_json(
+    sbom: &Sbom,
+    sources: &[Source],
+    exploited: &[ExploitedSource],
+    matching: &FlaggedReport,
+) -> String {
     let sources: Vec<Value> = sources
         .iter()
         .map(|source| match source {
@@ -319,31 +418,8 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
             }
         })
         .collect();
-    let affected: Vec<Value> = matching
-        .matches()
-        .iter()
-        .map(|found| {
-            json!({
-                "name": found.component.name,
-                "version": found.component.version,
-                "purl": found.component.purl,
-                "id": found.id,
-                "aliases": found.aliases,
-                "records": found
-                    .records
-                    .iter()
-                    .map(|record| {
-                        let affects = match record.status {
-                            RecordStatus::Affects => Some(true),
-                            RecordStatus::DoesNotAffect => Some(false),
-                            RecordStatus::NotEvaluated => None,
-                        };
-                        json!({"id": record.id, "source": record.source, "affects": affects})
-                    })
-                    .collect::<Vec<Value>>(),
-            })
-        })
-        .collect();
+    let exploited_lists: Vec<Value> = exploited.iter().map(exploited_list_json).collect();
+    let affected: Vec<Value> = matching.matches().iter().map(match_json).collect();
     let not_evaluated: Vec<Value> = matching
         .not_evaluated()
         .iter()
@@ -363,18 +439,75 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
         "componentCount": sbom.components.len(),
         "cleanCount": clean_count(sbom, matching),
         "osv": sources,
+        "exploitedLists": exploited_lists,
+        "exploitedCount": exploited_count(matching),
         "affected": affected,
         "notEvaluated": not_evaluated,
     });
     format!("{report:#}\n")
 }
 
+/// An exploited list in the JSON report (MCH-16).
+fn exploited_list_json(source: &ExploitedSource) -> Value {
+    let catalog = source.catalog();
+    let mut list = json!({
+        "name": catalog.list.name,
+        "version": catalog.version,
+        "released": catalog.released.to_string(),
+        "entryCount": catalog.list.entries.len(),
+    });
+    match source {
+        ExploitedSource::Local { path, .. } => {
+            list["kind"] = json!("local");
+            list["path"] = json!(path.to_string_lossy());
+        }
+    }
+    list
+}
+
+/// A match in the JSON report, with its records and the evidence of the lists naming it (MCH-16).
+fn match_json(flagged: &FlaggedMatch) -> Value {
+    let found = &flagged.found;
+    let records: Vec<Value> = found
+        .records
+        .iter()
+        .map(|record| {
+            let affects = match record.status {
+                RecordStatus::Affects => Some(true),
+                RecordStatus::DoesNotAffect => Some(false),
+                RecordStatus::NotEvaluated => None,
+            };
+            json!({"id": record.id, "source": record.source, "affects": affects})
+        })
+        .collect();
+    let exploited: Vec<Value> = flagged
+        .evidence
+        .iter()
+        .map(|named| {
+            json!({
+                "list": named.list,
+                "cve": named.cve,
+                "dateAdded": named.added.map(|added| added.to_string()),
+            })
+        })
+        .collect();
+    json!({
+        "name": found.component.name,
+        "version": found.component.version,
+        "purl": found.component.purl,
+        "id": found.id,
+        "aliases": found.aliases,
+        "records": records,
+        "exploited": exploited,
+    })
+}
+
 /// The components neither affected nor named by a component or pair not evaluated (MCH-3).
-fn clean_count(sbom: &Sbom, matching: &MatchReport) -> usize {
+fn clean_count(sbom: &Sbom, matching: &FlaggedReport) -> usize {
     let reported: HashSet<&ComponentRef> = matching
         .matches()
         .iter()
-        .map(|found| &found.component)
+        .map(|flagged| &flagged.found.component)
         .chain(matching.not_evaluated().iter().map(|gap| &gap.component))
         .collect();
     sbom.components

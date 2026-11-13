@@ -1,7 +1,7 @@
 ---
 id: MCH
-status: accepted
-adrs: [0001, 0004, 0006]
+status: draft
+adrs: [0001, 0004, 0006, 0008]
 ---
 
 # The `forewarn match` command
@@ -9,8 +9,8 @@ adrs: [0001, 0004, 0006]
 ## Intent
 
 Let a vendor, at a terminal or in a CI job, list in one command the components of a CycloneDX SBOM affected by known
-OSV vulnerabilities, apart from the components that could not be evaluated, with the freshness of the data used and an
-exit code a CI job can act on.
+OSV vulnerabilities, apart from the components that could not be evaluated, the matches an exploited list names marked
+actively exploited, with the freshness of the data used and an exit code a CI job can act on.
 
 ## Requirements
 
@@ -31,17 +31,30 @@ exit code a CI job can act on.
   ecosystem a component maps to (VMT-4), each once, in the order of the first component that maps to it, and fetch
   nothing when no component maps to one.
 - **MCH-6** (deterministic) `forewarn match --osv <path> <sbom>` must match against the records of that OSV record file
-  or directory (OSR-1, OSR-2), repeated for several paths, and send no request.
+  or directory (OSR-1, OSR-2), repeated for several paths, and fetch no OSV archive.
 - **MCH-7** (deterministic) `forewarn match -` must read the SBOM from standard input.
 - **MCH-8** (deterministic) `forewarn match --format json <sbom>` must print the same result as one JSON document.
 - **MCH-9** (deterministic) `forewarn match --allow-affected <sbom>` must exit with the code of an SBOM with no match
-  when a component is affected, the report printed unchanged.
+  when a component is affected and no match is actively exploited, the report printed unchanged.
 - **MCH-24** (deterministic) `forewarn match --osv-api <sbom>` must query the OSV API (OSR-24) for the OSV ecosystem,
   name and version of each component that maps to one (VMT-4), the version of a Go component without its leading `v`,
   match against the records it returns, and fetch no archive.
 - **MCH-25** (deterministic) `forewarn match` without `--osv-api` must send no request to the OSV API.
 - **MCH-26** (deterministic) `forewarn match --osv-api <sbom>` must print the OSV API as its source of records, with
   its URL, the UTC time of the query and the number of records read (OSR-25).
+- **MCH-29** (deterministic) `forewarn match <sbom>` must mark each match that an exploited list names (EXF-1) as
+  actively exploited, with as evidence, for each list naming it, the name of the list, the CVE id and the date the
+  list added it when it gives one, and print how many matches are actively exploited.
+- **MCH-30** (deterministic) Without `--kev` nor `--no-kev`, `forewarn match <sbom>` must fetch the CISA KEV catalog
+  (KEV-3) under the refresh policy of MCH-11, also with `--osv` or `--osv-api`, and flag the matches against it.
+- **MCH-31** (deterministic) `forewarn match --kev <path> <sbom>` must flag the matches against the KEV catalog of that
+  file (KEV-1) and send no request for the catalog.
+- **MCH-32** (deterministic) `forewarn match --no-kev <sbom>` must flag no match, send no request for the catalog, and
+  print that no exploited list was used.
+- **MCH-33** (deterministic) `forewarn match <sbom>` must print the freshness of each exploited list it used: its name,
+  the version and the release date of the catalog (KEV-2), its number of entries, and, for a fetched catalog, the UTC
+  time it was downloaded, its URL and its `Last-Modified` when the server sent one (KEV-3), or, for a file given with
+  `--kev`, its path.
 
 ### Contract
 
@@ -49,10 +62,11 @@ exit code a CI job can act on.
 
   | Situation | Exit code |
   |---|---|
-  | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--cache`, `--refresh`, `--osv-url` or `--osv-api`, `--osv-api` with `--cache`, `--refresh` or `--osv-url`, `--osv-api-url` without `--osv-api`, no SBOM given, no cache directory MCH-12 can find without `--osv` nor `--osv-api`) | 2 |
+  | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--osv-url` or `--osv-api`, `--osv-api` with `--osv-url`, `--osv-api-url` without `--osv-api`, `--kev` with `--no-kev` or `--kev-url`, `--no-kev` with `--kev-url`, `--cache` or `--refresh` when nothing is fetched (`--osv` or `--osv-api`, with `--kev` or `--no-kev`), no SBOM given, no cache directory MCH-12 can find when an OSV archive or the KEV catalog is fetched) | 2 |
   | the SBOM cannot be read (any error of SBR-7) | 3 |
-  | the OSV records cannot be read (OSR-9), fetched (OSR-18) or queried (OSR-31) | 5 |
+  | the OSV records cannot be read (OSR-9), fetched (OSR-18) or queried (OSR-31), or the KEV catalog cannot be read (KEV-16) or fetched (KEV-15) | 5 |
   | the report cannot be written to standard output, a closed pipe aside (MCH-20) | 4 |
+  | a match is actively exploited (MCH-29), with or without `--allow-affected` | 6 |
   | a component is affected, without `--allow-affected` | 1 |
   | no component is affected, or one is with `--allow-affected` | 0 |
 
@@ -63,9 +77,10 @@ exit code a CI job can act on.
   when `XDG_CACHE_HOME` is an absolute path, else `$HOME/.cache/forewarn/osv` when `HOME` is set and not empty.
 - **MCH-13** (deterministic) The archives must be downloaded from `--osv-url <url>` when given, else from the OSV
   bucket of OSR-14.
-- **MCH-14** (deterministic) An SBOM or OSV records that cannot be read, fetched or queried must print nothing on
-  standard output and one line on standard error naming the path of the SBOM (`standard input` for `-`), the file,
-  the ecosystem or the OSV API, and the error of SBR-7, OSR-9, OSR-18 or OSR-31.
+- **MCH-14** (deterministic) An SBOM, OSV records or a KEV catalog that cannot be read, fetched or queried must print
+  nothing on standard output and one line on standard error naming the path of the SBOM (`standard input` for `-`),
+  the file, the ecosystem, the OSV API or `CISA KEV`, and the error of SBR-7, OSR-9, OSR-18, OSR-31, KEV-15 or
+  KEV-16.
 - **MCH-15** (deterministic) The report, in either format, must be printed on standard output and nothing else on
   standard error.
 - **MCH-20** (deterministic) A report that cannot be written to standard output must print one line on standard error
@@ -78,12 +93,14 @@ exit code a CI job can act on.
   | `componentCount` | the number of components matched, nested ones included |
   | `cleanCount` | the number of clean components (MCH-3) |
   | `osv` | an array, in the order of MCH-5 or of the `--osv` paths, of objects `{"kind": "archive", "ecosystem", "url", "downloadedAt", "lastModified", "recordCount"}` (`downloadedAt` in RFC 3339, UTC, to the second, ending in `Z`; `lastModified` a string or `null`), `{"kind": "api", "url", "queriedAt", "recordCount"}` (`queriedAt` as `downloadedAt`) or `{"kind": "local", "path", "recordCount"}` (`recordCount` the number of MCH-22) |
-  | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated) |
+  | `exploitedLists` | an array of objects `{"kind": "fetched", "name", "version", "released", "url", "downloadedAt", "lastModified", "entryCount"}` or `{"kind": "local", "name", "version", "released", "path", "entryCount"}` (`released` a date `YYYY-MM-DD`, `downloadedAt` and `lastModified` as in `osv`), empty with `--no-kev` |
+  | `exploitedCount` | the number of matches actively exploited (MCH-29) |
+  | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated), `exploited` (an array of objects `{"list", "cve", "dateAdded"}`, in the order of EXF-5, `dateAdded` a date `YYYY-MM-DD` or `null`, empty when no list names the match) |
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
-- **MCH-18** (deterministic) The human report must print each control character of a value read from the SBOM or the
-  OSV records escaped (`\n`, `\u{1b}`), as CHK-14 does.
+- **MCH-18** (deterministic) The human report must print each control character of a value read from the SBOM, the
+  OSV records or an exploited list escaped (`\n`, `\u{1b}`), as CHK-14 does.
 - **MCH-19** (deterministic) `forewarn` with no subcommand must print its usage naming `match` beside `check`.
 - **MCH-21** (deterministic) A record whose id was already read, from another archive or another `--osv` path, must
   not be matched again, so that a component is reported once per vulnerability id.
@@ -94,13 +111,18 @@ exit code a CI job can act on.
 - **MCH-22** (deterministic) Each source of MCH-4 must be printed with the number of records read from it, so that a
   source holding none is never read as "no vulnerability".
 - **MCH-23** (deterministic) The line of an error on standard error must print each control character of a value read
-  from the SBOM, the OSV records, an archive or the server escaped, as MCH-18 does.
+  from the SBOM, the OSV records, an archive, an exploited list or the server escaped, as MCH-18 does.
+- **MCH-34** (deterministic) The KEV catalog must be downloaded from `--kev-url <url>` when given, else from the URL
+  of KEV-10.
+- **MCH-35** (deterministic) The fetched KEV catalog must be kept in the directory `cisa-kev` of the cache directory of
+  MCH-12, beside the OSV archives, so that a later run with `--refresh offline` reads it back.
 
 ## Scenarios
 
 - **MCH-H1** (happy; MCH-1, MCH-2, MCH-3, MCH-4, MCH-6, MCH-10) Given an SBOM with `pkg:cargo/time@0.1.43`, a component
-  without a package URL and a clean component, and a directory of OSV records holding `RUSTSEC-2020-0071`, when the
-  vendor runs `forewarn match --osv records/ sbom.json`, then they see the directory as the source, `time` 0.1.43
+  without a package URL and a clean component, a directory of OSV records holding `RUSTSEC-2020-0071` and a KEV
+  catalog file naming none of its CVEs, when the vendor runs `forewarn match --osv records/ --kev kev.json sbom.json`,
+  then they see the directory as the source, `time` 0.1.43
   with `RUSTSEC-2020-0071`, `CVE-2020-26235` and `RUSTSEC`, the component without a package URL as not evaluated,
   1 clean component of 3, and the command exits with 1.
 - **MCH-H2** (happy; MCH-4, MCH-5, MCH-8, MCH-9, MCH-13, MCH-16) Given a CI job with an empty cache and an OSV mirror
@@ -112,6 +134,17 @@ exit code a CI job can act on.
   the vendor runs `forewarn match --osv-api --osv-api-url <mirror> sbom.json` on an SBOM of crates, then one
   `querybatch` request names the crates, `time` 0.1.43 is listed with `RUSTSEC-2020-0071`, the report gives the API
   with the time of the query, and the command exits with 1.
+- **MCH-H4** (happy; MCH-29, MCH-30, MCH-33, MCH-34, MCH-35, MCH-10) Given an SBOM with `log4j-core` 2.14.1 and
+  `time` 0.1.43, OSV records affecting both, and a KEV mirror publishing a catalog that names `CVE-2021-44228`, added
+  on 2021-12-10, when a CI job runs `forewarn match --cache cache/ --kev-url <mirror> sbom.json`, then the catalog is
+  downloaded into `cache/cisa-kev`, the report lists `CISA KEV` with its version, release date, number of entries,
+  download time and URL, marks `log4j-core` actively exploited with `CISA KEV`, `CVE-2021-44228` and 2021-12-10,
+  leaves `time` unmarked, counts 1 actively exploited match, and the command exits with 6.
+- **MCH-H5** (happy; MCH-31, MCH-16, MCH-29, MCH-33) Given an air-gapped CI job with a KEV catalog file naming
+  `CVE-2021-44228`, when it runs `forewarn match --osv records/ --kev kev.json --format json sbom.json`, then no
+  request is sent, `exploitedLists` gives the file with its path, version and release date, the match of
+  `log4j-core` carries `"exploited": [{"list": "CISA KEV", "cve": "CVE-2021-44228", "dateAdded": "2021-12-10"}]`,
+  that of `time` an empty `exploited`, and `exploitedCount` is 1.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.
 - (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no request is
@@ -124,9 +157,25 @@ exit code a CI job can act on.
   sends no request.
 - (MCH-10, MCH-11) Given `--refresh 0d`, `--refresh 2w` or `--refresh soon`, when the command runs, then it exits
   with 2.
-- (MCH-10, MCH-12) Given neither `--cache`, `XDG_CACHE_HOME` nor `HOME`, when the command runs without `--osv`, then
-  it exits with 2; with `--osv`, it runs.
-- (MCH-10) Given `--osv` and `--refresh always`, when the command runs, then it exits with 2.
+- (MCH-10, MCH-12) Given neither `--cache`, `XDG_CACHE_HOME` nor `HOME`, when the command runs without `--osv`, or
+  with `--osv` alone, then it exits with 2; with `--osv` and `--kev` or `--no-kev`, it runs.
+- (MCH-10) Given `--osv` and `--kev`, with `--cache` or `--refresh always`, when the command runs, then it exits with
+  2; given `--osv` alone with `--refresh always`, it runs and downloads the KEV catalog again.
+- (MCH-9, MCH-10) Given an SBOM whose only match is actively exploited, when it is matched with `--allow-affected`,
+  then the command exits with 6; given a match no list names, it exits with 0.
+- (MCH-10, MCH-14, MCH-30) Given an empty cache and `--refresh offline`, when an SBOM is matched with `--osv`, then
+  standard error names `CISA KEV` and "not cached", and the command exits with 5.
+- (MCH-10, MCH-14, MCH-31) Given `--kev` naming a file that is not JSON, when the SBOM is matched, then standard error
+  names that file and "not JSON", and the command exits with 5.
+- (MCH-10) Given `--kev` with `--no-kev` or `--kev-url`, or `--no-kev` with `--kev-url`, when the command runs, then it
+  exits with 2.
+- (MCH-32, MCH-16) Given `--no-kev`, when an SBOM with an affected component is matched, then the human report says
+  that no exploited list was used, the JSON report gives an empty `exploitedLists`, every `exploited` is empty, no
+  request is sent for the catalog, and the command exits with 1.
+- (MCH-30, MCH-35) Given a cache holding the KEV catalog downloaded by a previous run, when `forewarn match --refresh
+  offline` runs, then no request is sent and the report gives the download time of the previous run.
+- (MCH-18) Given a KEV catalog whose `catalogVersion` holds an escape sequence, when the human report prints it, then
+  `\u{1b}` is written out.
 - (MCH-2, MCH-16) Given a `NuGet` component and a record naming it with only a `GIT` range, when it is matched,
   then it is reported not evaluated with `range not evaluated` and the record's id, and is not counted clean.
 - (MCH-3, MCH-10) Given an SBOM no record affects, when it is matched, then every evaluated component is clean and
@@ -149,9 +198,9 @@ exit code a CI job can act on.
 - (MCH-24) Given an SBOM whose components have no package URL, when it is matched with `--osv-api`, then no request
   is sent and the source shows the API with 0 records.
 - (MCH-10, MCH-12, MCH-24) Given neither `--cache`, `XDG_CACHE_HOME` nor `HOME`, when the command runs with
-  `--osv-api`, then it runs.
-- (MCH-10) Given `--osv-api` with `--osv`, `--refresh always` or `--osv-url`, or `--osv-api-url` alone, when the
-  command runs, then it exits with 2.
+  `--osv-api` and `--kev` or `--no-kev`, then it runs.
+- (MCH-10) Given `--osv-api` with `--osv` or `--osv-url`, or `--osv-api-url` alone, when the command runs, then it
+  exits with 2.
 - (MCH-10, MCH-14) Given an OSV API answering 503, when the SBOM is matched with `--osv-api`, then standard error
   names the API and "cannot query the OSV API", and the command exits with 5.
 - (MCH-23) Given a directory holding a file that is not JSON and whose name holds a newline, when it is read, then the
@@ -164,4 +213,7 @@ exit code a CI job can act on.
 - Failing on a component not evaluated: it is printed, never counted clean, but does not change the exit code.
 - Showing the progress of a download.
 - An environment variable that turns on `--osv-api`: sending the inventory out stays a choice made on the command line.
-- Severity, exploitation status, deadlines and draft early warnings: later milestones.
+- Severity, deadlines and draft early warnings: later milestones.
+- The exploited list of EUVD (`issues/read_euvd_exploited_list.md`): only CISA KEV is wired.
+- Flagging a component or a pair not evaluated (EXF): an exploited CVE among the records not evaluated is not shown.
+- Sending the inventory to fetch the exploited lists: the catalog request names no component.

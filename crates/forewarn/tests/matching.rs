@@ -21,6 +21,11 @@ fn osv_fixture(name: &str) -> PathBuf {
     osv_fixtures().join(name)
 }
 
+/// The KEV catalog of the KEV adapter's tests, which names none of the CVEs of the OSV fixtures.
+fn kev_fixture() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-exploited/tests/fixtures/kev.json")
+}
+
 fn path(path: &Path) -> &str {
     path.to_str().expect("UTF-8 path")
 }
@@ -62,8 +67,9 @@ fn records(records: &[Value]) -> TempDir {
 #[test]
 fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1() {
     let osv = osv_fixtures();
+    let kev = kev_fixture();
     let run = run(
-        &["match", "--osv", path(&osv), "-"],
+        &["match", "--osv", path(&osv), "--kev", path(&kev), "-"],
         Some(&three_components()),
     );
     assert_eq!(run.code, 1, "{}", run.stderr);
@@ -73,11 +79,13 @@ fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1
         format!(
             "SBOM: CycloneDX 1.6, 3 components\n\
              OSV records:\n  {}: 4 records, local\n\
-             Affected (1):\n  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 \
+             Exploited lists:\n  CISA KEV: catalog 2026.11.10 released 2026-11-10, 2 entries, local {}\n\
+             Affected (1, 0 actively exploited):\n  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 \
              (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), records RUSTSEC-2020-0071 from RUSTSEC\n\
              Not evaluated (1):\n  bare 1.0: no package URL\n\
              Clean: 1 of 3 components\n",
-            osv.display()
+            osv.display(),
+            kev.display()
         )
     );
 }
@@ -87,7 +95,15 @@ fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1
 fn prints_the_same_result_as_json() {
     let osv = osv_fixtures();
     let run = run(
-        &["match", "--format", "json", "--osv", path(&osv), "-"],
+        &[
+            "match",
+            "--format",
+            "json",
+            "--osv",
+            path(&osv),
+            "--no-kev",
+            "-",
+        ],
         Some(&three_components()),
     );
     assert_eq!(run.code, 1, "{}", run.stderr);
@@ -98,6 +114,8 @@ fn prints_the_same_result_as_json() {
             "componentCount": 3,
             "cleanCount": 1,
             "osv": [{"kind": "local", "path": path(&osv), "recordCount": 4}],
+            "exploitedLists": [],
+            "exploitedCount": 0,
             "affected": [{
                 "name": "time",
                 "version": "0.1.43",
@@ -105,6 +123,7 @@ fn prints_the_same_result_as_json() {
                 "id": "CVE-2020-26235",
                 "aliases": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
                 "records": [{"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true}],
+                "exploited": [],
             }],
             "notEvaluated": [{
                 "name": "bare",
@@ -176,8 +195,9 @@ fn an_sbom_no_record_affects_is_clean_and_exits_with_0() {
     );
     assert_eq!(run.code, 0, "{}", run.stderr);
     assert!(
-        run.stdout
-            .ends_with("Affected (0):\nNot evaluated (0):\nClean: 1 of 1 component\n"),
+        run.stdout.ends_with(
+            "Affected (0, 0 actively exploited):\nNot evaluated (0):\nClean: 1 of 1 component\n"
+        ),
         "{}",
         run.stdout
     );
@@ -434,8 +454,8 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
     assert_eq!(human.code, 1, "{}", human.stderr);
     assert!(
         human.stdout.contains(
-            "Affected (1):\n  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 \
-             (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), records GHSA-wcg3-cvx6-7396 from GHSA, \
+            "Affected (1, 0 actively exploited):\n  time 0.1.43 (pkg:cargo/time@0.1.43): \
+             CVE-2020-26235 (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), records GHSA-wcg3-cvx6-7396 from GHSA, \
              RUSTSEC-2020-0071 from RUSTSEC\n"
         ),
         "{}",
@@ -457,6 +477,7 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
                 {"id": "GHSA-wcg3-cvx6-7396", "source": "GHSA", "affects": true},
                 {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true},
             ],
+            "exploited": [],
         }])
     );
 }

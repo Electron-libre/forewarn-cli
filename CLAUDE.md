@@ -13,7 +13,7 @@ and flags a match as actively exploited when a list of exploited vulnerabilities
 date it gives as evidence (`specs/exploited-flagging.md`); the exploited-list adapter reads the CISA KEV catalog, from a file or
 fetched into a cache under the refresh policy and the lock of the OSV archives (crate `forewarn-cache`), into such a
 list, with the catalog's version and release date (`specs/kev-reading.md`, ADR
-[0008](docs/adr/0008-exploited-lists-crate-and-a-shared-cache-crate.md); nothing wires it into the CLI yet); the OSV adapter reads an OSV record file, or a directory of them (an extracted
+[0008](docs/adr/0008-exploited-lists-crate-and-a-shared-cache-crate.md)); the OSV adapter reads an OSV record file, or a directory of them (an extracted
 ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
 [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)), and fetches the archive of each ecosystem
 (`<ecosystem>/all.zip`) into a cache under a refresh policy, recording when it was downloaded (ADR
@@ -25,7 +25,8 @@ per ecosystem makes concurrent runs sharing a cache wait for a run that download
 component out (ADR [0006](docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md)).
 `forewarn match` prints the affected components of an SBOM, apart from those not evaluated, matched against the cached
 OSV archives of the ecosystems it uses, local records given with `--osv`, or, with `--osv-api`, the records the
-OSV API names for its components (`specs/cli-match.md`).
+OSV API names for its components (`specs/cli-match.md`), each match a CISA KEV catalog given with `--kev` names marked
+actively exploited with its evidence, and exits with 6 on such a match.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 

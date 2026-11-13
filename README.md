@@ -31,6 +31,7 @@ forewarn match sbom.cdx.json                      # fetch the OSV archive of eac
 forewarn match --refresh offline sbom.cdx.json    # an air-gapped CI: the cache only, no request
 forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
 forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, sending the packages of the SBOM out
+forewarn match --kev kev.json sbom.cdx.json       # flag the matches a CISA KEV catalog file names as actively exploited
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
@@ -44,8 +45,16 @@ mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--ca
 it together; a run that downloads waits for the runs reading, and they for it, at most 40 minutes per ecosystem (runs
 that keep reading can hold a `--refresh always` run back that long). `--osv-api` queries the OSV API instead
 (`--osv-api-url` for another): no archive is downloaded, but the OSV ecosystem, name and version of each component leave the CI, and the
-answer depends on the moment of the query, which the report gives; it is never on by default. It exits with 1 when a
-component is affected, 5 when the OSV records cannot be read, fetched or queried, and otherwise as `check` does.
+answer depends on the moment of the query, which the report gives; it is never on by default.
+
+Each match whose CVE the CISA Known Exploited Vulnerabilities catalog names is marked actively exploited, with the
+catalog and the date it added the CVE as evidence (`exploited` in the JSON report); the report gives the catalog's
+version, release date and number of entries. `--kev <file>` reads a downloaded catalog
+(`known_exploited_vulnerabilities.json`); `--no-kev` flags nothing, and the report says so.
+
+It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
+`--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records or the KEV catalog
+cannot be read, fetched or queried; and otherwise as `check` does.
 
 ## License
 

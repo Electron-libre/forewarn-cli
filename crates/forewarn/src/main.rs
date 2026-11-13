@@ -15,14 +15,16 @@ use std::time::{Duration, SystemTime};
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
+use forewarn_domain::exploited::{ExploitedList, flag_exploited};
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
 use forewarn_domain::vulnerability::Vulnerability;
+use forewarn_exploited::kev;
 use forewarn_osv::api::{Api, Package};
 use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
-use report::Source;
+use report::{ExploitedSource, Source};
 
 /// Check a CycloneDX SBOM for the fields the EU Cyber Resilience Act expects, and match its components against known
 /// vulnerabilities.
@@ -79,10 +81,18 @@ struct MatchArgs {
     /// The URL of the OSV API queried with `--osv-api` [default: `https://api.osv.dev`].
     #[arg(long, requires = "osv_api")]
     osv_api_url: Option<String>,
+    /// A CISA KEV catalog file (`known_exploited_vulnerabilities.json`) the matches are flagged against, read instead
+    /// of fetching the catalog.
+    #[arg(long, conflicts_with = "no_kev")]
+    kev: Option<PathBuf>,
+    /// Flag no match as actively exploited: use no CISA KEV catalog.
+    #[arg(long)]
+    no_kev: bool,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
-    /// Exit with 0 when components are affected, so that a CI job reports them without failing.
+    /// Exit with 0 when components are affected and none is actively exploited, so that a CI job fails only on an
+    /// actively exploited vulnerability (exit code 6).
     #[arg(long)]
     allow_affected: bool,
 }
@@ -100,6 +110,7 @@ const FOUND: u8 = 1;
 const UNREADABLE: u8 = 3;
 const UNWRITABLE: u8 = 4;
 const NO_RECORDS: u8 = 5;
+const EXPLOITED: u8 = 6;
 
 fn main() -> ExitCode {
     let outcome = match Cli::parse().command {
@@ -123,6 +134,12 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
     let archives = (args.osv.is_empty() && !args.osv_api).then(|| archives(args));
     let sbom = read_sbom(&args.sbom)?;
+    let catalog = args
+        .kev
+        .as_deref()
+        .map(kev::read_file)
+        .transpose()
+        .map_err(|error| no_records(&error))?;
     let mut records = Records::default();
     let mut fetched = Vec::new();
     if let Some(archives) = archives {
@@ -147,7 +164,16 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         let read = read_osv(path).map_err(|error| no_records(&error))?;
         local.push((path, records.add(read)));
     }
-    let matching = match_components(&sbom.components, &records.vulnerabilities);
+    let lists: Vec<ExploitedList> = catalog.iter().map(|c| c.list.clone()).collect();
+    let matching = flag_exploited(
+        match_components(&sbom.components, &records.vulnerabilities),
+        &lists,
+    );
+    let exploited: Vec<ExploitedSource> = catalog
+        .iter()
+        .zip(&args.kev)
+        .map(|(catalog, path)| ExploitedSource::Local { catalog, path })
+        .collect();
     let sources: Vec<Source> = fetched
         .iter()
         .map(|(ecosystem, freshness, records)| Source::Archive {
@@ -165,9 +191,12 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         }))
         .collect();
     write_report(&match args.format {
-        Format::Human => report::matching_human(&sbom, &sources, &matching),
-        Format::Json => report::matching_json(&sbom, &sources, &matching),
+        Format::Human => report::matching_human(&sbom, &sources, &exploited, &matching),
+        Format::Json => report::matching_json(&sbom, &sources, &exploited, &matching),
     })?;
+    if report::exploited_count(&matching) > 0 {
+        return Ok(ExitCode::from(EXPLOITED));
+    }
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
 }
 
@@ -308,7 +337,7 @@ impl Records {
     }
 }
 
-/// Prints why the OSV records cannot be read or fetched (MCH-14).
+/// Prints why the OSV records or the KEV catalog cannot be read or fetched (MCH-14).
 fn no_records(error: &dyn Display) -> u8 {
     eprintln!("error: {}", report::escaped(&error.to_string()));
     NO_RECORDS
