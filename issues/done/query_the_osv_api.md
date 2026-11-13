@@ -84,7 +84,7 @@ and the time of the query as the source. Out of scope: caching the answers, retr
 
 ## Summary of deliverable 3
 - done: the fixes of the `high` review listed in the plan; follow-up issue
-  `issues/evaluate_ecosystem_ranges_beyond_semver.md` (roadmap: Match known vulnerabilities).
+  `issues/done/evaluate_ecosystem_ranges_beyond_semver.md` (roadmap: Match known vulnerabilities).
 - checks: tests pass (3 new), clippy pedantic clean, `check-specs` passes.
 - red: OSR-28, OSR-31, MCH-24: a fix of a review finding, the tests written with the fix.
 - High review: 9 findings. Fixed: endless pagination, record id not checked, Go `v` prefix, duplicated name check,

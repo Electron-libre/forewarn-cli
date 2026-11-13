@@ -11,7 +11,7 @@ The matching now compares the `ECOSYSTEM` ranges of crates.io, npm, Go, PyPI, Ma
 verdict from them. The vendor should get one for those components too.
 
 # Findings
-* Left out of `issues/evaluate_ecosystem_ranges_beyond_semver.md` by its scope decision (2026-11-13): Go, PyPI,
+* Left out of `issues/done/evaluate_ecosystem_ranges_beyond_semver.md` by its scope decision (2026-11-13): Go, PyPI,
   Maven and RubyGems first, NuGet and Packagist in a follow-up issue.
 * The tests that need an `ECOSYSTEM` range not evaluated use `NuGet` today (`crates/forewarn-domain/tests/matching.rs`,
   `crates/forewarn/tests/matching.rs`, the VMT-8, VMT-10 and MCH scenarios).
