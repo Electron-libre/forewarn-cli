@@ -52,7 +52,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [cli_flag_exploited_matches](issues/done/cli_flag_exploited_matches.md)
   - [compare_cve_ids_ignoring_case_in_matching](issues/done/compare_cve_ids_ignoring_case_in_matching.md)
   - [share_one_definition_of_a_cve_id_in_the_domain](issues/done/share_one_definition_of_a_cve_id_in_the_domain.md)
-  - [trim_the_spaces_around_osv_ids_and_aliases](issues/trim_the_spaces_around_osv_ids_and_aliases.md)
+  - [trim_the_spaces_around_osv_ids_and_aliases](issues/done/trim_the_spaces_around_osv_ids_and_aliases.md)
   - [refuse_an_osv_record_with_an_empty_id](issues/refuse_an_osv_record_with_an_empty_id.md)
 
 ## Compute CRA reporting deadlines

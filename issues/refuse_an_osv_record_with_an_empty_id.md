@@ -11,7 +11,7 @@ vulnerability gets the id `""` and the source `""`. Every such record shares tha
 (VMT-21) into one match named `""`, from unrelated records. The OSV adapter should not give the domain an empty id.
 
 # Findings
-* Found by the `high` review of `issues/trim_the_spaces_around_osv_ids_and_aliases.md`.
+* Found by the `high` review of `issues/done/trim_the_spaces_around_osv_ids_and_aliases.md`.
 * An `id` of `""` was already accepted before OSR-34; an `id` of `" "` was read as `" "`, now as `""`.
 * The OSV API path already refuses an empty id named by `querybatch` (OSR-31, "invalid record id").
 * Measured on 2026-11-13 over the 293,984 records of the `all.zip` archives of `crates.io`, `Go`, `Maven`, `npm`,
