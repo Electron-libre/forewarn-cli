@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/forewarn",
+    "crates/forewarn-cache",
     "crates/forewarn-cyclonedx",
     "crates/forewarn-domain",
     "crates/forewarn-exploited",

@@ -54,9 +54,9 @@ and `ETag` sent; every `cveID` and `dateAdded` valid.
 ## Plan
 1. [x] Read a local KEV catalog: new crate `forewarn-exploited`, module `kev`, its serde model and errors (spec and
    ADR 0008 drafts committed with it); verified by fixture tests; makes true KEV-1, KEV-2, KEV-16, KEV-17. ~450 lines. (autonomous)
-2. [ ] Move the cache machinery of `forewarn-osv/src/fetch.rs` (refresh policy, freshness, shared/exclusive lock,
+2. [x] Move the cache machinery of `forewarn-osv/src/fetch.rs` (refresh policy, freshness, shared/exclusive lock,
    scratch paths, replacement) into a new crate `forewarn-cache`; OSV keeps its API and errors; verified by the OSV
-   fetch tests unchanged and green (pure refactor, no new requirement). ~700 lines.
+   fetch tests unchanged and green (pure refactor, no new requirement). ~700 lines. (autonomous)
 3. [ ] Fetch the KEV catalog into a cache through `forewarn-cache`; verified by loopback-server and lock tests; makes
    true KEV-3 to KEV-15, spec `accepted`. ~600 lines.
 
@@ -80,6 +80,25 @@ release date; spec `kev-reading` (draft) and ADR 0008.
 | code review | see below |
 
 red: KEV-H1, KEV-1, KEV-2, KEV-16, KEV-17: `not yet implemented` (the stub `read_file` panicked in every test).
+
+Code review: no findings
+
+not verified: none. decisions needed: none.
+
+## Deliverable 2: move the cache machinery into `forewarn-cache`
+done: new crate `forewarn-cache` (refresh policy, freshness, shared/exclusive lock per entry, scratch paths,
+replacement, download agent), its source-specific part handed in as an unpack and a read function; `forewarn-osv`
+re-exports `Refresh`, `Freshness` and `DEFAULT_LOCK_WAIT` and keeps its API, errors and cache layout.
+
+| check | result |
+|---|---|
+| tests | OSV fetch, API and CLI tests unchanged, all green |
+| lint | clean |
+| specs | clean, no requirement changed |
+| docs | `CLAUDE.md` layout |
+| code review | see below |
+
+red: none (refactor under the existing tests).
 
 Code review: no findings
 

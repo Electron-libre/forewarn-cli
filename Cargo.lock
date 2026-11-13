@@ -282,6 +282,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "forewarn-cache"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
 name = "forewarn-cyclonedx"
 version = "0.0.0"
 dependencies = [
@@ -311,6 +320,7 @@ dependencies = [
 name = "forewarn-osv"
 version = "0.0.0"
 dependencies = [
+ "forewarn-cache",
  "forewarn-domain",
  "serde",
  "serde_json",

@@ -9,7 +9,7 @@ use std::time::SystemTime;
 use forewarn_domain::vulnerability::Vulnerability;
 use serde::{Deserialize, Serialize};
 
-use crate::{Cause, ReadError, fetch, is_path_segment, parse_record};
+use crate::{Cause, ReadError, is_path_segment, parse_record};
 
 /// Where the OSV API answers.
 pub const OSV_API: &str = "https://api.osv.dev";
@@ -149,7 +149,7 @@ impl Api {
             url: self.base_url.clone(),
         };
         let base = self.base_url.trim_end_matches('/');
-        let agent = fetch::agent();
+        let agent = forewarn_cache::agent();
         let mut seen = HashSet::new();
         let mut pending: Vec<Query> = packages
             .iter()
