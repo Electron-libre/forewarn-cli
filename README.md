@@ -34,6 +34,7 @@ forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, s
 forewarn match --kev kev.json sbom.cdx.json       # a CISA KEV catalog file instead of fetching the catalog
 forewarn match --euvd euvd.json sbom.cdx.json     # an EUVD exploited list file instead of paging the list
 forewarn match --aware-since 2026-11-13T09:30:00Z sbom.cdx.json  # the CRA reporting deadlines from that moment
+forewarn match --aware-since 2026-11-13T09:30:00Z --now 2026-11-15T10:00:00Z sbom.cdx.json  # the time left at a moment
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
@@ -75,7 +76,10 @@ default, the moment of the run; the final report 14 days after `--measure-availa
 or mitigating measure became available, else due 14 days after one is, with no date. One moment of awareness applies
 to every match of the run: when one is actively exploited, the human report prints it, given or read from the clock,
 above the matches, and the JSON report gives it as `awareSince`, the measure as `measureAvailable` (both `null`
-otherwise, so that a report read from the clock stays the same). An instant refused exits with 2.
+otherwise, so that a report read from the clock stays the same). The human report also prints, next to each deadline,
+the time left before it (`23h 30m 0s left`, `due now` at its very second) or how long it is overdue (`overdue by 1d 0h
+30m 0s`), at `--now <instant>` or, by default, the moment of the run; the JSON report leaves that comparison to its
+reader. An instant refused exits with 2.
 
 It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
 `--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records, the KEV catalog or the EUVD

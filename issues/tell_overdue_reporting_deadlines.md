@@ -41,9 +41,9 @@ the run. The JSON report is left as is (non-goal of MXL).
 1. [x] Domain state of a deadline at a moment (`ReportingDeadlines::at`, time left or overdue in seconds); verified by
    the scenarios of `crates/forewarn-domain/tests/reporting_deadlines.rs` one second before, at and after each
    deadline; makes true RDL-12 to RDL-15. (autonomous)
-2. [ ] `forewarn match --now` and the time left or overdue printed next to each deadline, with the moment of the check;
+2. [x] `forewarn match --now` and the time left or overdue printed next to each deadline, with the moment of the check;
    verified by end-to-end tests of `crates/forewarn/tests/exploited.rs` at the bounds of each deadline; makes true
-   MXL-22 to MXL-26.
+   MXL-22 to MXL-26. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -67,6 +67,26 @@ accepted; CLAUDE.md status line.
 | code review | low, clean |
 
 red: RDL-H3, RDL-12, RDL-13, RDL-14, RDL-15: unresolved imports `forewarn_domain::deadlines::DeadlineState`, `DeadlineStates`; no method named `at` found for struct `ReportingDeadlines`
+
+Code review: no findings
+
+not verified: none
+decisions needed: none
+
+## Deliverable 2
+
+done: `forewarn match --now`; the human report prints the moment of the check and, next to each deadline, the time
+left, `due now` or `overdue by`; spec MXL accepted; README and CLAUDE.md.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | README.md, CLAUDE.md |
+| code review | low, clean |
+
+red: MXL-H5, MXL-22, MXL-23, MXL-24, MXL-25, MXL-26: error: unexpected argument '--now' found
 
 Code review: no findings
 

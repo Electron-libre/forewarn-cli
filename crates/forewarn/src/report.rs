@@ -12,7 +12,7 @@ use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
 use forewarn_domain::date::{Date, Moment};
-use forewarn_domain::deadlines::ReportingDeadlines;
+use forewarn_domain::deadlines::{DeadlineState, ReportingDeadlines};
 use forewarn_domain::exploited::ExploitedList;
 use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
@@ -169,7 +169,7 @@ pub enum Origin<'a> {
 }
 
 /// The moments the CRA reporting deadlines of a run are computed from, and those deadlines, the same for every
-/// actively exploited match (MXL-14 to MXL-17).
+/// actively exploited match, and the moment they are checked at (MXL-14 to MXL-17, MXL-23).
 pub struct Awareness {
     /// The moment of awareness.
     pub since: Moment,
@@ -177,6 +177,10 @@ pub struct Awareness {
     pub given: bool,
     pub measure_available: Option<Moment>,
     pub deadlines: ReportingDeadlines,
+    /// The moment the deadlines are checked at (MXL-23).
+    pub checked_at: Moment,
+    /// Whether it was given with `--now`, else read from the clock.
+    pub checked_given: bool,
 }
 
 /// A time of the system clock to the second, UTC; `None` before 1970 or past the range of `time`.
@@ -275,7 +279,7 @@ pub fn matching_human(
         text.push('\n');
         if flagged.is_exploited() {
             push_evidence(&mut text, &flagged.evidence);
-            push_deadlines(&mut text, &awareness.deadlines);
+            push_deadlines(&mut text, awareness);
         }
     }
     let _ = writeln!(text, "Not evaluated ({}):", matching.not_evaluated().len());
@@ -387,39 +391,83 @@ fn push_evidence(text: &mut String, evidence: &[Evidence]) {
     text.push('\n');
 }
 
-/// Pushes the moments the reporting deadlines are computed from, and where the moment of awareness came from (MXL-18).
+/// Pushes the moments the reporting deadlines are computed from and checked at, and where the moments of awareness
+/// and of the check came from (MXL-18, MXL-26).
 fn push_awareness(text: &mut String, awareness: &Awareness) {
-    let origin = if awareness.given {
-        "--aware-since"
-    } else {
-        "the moment of the run"
+    let origin = |given, option| {
+        if given {
+            option
+        } else {
+            "the moment of the run"
+        }
     };
     let _ = write!(
         text,
-        "Reporting deadlines (CRA article 14(2)): aware since {} ({origin}), ",
-        awareness.since
+        "Reporting deadlines (CRA article 14(2)): aware since {} ({}), ",
+        awareness.since,
+        origin(awareness.given, "--aware-since")
     );
     match awareness.measure_available {
         Some(measure) => {
-            let _ = writeln!(text, "corrective measure available since {measure}");
+            let _ = write!(text, "corrective measure available since {measure}");
         }
-        None => text.push_str("no corrective measure given\n"),
+        None => text.push_str("no corrective measure given"),
     }
+    let _ = writeln!(
+        text,
+        ", checked at {} ({})",
+        awareness.checked_at,
+        origin(awareness.checked_given, "--now")
+    );
 }
 
-/// Pushes the line of the reporting deadlines of an actively exploited match (MXL-14 to MXL-16).
-fn push_deadlines(text: &mut String, deadlines: &ReportingDeadlines) {
+/// Pushes the line of the reporting deadlines of an actively exploited match, each with the time left before it or
+/// overdue at the moment of the check (MXL-14 to MXL-16, MXL-22).
+fn push_deadlines(text: &mut String, awareness: &Awareness) {
+    let deadlines = &awareness.deadlines;
+    let states = deadlines.at(awareness.checked_at);
     let _ = write!(
         text,
-        "    report by: early warning {}, notification {}, final report ",
-        deadlines.early_warning, deadlines.notification
+        "    report by: early warning {} ({}), notification {} ({}), final report ",
+        deadlines.early_warning,
+        state(states.early_warning),
+        deadlines.notification,
+        state(states.notification)
     );
-    match deadlines.final_report {
-        Some(final_report) => {
-            let _ = writeln!(text, "{final_report}");
+    match deadlines.final_report.zip(states.final_report) {
+        Some((final_report, final_state)) => {
+            let _ = writeln!(text, "{final_report} ({})", state(final_state));
         }
         None => text.push_str("14 days after a corrective measure is available\n"),
     }
+}
+
+/// The time left before a deadline or overdue, `due now` for a deadline reached exactly (MXL-24).
+fn state(state: DeadlineState) -> String {
+    match state {
+        DeadlineState::Left(0) => "due now".to_owned(),
+        DeadlineState::Left(seconds) => format!("{} left", duration(seconds)),
+        DeadlineState::Overdue(seconds) => format!("overdue by {}", duration(seconds)),
+    }
+}
+
+/// Seconds in days, hours, minutes and seconds, the units before the first non-zero one left out (`1h 0m 0s`, MXL-24).
+fn duration(seconds: u64) -> String {
+    let units = [
+        (seconds / 86_400, 'd'),
+        (seconds / 3600 % 24, 'h'),
+        (seconds / 60 % 60, 'm'),
+        (seconds % 60, 's'),
+    ];
+    let first = units
+        .iter()
+        .position(|&(count, _)| count > 0)
+        .unwrap_or(units.len() - 1);
+    units[first..]
+        .iter()
+        .map(|(count, unit)| format!("{count}{unit}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn push_component_ref(text: &mut String, component: &ComponentRef) {

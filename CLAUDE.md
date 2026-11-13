@@ -34,7 +34,8 @@ OSV archives of the ecosystems it uses, local records given with `--osv`, or, wi
 OSV API names for its components (`specs/cli-match.md`), each match the CISA KEV catalog or EUVD names marked
 actively exploited with its evidence (the catalog fetched into the same cache or read with `--kev`, the EUVD list paged
 into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-since` (by default the moment of the
-run) and `--measure-available`, and exits with 6 on such a match (`specs/cli-match-exploited.md`).
+run) and `--measure-available`, each with the time left before it or how long it is overdue at `--now` (by default the
+moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 

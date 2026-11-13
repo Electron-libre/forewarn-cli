@@ -126,6 +126,10 @@ struct MatchArgs {
     /// available.
     #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
     measure_available: Option<GivenMoment>,
+    /// The moment the deadlines are checked at, an RFC 3339 instant, for the time left before each or how long it is
+    /// overdue [default: the moment of the run].
+    #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
+    now: Option<GivenMoment>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -259,22 +263,28 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
 }
 
-/// The moments the reporting deadlines of the run are computed from, and those deadlines (MXL-14 to MXL-17); exits
+/// The moments the reporting deadlines of the run are computed from, those deadlines and the moment they are checked
+/// at (MXL-14 to MXL-17, MXL-23); exits
 /// with 2, naming the option and the value given, when a deadline falls past the year 9999 (MXL-20).
 fn awareness(args: &MatchArgs) -> Awareness {
-    let since = args.aware_since.as_ref().map_or_else(
-        || {
-            report::offset_date_time(SystemTime::now())
-                .and_then(moment)
-                .unwrap_or_else(|| {
-                    usage_error(
-                        clap::error::ErrorKind::InvalidValue,
-                        "the clock of the system gives no moment of the years 1 to 9999: give --aware-since",
-                    )
-                })
-        },
-        |given| given.moment,
-    );
+    // The clock is read once, for the moment of awareness and the moment of the check alike (MXL-23).
+    let run = (args.aware_since.is_none() || args.now.is_none()).then(|| {
+        report::offset_date_time(SystemTime::now())
+            .and_then(moment)
+            .unwrap_or_else(|| {
+                usage_error(
+                    clap::error::ErrorKind::InvalidValue,
+                    "the clock of the system gives no moment of the years 1 to 9999: give --aware-since and --now",
+                )
+            })
+    });
+    let given_or_run = |given: Option<&GivenMoment>| {
+        given
+            .map(|given| given.moment)
+            .or(run)
+            .expect("the clock is read when a moment is not given")
+    };
+    let since = given_or_run(args.aware_since.as_ref());
     // The moment of awareness first, so that the error of a final report names the measure (MXL-20).
     reporting_deadlines(since, None)
         .unwrap_or_else(|error| past_range("--aware-since", args.aware_since.as_ref(), error));
@@ -291,6 +301,8 @@ fn awareness(args: &MatchArgs) -> Awareness {
         given: args.aware_since.is_some(),
         measure_available,
         deadlines,
+        checked_at: given_or_run(args.now.as_ref()),
+        checked_given: args.now.is_some(),
     }
 }
 
