@@ -15,7 +15,10 @@ flagging should agree on what a CVE id is.
 # Findings
 * Found by the `high` review of `flag_exploited_vulnerabilities` (2026-11-13), from the code: `matching.rs` tests the
   prefix `CVE-` byte for byte; `exploited.rs` uses `eq_ignore_ascii_case`.
-* Not measured: how many records of the OSV archives write a CVE id or alias in lower case.
+* Measured on 2026-11-13: no id, alias, `related` nor `upstream` entry starting with `CVE-` in another case among the
+  294,000 records of the `all.zip` archives of `crates.io`, `Go`, `Maven`, `npm`, `NuGet`, `Packagist`, `PyPI` and
+  `RubyGems` (48,600 upper-case ones). The disagreement only reaches local `--osv` records and callers of the domain
+  other than the OSV adapter.
 
 # Approach
 1. Measure first: count the ids and aliases starting with `cve-` in a few OSV ecosystem archives.
@@ -33,3 +36,38 @@ Flag actively exploited vulnerabilities (KEV, EUVD)
 * `crates/forewarn-domain/src/matching.rs`: how a match is grouped and named by its CVE.
 * `crates/forewarn-domain/src/exploited.rs`: the CVE check of flagging (`is_cve`).
 * `specs/exploited-flagging.md`: EXF-4, EXF-9.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Matching reads an id or alias starting with `CVE-` in any case as the upper-case CVE id (candidate 1, new VMT-29), so
+its groups and the name of a match agree with flagging (EXF-4). Out of scope: the full shape of a CVE id (EXF-7), which
+matching still reads from the prefix only; the OSV adapter, which keeps the ids as written.
+
+## Plan
+1. [x] Matching reads a CVE id ignoring case: `Named` keeps its CVE ids in upper case, the match is named by that
+   form and leaves out every CVE alias in any case; verified by the three VMT-29 scenarios in
+   `crates/forewarn-domain/tests/matching.rs`; makes true VMT-29. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: d3494490b07dd2332b3e957b214234e33ae05a36
+- Question 1: a (candidate 1, VMT-29).
+- Candidate 1 (the domain), not 2 (the OSV adapter): the domain is the rule shared with every caller, and flagging
+  already reads a CVE id there.
+- The EXF-4 scenario and its test reading a lower-case `cve-` alias of a match named by its `GHSA-` record described
+  what matching no longer gives (a `MatchReport` is only built by matching): they now walk the alias to a match named
+  `CVE-2021-44228`, then marked.
+
+## Summary of deliverable 1
+- done: `Named` reads each id and alias starting with `CVE-` in any case as its upper-case form, for grouping, naming
+  and leaving out CVE aliases; spec VMT-29 added (accepted), EXF-4 scenario rewritten, README says the CVE of a match
+  is upper case.
+- checks: tests 358 passed; clippy, fmt, specs green (`cardinal run project-check`).
+- red: VMT-29: `left: [("time", "RUSTSEC-A")] right: [("time", "CVE-2023-1111")]`, and the grouping test reported
+  two matches `CVE-2023-1111` and `RUSTSEC-A` for one CVE.
+- Code review: no findings (`low`).
+- not verified: none.
+- decisions needed: none.

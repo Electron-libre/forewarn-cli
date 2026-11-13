@@ -36,7 +36,7 @@ forewarn match --euvd euvd.json sbom.cdx.json     # an EUVD exploited list file 
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
-records hold it (a `RUSTSEC` advisory and its `GHSA` mirror), two CVEs never merged: its id (its CVE when it has
+records hold it (a `RUSTSEC` advisory and its `GHSA` mirror), two CVEs never merged: its id (its CVE, in upper case, when it has
 one), its aliases and each record with its source, marked when it does not affect the version or was not evaluated,
 apart from the components it could not evaluate (no package URL, no version, a version its ecosystem does
 not read, such as a Composer `dev-` branch, a record whose only ranges are `GIT` ranges), how many are clean, and how fresh the OSV data is; `--format json` works as for `check`. Only the

@@ -269,22 +269,34 @@ impl<'a> Index<'a> {
 struct Named<'a> {
     record: &'a Vulnerability,
     outcome: Outcome,
-    /// Its id and aliases.
-    ids: BTreeSet<&'a str>,
+    /// Its id and aliases, each `CVE-` id in upper case (VMT-29).
+    ids: BTreeSet<Cow<'a, str>>,
     /// The `CVE-` ids among them.
-    cves: BTreeSet<&'a str>,
+    cves: BTreeSet<Cow<'a, str>>,
+}
+
+/// Whether `id` starts with `CVE-`, in any ASCII case (VMT-29).
+fn is_cve(id: &str) -> bool {
+    id.get(..4)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("CVE-"))
+}
+
+/// The id as matching reads it: a `CVE-` id in upper case, any other as written (VMT-29).
+fn read_id(id: &str) -> Cow<'_, str> {
+    if is_cve(id) && id.bytes().any(|b| b.is_ascii_lowercase()) {
+        Cow::Owned(id.to_ascii_uppercase())
+    } else {
+        Cow::Borrowed(id)
+    }
 }
 
 impl<'a> Named<'a> {
     fn new(record: &'a Vulnerability, outcome: Outcome) -> Self {
-        let ids: BTreeSet<&str> = std::iter::once(record.id.as_str())
-            .chain(record.aliases.iter().map(String::as_str))
+        let ids: BTreeSet<Cow<str>> = std::iter::once(&record.id)
+            .chain(&record.aliases)
+            .map(|id| read_id(id))
             .collect();
-        let cves = ids
-            .iter()
-            .copied()
-            .filter(|id| id.starts_with("CVE-"))
-            .collect();
+        let cves = ids.iter().filter(|id| is_cve(id)).cloned().collect();
         Self {
             record,
             outcome,
@@ -310,8 +322,8 @@ impl<'a> Named<'a> {
         if weight(copy.outcome) > weight(self.outcome) {
             self.outcome = copy.outcome;
         }
-        self.ids.extend(&copy.ids);
-        self.cves.extend(&copy.cves);
+        self.ids.extend(copy.ids.iter().cloned());
+        self.cves.extend(copy.cves.iter().cloned());
     }
 }
 
@@ -326,16 +338,16 @@ struct Group<'a> {
     affected: bool,
 }
 
-impl<'a> Group<'a> {
+impl<'n> Group<'n> {
     /// The groups of the named records: one per `CVE-` id the active records hold, each with the records holding it
     /// and the clusters of active records without CVE overlapping them; a cluster overlapping none is a group of its
     /// own. Records without CVE are clustered through the ids no record holding a CVE carries, so that two of them
     /// never meet through a record of one CVE (VMT-21).
-    fn of(named: &[Named<'a>]) -> Vec<Self> {
+    fn of(named: &'n [Named<'_>]) -> Vec<Self> {
         let anchored: BTreeSet<&str> = named
             .iter()
             .filter(|record| record.is_active() && !record.cves.is_empty())
-            .flat_map(|record| record.ids.iter().copied())
+            .flat_map(|record| record.ids.iter().map(AsRef::as_ref))
             .collect();
         let mut by_cve: BTreeMap<&str, BTreeSet<usize>> = BTreeMap::new();
         // The ids a cluster is linked through, and its records.
@@ -345,7 +357,12 @@ impl<'a> Group<'a> {
                 continue;
             }
             if record.cves.is_empty() {
-                let own = record.ids.difference(&anchored).copied().collect();
+                let own = record
+                    .ids
+                    .iter()
+                    .map(AsRef::as_ref)
+                    .filter(|id| !anchored.contains(id))
+                    .collect();
                 let mut merged = (own, BTreeSet::from([place]));
                 clusters.retain(|(ids, members)| {
                     if ids.is_disjoint(&merged.0) {
@@ -358,7 +375,7 @@ impl<'a> Group<'a> {
                 clusters.push(merged);
             }
             for cve in &record.cves {
-                by_cve.entry(cve).or_default().insert(place);
+                by_cve.entry(cve.as_ref()).or_default().insert(place);
             }
         }
         let mut groups: Vec<Self> = by_cve
@@ -424,10 +441,9 @@ impl<'a> Group<'a> {
         let aliases: BTreeSet<&str> = self
             .members
             .iter()
-            .flat_map(|&member| &named[member].ids)
-            .copied()
+            .flat_map(|&member| named[member].ids.iter().map(AsRef::as_ref))
             .filter(|alias| *alias != id)
-            .filter(|alias| !alias.starts_with("CVE-") && !foreign.contains(alias))
+            .filter(|alias| !is_cve(alias) && !foreign.contains(alias))
             .collect();
         let mut records: Vec<&Named> = named
             .iter()
@@ -438,7 +454,7 @@ impl<'a> Group<'a> {
                         && record
                             .ids
                             .iter()
-                            .any(|alias| *alias == id || aliases.contains(alias)))
+                            .any(|alias| *alias == id || aliases.contains(alias.as_ref())))
             })
             .map(|(_, record)| record)
             .collect();
@@ -480,7 +496,7 @@ fn reported_pairs<'a>(
                 let cves_matched = record.cves.iter().all(|cve| {
                     groups
                         .iter()
-                        .any(|group| group.affected && group.cve == Some(*cve))
+                        .any(|group| group.affected && group.cve == Some(cve.as_ref()))
                 });
                 (!in_match || !cves_matched).then_some((record.record, reason))
             }

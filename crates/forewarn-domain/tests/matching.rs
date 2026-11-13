@@ -933,3 +933,45 @@ fn merges_the_copies_of_a_record_given_twice() {
     assert_eq!(ids(&report), [("time", "CVE-1")]);
     assert_eq!(report.matches()[0].records, [record("GHSA-X", "GHSA")]);
 }
+
+// spec: VMT-29, VMT-16
+#[test]
+fn names_a_match_by_a_lower_case_cve_alias_written_in_upper_case() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[time_record("RUSTSEC-A", "RUSTSEC", &["cve-2023-1111"], "0")],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-2023-1111")]);
+    assert_eq!(report.matches()[0].aliases, ["RUSTSEC-A"]);
+}
+
+// spec: VMT-29, VMT-21
+#[test]
+fn groups_the_records_of_one_cve_written_in_two_cases() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[
+            time_record("GHSA-X", "GHSA", &["CVE-2023-1111"], "0"),
+            time_record("RUSTSEC-A", "RUSTSEC", &["cve-2023-1111"], "0"),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-2023-1111")]);
+    assert_eq!(record_ids(&report.matches()[0]), ["GHSA-X", "RUSTSEC-A"]);
+}
+
+// spec: VMT-29, VMT-21
+#[test]
+fn keeps_a_lower_case_cve_alias_apart_from_the_cve_of_its_record() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[time_record("CVE-2023-1111", "NVD", &["cve-2023-2222"], "0")],
+    );
+    assert_eq!(
+        ids(&report),
+        [("time", "CVE-2023-1111"), ("time", "CVE-2023-2222")]
+    );
+    assert_eq!(report.matches()[0].aliases, Vec::<String>::new());
+    assert_eq!(report.matches()[1].aliases, Vec::<String>::new());
+    assert_eq!(record_ids(&report.matches()[0]), ["CVE-2023-1111"]);
+    assert_eq!(record_ids(&report.matches()[1]), ["CVE-2023-1111"]);
+}
