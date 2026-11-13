@@ -82,7 +82,7 @@ ecosystems the SBOM uses. Out of scope: grouping aliases, the OSV API, KEV/EUVD.
 - red: MCH-12, MCH-14, MCH-21, MCH-22, MCH-23: the record counted twice, `local records` without a count, the error on
   two lines, the cache under the working directory.
 - Code review (high): 10 findings: 8 fixed as above; the concurrent use of the shared cache and the cross product of the
-  matching filed as `issues/lock_the_osv_cache_against_concurrent_runs.md` and
+  matching filed as `issues/done/lock_the_osv_cache_against_concurrent_runs.md` and
   `issues/match_large_archives_without_the_cross_product.md` (the clean count goes with the latter, which may move it
   to the domain).
 - Code review (low): no findings.
