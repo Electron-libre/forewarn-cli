@@ -298,6 +298,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "forewarn-exploited"
+version = "0.0.0"
+dependencies = [
+ "forewarn-domain",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "forewarn-osv"
 version = "0.0.0"
 dependencies = [

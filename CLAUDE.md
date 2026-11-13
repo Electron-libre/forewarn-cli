@@ -10,7 +10,7 @@ prints both (`specs/cli-check.md`). The domain also matches components against O
 URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems, NuGet, Composer),
 grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
 and flags a match as actively exploited when a list of exploited vulnerabilities names its CVE, with the list and the
-date it gives as evidence (`specs/exploited-flagging.md`; no adapter reads a list yet); the OSV adapter reads an OSV record file, or a directory of them (an extracted
+date it gives as evidence (`specs/exploited-flagging.md`); the exploited-list adapter reads the CISA KEV catalog file into such a list, with the catalog's version and release date (`specs/kev-reading.md`, ADR [0008](docs/adr/0008-exploited-lists-crate-and-a-shared-cache-crate.md); no fetch yet, nothing wires it into the CLI); the OSV adapter reads an OSV record file, or a directory of them (an extracted
 ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
 [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)), and fetches the archive of each ecosystem
 (`<ecosystem>/all.zip`) into a cache under a refresh policy, recording when it was downloaded (ADR
@@ -35,6 +35,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
 | `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
 | `forewarn-osv` | OSV adapter: vulnerability records, read, fetched into a cache or queried from the OSV API, into domain types | `feeds` |
+| `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`) into the domain's exploited list | `feeds` |
 | `forewarn` | the CLI binary: arguments, wiring and the report formats (module `report`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`

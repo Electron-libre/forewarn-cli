@@ -40,3 +40,47 @@ Flag actively exploited vulnerabilities (KEV, EUVD)
 # Hints
 * Only the request for a public file leaves the CI: no inventory is sent, unlike the OSV API (ADR 0006).
 * The catalog is a single file of a few megabytes: no archive, no per-ecosystem split.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Read the CISA KEV catalog (local file, or fetched into a cache under the OSV refresh policy and lock) into the domain's
+`ExploitedList` named `CISA KEV`, with its version and release date. Out of scope: CLI wiring
+(`cli_flag_exploited_matches`), EUVD. Measured 2026-11-13: 1.85 MB, 1,779 entries, 12 members each, `Last-Modified`
+and `ETag` sent; every `cveID` and `dateAdded` valid.
+
+## Plan
+1. [x] Read a local KEV catalog: new crate `forewarn-exploited`, module `kev`, its serde model and errors (spec and
+   ADR 0008 drafts committed with it); verified by fixture tests; makes true KEV-1, KEV-2, KEV-16, KEV-17. ~450 lines. (autonomous)
+2. [ ] Move the cache machinery of `forewarn-osv/src/fetch.rs` (refresh policy, freshness, shared/exclusive lock,
+   scratch paths, replacement) into a new crate `forewarn-cache`; OSV keeps its API and errors; verified by the OSV
+   fetch tests unchanged and green (pure refactor, no new requirement). ~700 lines.
+3. [ ] Fetch the KEV catalog into a cache through `forewarn-cache`; verified by loopback-server and lock tests; makes
+   true KEV-3 to KEV-15, spec `accepted`. ~600 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 570bbdfd1cc2ba8f93fda6cd532ec4c66988a728
+- Adapter in one crate `forewarn-exploited`, a module per list (1 a).
+- Cache machinery extracted into a crate `forewarn-cache` shared with OSV (2 a).
+- Default lock wait of 40 minutes, as OSV (3 a).
+
+## Deliverable 1: read a local KEV catalog
+done: crate `forewarn-exploited`, `kev::read_file` reads a catalog file into the list `CISA KEV`, its version and
+release date; spec `kev-reading` (draft) and ADR 0008.
+
+| check | result |
+|---|---|
+| tests | 15 new, all green |
+| lint | clean |
+| specs | `check-specs` clean |
+| docs | `CLAUDE.md` status and layout |
+| code review | see below |
+
+red: KEV-H1, KEV-1, KEV-2, KEV-16, KEV-17: `not yet implemented` (the stub `read_file` panicked in every test).
+
+Code review: no findings
+
+not verified: none. decisions needed: none.

@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/forewarn", "crates/forewarn-cyclonedx", "crates/forewarn-domain", "crates/forewarn-osv"]
+members = [
+    "crates/forewarn",
+    "crates/forewarn-cyclonedx",
+    "crates/forewarn-domain",
+    "crates/forewarn-exploited",
+    "crates/forewarn-osv",
+]
 
 [workspace.package]
 version = "0.0.0"
