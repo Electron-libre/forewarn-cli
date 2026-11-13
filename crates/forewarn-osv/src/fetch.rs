@@ -177,59 +177,88 @@ impl Archives {
         if !is_path_segment(ecosystem, b"") {
             return Err(FetchCause::InvalidName);
         }
-        // Held until the fetch is done with the ecosystem: a second run waits for it (OSR-19).
-        let _lock = self.lock(ecosystem)?;
+        // One bound for both locks of the fetch (OSR-22); a bound too large to add to now waits without one.
+        let deadline = Instant::now().checked_add(self.lock_wait);
+        let mut lock = self.lock_file(ecosystem)?;
         let directory = self.cache.join(ecosystem);
         let scratch = |kind: &str| self.cache.join(format!(".{kind}-{ecosystem}"));
         let former = scratch("former");
-        // A run stopped between the two renames of a download left the snapshot there: put it back.
-        if !directory.exists() && former.is_dir() {
+        // A run stopped between the two renames of a download left the snapshot there.
+        let left_aside = || !directory.exists() && former.is_dir();
+
+        // Under the shared lock, runs that read the snapshot read it together (OSR-32).
+        self.wait_for(&mut lock, Mode::Shared, deadline)?;
+        if !left_aside()
+            && let Some(freshness) = self.cached(&directory, clock)?
+        {
+            return Ok(Snapshot {
+                ecosystem: ecosystem.to_owned(),
+                vulnerabilities: read_records(&directory)?,
+                freshness,
+            });
+        }
+
+        // A download, or putting the snapshot back, waits for every other run (OSR-19, OSR-33); another run may have
+        // downloaded meanwhile, so the freshness is read again under the exclusive lock.
+        if let Some(file) = &lock {
+            file.unlock().map_err(|e| cache_error(&e))?;
+        }
+        self.wait_for(&mut lock, Mode::Exclusive, deadline)?;
+        if left_aside() {
             fs::rename(&former, &directory).map_err(|e| cache_error(&e))?;
         }
-        let cached = read_freshness(&directory)?;
-        let now = clock();
-        let freshness = match (self.refresh, cached) {
-            (Refresh::Offline, None) => return Err(FetchCause::NotCached),
-            (Refresh::Offline | Refresh::IfMissing, Some(freshness)) => freshness,
-            (Refresh::OlderThan(age), Some(freshness))
-                // A snapshot dated after `now` (a clock set back) is not older than any age.
-                if now
-                    .duration_since(freshness.downloaded_at)
-                    .map_or(true, |elapsed| elapsed <= age) =>
-            {
-                freshness
-            }
-            _ => {
-                let download = Download {
-                    agent,
-                    url: format!(
-                        "{}/{ecosystem}/all.zip",
-                        self.base_url.trim_end_matches('/')
-                    ),
-                    archive: Scratch(scratch("download")),
-                    staging: Scratch(scratch("staging")),
-                    former: Scratch(former),
-                };
-                let (freshness, vulnerabilities) = download.run(&directory, now)?;
-                return Ok(Snapshot {
-                    ecosystem: ecosystem.to_owned(),
-                    freshness,
-                    vulnerabilities,
-                });
-            }
+        if let Some(freshness) = self.cached(&directory, clock)? {
+            return Ok(Snapshot {
+                ecosystem: ecosystem.to_owned(),
+                vulnerabilities: read_records(&directory)?,
+                freshness,
+            });
+        }
+        let download = Download {
+            agent,
+            url: format!(
+                "{}/{ecosystem}/all.zip",
+                self.base_url.trim_end_matches('/')
+            ),
+            archive: Scratch(scratch("download")),
+            staging: Scratch(scratch("staging")),
+            former: Scratch(former),
         };
+        let (freshness, vulnerabilities) = download.run(&directory, clock())?;
         Ok(Snapshot {
             ecosystem: ecosystem.to_owned(),
-            vulnerabilities: read_records(&directory)?,
             freshness,
+            vulnerabilities,
         })
     }
 
-    /// Takes the lock of an ecosystem, `.lock-<ecosystem>` in the cache, waiting at most `lock_wait` for another
-    /// fetch to release it (ADR 0005); the system releases it when the returned file is closed or the process ends.
-    /// A lock file another user created is locked through a read-only handle. Under `offline`, a cache the lock file
-    /// cannot be opened in is read without it (OSR-23); so is any cache on a platform without file locks (ADR 0005).
-    fn lock(&self, ecosystem: &str) -> Result<Option<File>, FetchCause> {
+    /// The freshness of the snapshot of a directory when the refresh policy reads it rather than downloading the
+    /// archive again (OSR-13); `clock` is read only by a policy that compares with the time.
+    fn cached(
+        &self,
+        directory: &Path,
+        clock: &impl Fn() -> SystemTime,
+    ) -> Result<Option<Freshness>, FetchCause> {
+        Ok(match (self.refresh, read_freshness(directory)?) {
+            (Refresh::Offline, None) => return Err(FetchCause::NotCached),
+            (Refresh::Offline | Refresh::IfMissing, Some(freshness)) => Some(freshness),
+            // A snapshot dated after now (a clock set back) is not older than any age.
+            (Refresh::OlderThan(age), Some(freshness))
+                if clock()
+                    .duration_since(freshness.downloaded_at)
+                    .map_or(true, |elapsed| elapsed <= age) =>
+            {
+                Some(freshness)
+            }
+            _ => None,
+        })
+    }
+
+    /// Opens the lock file of an ecosystem, `.lock-<ecosystem>` in the cache (ADR 0005, ADR 0007); the system releases
+    /// its lock when the returned file is closed or the process ends. A lock file another user created is opened
+    /// read-only, which locks it as well. Under `offline`, a cache the lock file cannot be opened in is read without it
+    /// (OSR-23).
+    fn lock_file(&self, ecosystem: &str) -> Result<Option<File>, FetchCause> {
         let path = self.cache.join(format!(".lock-{ecosystem}"));
         let offline = self.refresh == Refresh::Offline;
         if !offline {
@@ -242,16 +271,31 @@ impl Archives {
             .open(&path)
             // Keeps the reason of the write when the lock file cannot be read either (a cache it cannot write in).
             .or_else(|error| File::open(&path).map_err(|_| error));
-        let file = match opened {
-            Ok(file) => file,
-            Err(_) if offline => return Ok(None),
-            Err(e) => return Err(cache_error(&e)),
+        match opened {
+            Ok(file) => Ok(Some(file)),
+            Err(_) if offline => Ok(None),
+            Err(e) => Err(cache_error(&e)),
+        }
+    }
+
+    /// Takes the lock of a lock file in a mode, polling until the deadline (none: without bound). On a platform
+    /// without file locks, drops the file and goes on without a lock (ADR 0005).
+    fn wait_for(
+        &self,
+        lock: &mut Option<File>,
+        mode: Mode,
+        deadline: Option<Instant>,
+    ) -> Result<(), FetchCause> {
+        let Some(file) = lock else {
+            return Ok(());
         };
-        // A bound too large to add to now waits without one.
-        let deadline = Instant::now().checked_add(self.lock_wait);
         loop {
-            match file.try_lock() {
-                Ok(()) => return Ok(Some(file)),
+            let tried = match mode {
+                Mode::Shared => file.try_lock_shared(),
+                Mode::Exclusive => file.try_lock(),
+            };
+            match tried {
+                Ok(()) => return Ok(()),
                 Err(TryLockError::WouldBlock) => {
                     let left = deadline.map_or(LOCK_POLL, |deadline| {
                         deadline.saturating_duration_since(Instant::now())
@@ -264,12 +308,20 @@ impl Archives {
                     thread::sleep(left.min(LOCK_POLL));
                 }
                 Err(TryLockError::Error(e)) if e.kind() == io::ErrorKind::Unsupported => {
-                    return Ok(None);
+                    *lock = None;
+                    return Ok(());
                 }
                 Err(TryLockError::Error(e)) => return Err(cache_error(&e)),
             }
         }
     }
+}
+
+/// How a fetch holds the lock of an ecosystem: shared to read its snapshot, exclusive to replace it (ADR 0007).
+#[derive(Clone, Copy)]
+enum Mode {
+    Shared,
+    Exclusive,
 }
 
 /// The download of the archive of an ecosystem, and the paths of the cache it goes through. Their names start with

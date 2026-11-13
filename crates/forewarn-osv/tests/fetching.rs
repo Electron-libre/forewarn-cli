@@ -777,6 +777,103 @@ fn runs_fetching_different_ecosystems_do_not_wait_for_each_other() {
     assert_eq!(ids(&snapshots[0]), ["GHSA-35jh-r3h4-6jhm"]);
 }
 
+/// Takes the shared lock of an ecosystem as a run reading its snapshot would, until the returned file is dropped.
+fn hold_shared_lock(cache: &Path, ecosystem: &str) -> fs::File {
+    let file = fs::File::open(cache.join(format!(".lock-{ecosystem}"))).expect("the lock file");
+    file.lock_shared().expect("the shared lock");
+    file
+}
+
+// spec: OSR-32
+#[test]
+fn runs_reading_the_same_snapshot_do_not_wait_for_each_other() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    let filled = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    let _reading = hold_shared_lock(cache.path(), "crates.io");
+    let second = Archives {
+        lock_wait: Duration::ZERO,
+        ..archives(cache.path(), &server, Refresh::IfMissing)
+    };
+
+    let read = second
+        .fetch(&["crates.io"], || at(2_000))
+        .expect("a reader does not wait for a reader");
+
+    assert_eq!(read, filled);
+    assert_eq!(server.requests().len(), 1);
+}
+
+// spec: OSR-33, OSR-22
+#[test]
+fn a_download_waits_for_the_runs_reading_the_snapshot() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    let before = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    let reading = hold_shared_lock(cache.path(), "crates.io");
+    let downloading = Archives {
+        lock_wait: Duration::from_millis(300),
+        ..archives(cache.path(), &server, Refresh::Always)
+    };
+
+    let error = downloading
+        .fetch(&["crates.io"], || at(2_000))
+        .expect_err("the download waits for the reader");
+
+    assert_eq!(
+        error.cause,
+        FetchCause::Locked {
+            waited: Duration::from_millis(300)
+        }
+    );
+    assert_eq!(server.requests().len(), 1);
+    drop(reading);
+    let after = archives(cache.path(), &server, Refresh::Offline)
+        .fetch(&["crates.io"], || at(3_000))
+        .expect("the snapshot is kept");
+    assert_eq!(after, before);
+}
+
+// spec: OSR-19, OSR-13
+#[test]
+fn two_runs_finding_the_snapshot_too_old_download_it_once() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(0))
+        .expect("the archive is fetched");
+    // Holds both runs after they read the old freshness, until each asks for the exclusive lock.
+    let reading = hold_shared_lock(cache.path(), "crates.io");
+    let runs: Vec<_> = (0..2)
+        .map(|_| {
+            let run = archives(
+                cache.path(),
+                &server,
+                Refresh::OlderThan(Duration::from_secs(3_600)),
+            );
+            thread::spawn(move || run.fetch(&["crates.io"], || at(7_200)))
+        })
+        .collect();
+    thread::sleep(Duration::from_millis(300));
+    drop(reading);
+
+    let snapshots: Vec<_> = runs
+        .into_iter()
+        .map(|run| run.join().expect("the run").expect("fetched"))
+        .collect();
+
+    assert_eq!(server.requests().len(), 2);
+    assert_eq!(snapshots[0], snapshots[1]);
+    assert_eq!(snapshots[0][0].freshness.downloaded_at, at(7_200));
+}
+
 /// The variable naming the lock file the helper process below locks before it waits to be killed.
 const HOLDER_LOCK: &str = "FOREWARN_TEST_HOLD_LOCK";
 

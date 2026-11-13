@@ -1,6 +1,6 @@
 # 0005. Lock each ecosystem of the OSV cache with a file lock
 
-- Status: accepted
+- Status: accepted, amended by [0007](0007-share-the-osv-cache-lock-between-readers.md)
 - Date: 2026-11-13
 
 ## Context
