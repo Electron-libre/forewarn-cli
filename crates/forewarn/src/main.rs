@@ -10,12 +10,13 @@ use std::fs::File;
 use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::slice;
 use std::time::{Duration, SystemTime};
 
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
-use forewarn_domain::exploited::{ExploitedList, flag_exploited};
+use forewarn_domain::exploited::flag_exploited;
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
 use forewarn_domain::vulnerability::Vulnerability;
@@ -39,7 +40,8 @@ struct Cli {
 enum Command {
     /// Print the spec version of an SBOM and the components missing a supplier, a license or a hash.
     Check(CheckArgs),
-    /// Print the components of an SBOM affected by known OSV vulnerabilities, and those that could not be evaluated.
+    /// Print the components of an SBOM affected by known OSV vulnerabilities, those the CISA KEV catalog names marked
+    /// actively exploited, and those that could not be evaluated.
     Match(MatchArgs),
 }
 
@@ -146,7 +148,7 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
              CISA KEV catalog (--kev, --no-kev) are",
         );
     }
-    let cache = (fetches_archives || fetches_kev).then(|| cache_directory(args));
+    let cache = (fetches_archives || fetches_kev).then(|| cache_directory(args, fetches_archives));
     let refresh = args.refresh.unwrap_or(DEFAULT_REFRESH);
     let archives = cache
         .clone()
@@ -156,17 +158,6 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         .filter(|_| fetches_kev)
         .map(|cache| kev_feed(args, cache, refresh));
     let sbom = read_sbom(&args.sbom)?;
-    let catalog = match (&args.kev, feed) {
-        (Some(path), _) => Some(KevCatalog::Local(
-            kev::read_file(path).map_err(|error| no_records(&error))?,
-            path,
-        )),
-        (None, Some(feed)) => Some(KevCatalog::Fetched(
-            feed.fetch(SystemTime::now)
-                .map_err(|error| no_records(&error))?,
-        )),
-        (None, None) => None,
-    };
     let mut records = Records::default();
     let mut fetched = Vec::new();
     if let Some(archives) = archives {
@@ -191,13 +182,24 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         let read = read_osv(path).map_err(|error| no_records(&error))?;
         local.push((path, records.add(read)));
     }
-    let lists: Vec<ExploitedList> = catalog
-        .iter()
-        .map(|catalog| catalog.source().catalog().list.clone())
-        .collect();
+    // The catalog comes after the OSV records, so that a local error is reported before a download.
+    let catalog = match (&args.kev, feed) {
+        (Some(path), _) => Some(KevCatalog::Local(
+            kev::read_file(path).map_err(|error| no_records(&error))?,
+            path,
+        )),
+        (None, Some(feed)) => Some(KevCatalog::Fetched(
+            feed.fetch(SystemTime::now)
+                .map_err(|error| no_records(&error))?,
+        )),
+        (None, None) => None,
+    };
+    let lists = catalog
+        .as_ref()
+        .map_or(&[][..], |catalog| slice::from_ref(&catalog.catalog().list));
     let matching = flag_exploited(
         match_components(&sbom.components, &records.vulnerabilities),
-        &lists,
+        lists,
     );
     let exploited: Vec<ExploitedSource> = catalog.iter().map(KevCatalog::source).collect();
     let sources: Vec<Source> = fetched
@@ -220,7 +222,7 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         Format::Human => report::matching_human(&sbom, &sources, &exploited, &matching),
         Format::Json => report::matching_json(&sbom, &sources, &exploited, &matching),
     })?;
-    if report::exploited_count(&matching) > 0 {
+    if matching.exploited_count() > 0 {
         return Ok(ExitCode::from(EXPLOITED));
     }
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
@@ -233,6 +235,13 @@ enum KevCatalog<'a> {
 }
 
 impl KevCatalog<'_> {
+    fn catalog(&self) -> &kev::Catalog {
+        match self {
+            Self::Local(catalog, _) => catalog,
+            Self::Fetched(fetched) => &fetched.catalog,
+        }
+    }
+
     fn source(&self) -> ExploitedSource<'_> {
         match self {
             Self::Local(catalog, path) => ExploitedSource::Local { catalog, path },
@@ -255,16 +264,19 @@ fn usage_error(kind: clap::error::ErrorKind, message: &str) -> ! {
         .exit()
 }
 
-/// The cache directory of MCH-12; exits with 2 when none can be found.
-fn cache_directory(args: &MatchArgs) -> PathBuf {
+/// The cache directory of MCH-12; exits with 2 when none can be found, naming `--kev` and `--no-kev` when only the
+/// CISA KEV catalog needs it.
+fn cache_directory(args: &MatchArgs, fetches_archives: bool) -> PathBuf {
     args.cache
         .clone()
         .or_else(default_cache)
         .unwrap_or_else(|| {
-            usage_error(
-                clap::error::ErrorKind::MissingRequiredArgument,
-                "no cache directory: give --cache, or set XDG_CACHE_HOME or HOME",
-            )
+            let mut message =
+                "no cache directory: give --cache, or set XDG_CACHE_HOME or HOME".to_owned();
+            if !fetches_archives {
+                message.push_str(", or give --kev <file> or --no-kev to fetch no CISA KEV catalog");
+            }
+            usage_error(clap::error::ErrorKind::MissingRequiredArgument, &message)
         })
 }
 

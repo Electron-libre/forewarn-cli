@@ -484,6 +484,11 @@ fn no_cache_directory_is_an_invalid_argument_unless_nothing_is_fetched() {
         &unset,
     );
     assert_eq!(fetched_kev.code, 2, "{}", fetched_kev.stderr);
+    assert!(
+        fetched_kev.stderr.contains("--no-kev"),
+        "{}",
+        fetched_kev.stderr
+    );
     for kev in [vec!["--no-kev"], vec!["--kev", KEV_FIXTURE]] {
         let mut args = vec!["match", "--osv", path(&osv)];
         args.extend(kev.iter());
@@ -541,7 +546,7 @@ fn a_ci_job_fetches_the_kev_catalog_into_its_cache_and_sees_the_exploited_match(
     let human = fetch_with_kev(cache.path(), &mirror, &osv_url, &crates());
     assert_eq!(human.code, 6, "{}", human.stderr);
     assert_eq!(human.stderr, "");
-    assert_eq!(mirror.requests(), ["/kev.json", "/crates.io/all.zip"]);
+    assert_eq!(mirror.requests(), ["/crates.io/all.zip", "/kev.json"]);
     assert!(cache.path().join("cisa-kev").is_dir());
     let json = fetch_with_kev(
         cache.path(),

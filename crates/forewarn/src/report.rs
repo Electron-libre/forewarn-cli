@@ -232,7 +232,7 @@ pub fn matching_human(
         text,
         "Affected ({}, {} actively exploited):",
         matching.matches().len(),
-        exploited_count(matching)
+        matching.exploited_count()
     );
     for flagged in matching.matches() {
         let found = &flagged.found;
@@ -374,15 +374,6 @@ fn push_evidence(text: &mut String, evidence: &[Evidence]) {
     text.push('\n');
 }
 
-/// The number of matches actively exploited (MCH-29).
-pub fn exploited_count(matching: &FlaggedReport) -> usize {
-    matching
-        .matches()
-        .iter()
-        .filter(|found| found.is_exploited())
-        .count()
-}
-
 fn push_component_ref(text: &mut String, component: &ComponentRef) {
     push_component(
         text,
@@ -447,7 +438,7 @@ pub fn matching_json(
         "cleanCount": clean_count(sbom, matching),
         "osv": sources,
         "exploitedLists": exploited_lists,
-        "exploitedCount": exploited_count(matching),
+        "exploitedCount": matching.exploited_count(),
         "affected": affected,
         "notEvaluated": not_evaluated,
     });
