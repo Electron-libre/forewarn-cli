@@ -30,17 +30,13 @@ pub(crate) enum Scheme {
 }
 
 impl Scheme {
-    /// The ordering a range of this kind naming a package of this ecosystem is compared by, or `None` when matching
-    /// does not compare it (VMT-9, VMT-23).
-    pub(crate) fn of(kind: RangeKind, ecosystem: &str) -> Option<Self> {
-        match (kind, ecosystem) {
-            (RangeKind::Semver, _) | (RangeKind::Ecosystem, "crates.io" | "npm" | "Go") => {
-                Some(Self::Semver)
-            }
-            (RangeKind::Ecosystem, "PyPI") => Some(Self::Pep440),
-            (RangeKind::Ecosystem, "Maven") => Some(Self::Maven),
-            (RangeKind::Ecosystem, "RubyGems") => Some(Self::RubyGems),
-            _ => None,
+    /// The ordering a range of this kind is compared by, for a package whose ecosystem orders its versions by
+    /// `ecosystem`, or `None` when matching does not compare it (VMT-9, VMT-23).
+    pub(crate) fn of(kind: RangeKind, ecosystem: Option<Self>) -> Option<Self> {
+        match kind {
+            RangeKind::Semver => Some(Self::Semver),
+            RangeKind::Ecosystem => ecosystem,
+            RangeKind::Git => None,
         }
     }
 }
@@ -322,111 +318,107 @@ fn local_version(cursor: &mut Cursor) -> Option<Vec<LocalSegment>> {
     }
 }
 
-/// The ordering of `Maven`, by the version order specification of Maven's `ComparableVersion` (VMT-25).
+/// The ordering of `Maven`, by the algorithm of Maven's `ComparableVersion` (VMT-25).
 pub(crate) struct Maven;
 
-/// What separates a Maven token from the one before it: a hyphen also stands for a change between digits and letters.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Separator {
-    Dot,
-    Hyphen,
-}
-
-/// The value of a Maven token.
+/// An item of a Maven version.
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum MavenValue {
+pub(crate) enum MavenItem {
     Number(Number),
     /// A qualifier in lower case, its aliases resolved (`cr` as `rc`; `ga`, `final`, `release` as the empty one).
     Qualifier(String),
+    /// The items after a hyphen or a change between digits and letters.
+    List(Vec<MavenItem>),
 }
 
-impl MavenValue {
-    /// Whether the value is a null one, trimmed at the end of a hyphen group: `0` or the empty qualifier.
+impl MavenItem {
+    /// Whether the item is a null one, dropped at the end of a list: `0`, the empty qualifier or an empty list.
     fn is_null(&self) -> bool {
         match self {
             Self::Number(number) => number.is_zero(),
             Self::Qualifier(qualifier) => qualifier.is_empty(),
+            Self::List(items) => items.is_empty(),
         }
     }
 }
 
-/// A Maven version: its tokens, each with the separator before it.
-#[derive(Debug)]
-pub(crate) struct MavenKey(Vec<(Separator, MavenValue)>);
-
 impl VersionOrder for Maven {
-    type Key = MavenKey;
+    /// The items of the version, the outer list.
+    type Key = Vec<MavenItem>;
 
     fn parse(version: &str) -> Option<Self::Key> {
-        let text = version.trim().to_lowercase();
-        let mut raw: Vec<(Separator, String, bool)> = Vec::new();
-        let mut separator = Separator::Dot;
-        let mut current = String::new();
-        for c in text.chars() {
-            match c {
-                '.' | '-' => {
-                    raw.push((separator, std::mem::take(&mut current), false));
-                    separator = if c == '.' {
-                        Separator::Dot
-                    } else {
-                        Separator::Hyphen
-                    };
+        let text: Vec<char> = version.trim().to_lowercase().chars().collect();
+        let token = |from: usize, to: usize| text[from..to].iter().collect::<String>();
+        // The open lists, each nested as the last item of the one before it once closed.
+        let mut lists: Vec<Vec<MavenItem>> = vec![Vec::new()];
+        let mut is_digit = false;
+        let mut start = 0;
+        for (i, &c) in text.iter().enumerate() {
+            let list = lists.len() - 1;
+            if c == '.' || c == '-' {
+                let item = if i == start {
+                    MavenItem::Number(Number::of("0"))
+                } else {
+                    maven_item(is_digit, &token(start, i), false)
+                };
+                lists[list].push(item);
+                start = i + 1;
+                if c == '-' {
+                    lists.push(Vec::new());
                 }
-                _ => {
-                    let is_digit = c.is_ascii_digit();
-                    if current
-                        .chars()
-                        .last()
-                        .is_some_and(|last| last.is_ascii_digit() != is_digit)
-                    {
-                        raw.push((separator, std::mem::take(&mut current), is_digit));
-                        separator = Separator::Hyphen;
-                    }
-                    current.push(c);
+            } else if c.is_ascii_digit() {
+                if !is_digit && i > start {
+                    lists[list].push(maven_item(false, &token(start, i), true));
+                    start = i;
+                    lists.push(Vec::new());
                 }
+                is_digit = true;
+            } else {
+                if is_digit && i > start {
+                    lists[list].push(maven_item(true, &token(start, i), false));
+                    start = i;
+                    lists.push(Vec::new());
+                }
+                is_digit = false;
             }
         }
-        raw.push((separator, current, false));
-        let mut groups: Vec<Vec<(Separator, MavenValue)>> = Vec::new();
-        for (separator, token, followed_by_digit) in raw {
-            let value = maven_value(&token, followed_by_digit);
-            match groups.last_mut() {
-                Some(group) if separator == Separator::Dot => group.push((separator, value)),
-                _ => groups.push(vec![(separator, value)]),
+        if text.len() > start {
+            let last = lists.len() - 1;
+            lists[last].push(maven_item(is_digit, &token(start, text.len()), false));
+        }
+        loop {
+            let mut list = lists.pop()?;
+            normalize(&mut list);
+            match lists.last_mut() {
+                Some(parent) => parent.push(MavenItem::List(list)),
+                None => return Some(list),
             }
         }
-        let mut tokens = Vec::new();
-        for mut group in groups {
-            while group.last().is_some_and(|(_, value)| value.is_null()) {
-                group.pop();
-            }
-            tokens.extend(group);
-        }
-        Some(MavenKey(tokens))
     }
 
     fn compare(a: &Self::Key, b: &Self::Key) -> Ordering {
-        let length = a.0.len().max(b.0.len());
-        (0..length)
-            .map(|i| match (a.0.get(i), b.0.get(i)) {
-                (Some(a), Some(b)) => compare_maven_tokens(a, b),
-                (Some(a), None) => compare_maven_to_null(a),
-                (None, Some(b)) => compare_maven_to_null(b).reverse(),
-                (None, None) => Ordering::Equal,
-            })
-            .find(|order| order.is_ne())
-            .unwrap_or(Ordering::Equal)
+        compare_maven_lists(a, b)
     }
 }
 
-/// The value of a token: empty as `0`, digits as a number, `a`, `b`, `m` directly followed by a digit as `alpha`,
-/// `beta`, `milestone`, and the aliases of the qualifiers resolved.
-fn maven_value(token: &str, followed_by_digit: bool) -> MavenValue {
-    if token.is_empty() {
-        return MavenValue::Number(Number::of("0"));
+/// Drops the null items at the end of a list, past its nested lists, up to its last number or qualifier not null.
+fn normalize(list: &mut Vec<MavenItem>) {
+    let mut i = list.len();
+    while i > 0 {
+        i -= 1;
+        if list[i].is_null() {
+            list.remove(i);
+        } else if !matches!(list[i], MavenItem::List(_)) {
+            break;
+        }
     }
-    if token.bytes().all(|b| b.is_ascii_digit()) {
-        return MavenValue::Number(Number::of(token));
+}
+
+/// A number, or a qualifier: `a`, `b`, `m` directly followed by a digit read as `alpha`, `beta`, `milestone`, and the
+/// aliases resolved.
+fn maven_item(is_digit: bool, token: &str, followed_by_digit: bool) -> MavenItem {
+    if is_digit {
+        return MavenItem::Number(Number::of(token));
     }
     let qualifier = match (token, followed_by_digit) {
         ("a", true) => "alpha",
@@ -436,33 +428,37 @@ fn maven_value(token: &str, followed_by_digit: bool) -> MavenValue {
         ("ga" | "final" | "release", _) => "",
         (other, _) => other,
     };
-    MavenValue::Qualifier(qualifier.to_owned())
+    MavenItem::Qualifier(qualifier.to_owned())
 }
 
-/// The order of the kinds of token: a qualifier, then a number after a hyphen, then a number after a dot.
-fn maven_kind((separator, value): &(Separator, MavenValue)) -> u8 {
-    match (value, separator) {
-        (MavenValue::Qualifier(_), _) => 0,
-        (MavenValue::Number(_), Separator::Hyphen) => 1,
-        (MavenValue::Number(_), Separator::Dot) => 2,
+/// The order of an item against another, or against the missing item of a shorter list: a qualifier before a list, a
+/// list before a number; a missing item reads as `0` against a number, the release against a qualifier, and against a
+/// list as the list's first item does.
+fn compare_maven_items(a: &MavenItem, b: Option<&MavenItem>) -> Ordering {
+    use MavenItem::{List, Number as Num, Qualifier};
+    match (a, b) {
+        (Num(a), None) => a.cmp(&Number::of("0")),
+        (Num(a), Some(Num(b))) => a.cmp(b),
+        (Num(_), Some(_)) | (List(_), Some(Qualifier(_))) => Ordering::Greater,
+        (Qualifier(a), None) => compare_qualifiers(a, ""),
+        (Qualifier(a), Some(Qualifier(b))) => compare_qualifiers(a, b),
+        (Qualifier(_) | List(_), Some(Num(_))) | (Qualifier(_), Some(List(_))) => Ordering::Less,
+        (List(a), None) => a
+            .first()
+            .map_or(Ordering::Equal, |first| compare_maven_items(first, None)),
+        (List(a), Some(List(b))) => compare_maven_lists(a, b),
     }
 }
 
-fn compare_maven_tokens(a: &(Separator, MavenValue), b: &(Separator, MavenValue)) -> Ordering {
-    match (&a.1, &b.1) {
-        (MavenValue::Number(x), MavenValue::Number(y)) if a.0 == b.0 => x.cmp(y),
-        (MavenValue::Qualifier(x), MavenValue::Qualifier(y)) => compare_qualifiers(x, y),
-        _ => maven_kind(a).cmp(&maven_kind(b)),
-    }
-}
-
-/// The order of a token against the missing token of a shorter version: `0` against a number, the release (the
-/// empty qualifier) against a qualifier.
-fn compare_maven_to_null(token: &(Separator, MavenValue)) -> Ordering {
-    match &token.1 {
-        MavenValue::Number(number) => number.cmp(&Number::of("0")),
-        MavenValue::Qualifier(qualifier) => compare_qualifiers(qualifier, ""),
-    }
+fn compare_maven_lists(a: &[MavenItem], b: &[MavenItem]) -> Ordering {
+    (0..a.len().max(b.len()))
+        .map(|i| match (a.get(i), b.get(i)) {
+            (Some(a), b) => compare_maven_items(a, b),
+            (None, Some(b)) => compare_maven_items(b, None).reverse(),
+            (None, None) => Ordering::Equal,
+        })
+        .find(|order| order.is_ne())
+        .unwrap_or(Ordering::Equal)
 }
 
 /// `alpha` < `beta` < `milestone` < `rc` < `snapshot` < the release < `sp` < any other, by text.
@@ -493,7 +489,10 @@ impl VersionOrder for RubyGems {
     type Key = Vec<GemSegment>;
 
     fn parse(version: &str) -> Option<Self::Key> {
-        let version = version.trim();
+        let version = match version.trim() {
+            "" => "0",
+            version => version,
+        };
         if !is_gem_version(version) {
             return None;
         }

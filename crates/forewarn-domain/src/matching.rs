@@ -22,16 +22,22 @@ enum NameForm {
     ColonRequired,
 }
 
-/// The package URL types matching knows: type, OSV ecosystem, name form (VMT-4).
-const ECOSYSTEMS: [(&str, &str, NameForm); 8] = [
-    ("cargo", "crates.io", NameForm::Name),
-    ("npm", "npm", NameForm::Slash),
-    ("pypi", "PyPI", NameForm::Name),
-    ("maven", "Maven", NameForm::ColonRequired),
-    ("golang", "Go", NameForm::Slash),
-    ("nuget", "NuGet", NameForm::Name),
-    ("gem", "RubyGems", NameForm::Name),
-    ("composer", "Packagist", NameForm::SlashRequired),
+/// The package URL types matching knows: type, OSV ecosystem, name form (VMT-4), and the ordering of the versions of
+/// its `ECOSYSTEM` ranges, if matching compares them (VMT-23).
+const ECOSYSTEMS: [(&str, &str, NameForm, Option<Scheme>); 8] = [
+    ("cargo", "crates.io", NameForm::Name, Some(Scheme::Semver)),
+    ("npm", "npm", NameForm::Slash, Some(Scheme::Semver)),
+    ("pypi", "PyPI", NameForm::Name, Some(Scheme::Pep440)),
+    (
+        "maven",
+        "Maven",
+        NameForm::ColonRequired,
+        Some(Scheme::Maven),
+    ),
+    ("golang", "Go", NameForm::Slash, Some(Scheme::Semver)),
+    ("nuget", "NuGet", NameForm::Name, None),
+    ("gem", "RubyGems", NameForm::Name, Some(Scheme::RubyGems)),
+    ("composer", "Packagist", NameForm::SlashRequired, None),
 ];
 
 /// Why a component cannot be matched at all (VMT-10).
@@ -228,7 +234,7 @@ impl<'a> Index<'a> {
             let known = vulnerability.affected.iter().filter(|affected| {
                 ECOSYSTEMS
                     .iter()
-                    .any(|(_, ecosystem, _)| *ecosystem == affected.ecosystem)
+                    .any(|(_, ecosystem, _, _)| *ecosystem == affected.ecosystem)
             });
             for affected in known {
                 let list = places
@@ -498,6 +504,8 @@ pub struct ComponentPackage {
     pub name: String,
     /// The component's version, else the version of its package URL.
     pub version: String,
+    /// The ordering of the versions of the `ECOSYSTEM` ranges of its ecosystem, if matching compares them.
+    scheme: Option<Scheme>,
 }
 
 impl ComponentPackage {
@@ -514,9 +522,9 @@ impl ComponentPackage {
             .ok_or(ComponentReason::NoPackageUrl)?;
         let purl =
             PackageUrl::parse(purl.trim()).map_err(|_| ComponentReason::InvalidPackageUrl)?;
-        let (_, ecosystem, form) = ECOSYSTEMS
+        let (_, ecosystem, form, scheme) = ECOSYSTEMS
             .iter()
-            .find(|(purl_type, _, _)| *purl_type == purl.purl_type)
+            .find(|(purl_type, _, _, _)| *purl_type == purl.purl_type)
             .ok_or(ComponentReason::UnknownEcosystem)?;
         let name = match (form, purl.namespace.is_empty()) {
             (NameForm::SlashRequired | NameForm::ColonRequired, true) => {
@@ -537,6 +545,7 @@ impl ComponentPackage {
             .to_owned();
         Ok(Self {
             ecosystem,
+            scheme: *scheme,
             name,
             version,
         })
@@ -583,7 +592,7 @@ impl ComponentPackage {
 
     /// Whether the version is in the range, by the OSV algorithm, in the ordering of the range (VMT-9, VMT-23).
     fn in_range(&self, range: &Range) -> Result<bool, PairReason> {
-        match Scheme::of(range.kind, self.ecosystem) {
+        match Scheme::of(range.kind, self.scheme) {
             Some(Scheme::Semver) => in_range::<Semver>(&self.version, &range.events),
             Some(Scheme::Pep440) => in_range::<Pep440>(&self.version, &range.events),
             Some(Scheme::Maven) => in_range::<Maven>(&self.version, &range.events),

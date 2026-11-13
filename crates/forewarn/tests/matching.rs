@@ -259,11 +259,7 @@ fn a_pypi_component_in_an_ecosystem_range_is_affected() {
         "1.6",
         &json!([
             component("django", "2.1", Some("pkg:pypi/django@2.1")),
-            component(
-                "Django-Rest",
-                "3.0.post1",
-                Some("pkg:pypi/django@3.0.post1")
-            ),
+            component("django", "3.0.post1", Some("pkg:pypi/django@3.0.post1")),
         ]),
     );
     let json = run(

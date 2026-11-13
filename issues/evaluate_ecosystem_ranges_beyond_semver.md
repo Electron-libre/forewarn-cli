@@ -55,7 +55,7 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
 3. [x] Maven: the `ComparableVersion` ordering; verified by the Maven scenarios; makes true VMT-25, VMT-23 (Maven row). (autonomous)
 4. [x] RubyGems: the `Gem::Version` ordering; verified by the RubyGems scenarios; makes true VMT-26, VMT-23 (RubyGems
    row); the spec set `accepted`. (autonomous)
-5. [ ] Docs and the fixes of the `high` review of the whole issue; a follow-up issue for NuGet and Packagist.
+5. [x] Docs and the fixes of the `high` review of the whole issue; a follow-up issue for NuGet and Packagist. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -137,4 +137,30 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
   reported `RangeNotEvaluated`.
 - Code review: no findings
 - not verified: none
+- decisions needed: none
+
+## Deliverable 5: docs and the fixes of the `high` review
+- done: `update-docs` over the issue (README, CLAUDE.md already current); `high` review fixes: Maven parsed as the
+  nested lists of `ComparableVersion` (`1.foo` < `1-foo`, `1-0-1` < `1-1`), an empty RubyGems version read as `0`,
+  the ordering of each ecosystem moved into the `ECOSYSTEMS` table, the CLI test component named `django`; VMT-25
+  and VMT-26 restated, a Maven scenario added; follow-up issue `issues/evaluate_nuget_and_packagist_ranges.md`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`), `specs/vulnerability-matching.md` accepted |
+| docs | VMT-25, VMT-26 and a scenario; ROADMAP lists the follow-up issue |
+| code review | `high` on the issue: 8 findings; `low` on this deliverable, see below |
+
+- red: VMT-25, VMT-26: `orders_maven_versions_by_comparable_version`: `1.foo < 1-foo` failed;
+  `orders_rubygems_versions_by_gem_version`: the event `""` was reported `InvalidVersion`.
+- High review: 8 findings. Fixed: Maven flattening (2 findings), RubyGems empty version, the ecosystem names held twice
+  (`Scheme::of`), the CLI test name. Not fixed: dispatch through a function pointer (one `match`, style only);
+  parsing the component version once per component (only the ranges of the records naming its package are
+  evaluated, as before with Semantic Versioning); the quadratic `chars().last()` (wrong: `Chars::last` takes
+  `next_back`, and the code is gone).
+- Code review: no findings
+- not verified: Maven 3.9 `CombinationItem` (a qualifier glued to a number, `rc1`) is read as the classic
+  `ComparableVersion` does (a nested list), no Maven runtime to compare against.
 - decisions needed: none

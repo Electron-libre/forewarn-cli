@@ -235,6 +235,9 @@ fn orders_maven_versions_by_comparable_version() {
         MAVEN.assert_equal(a, b);
     }
     MAVEN.assert_ordered(&["1-alpha", "1-sp", "1-a", "1-b"]);
+    MAVEN.assert_ordered(&["1.foo", "1-foo"]);
+    MAVEN.assert_ordered(&["1-0-1", "1-1"]);
+    MAVEN.assert_ordered(&["1-1", "1.0.1"]);
 }
 
 // spec: VMT-9, VMT-23, VMT-26
@@ -271,6 +274,8 @@ fn orders_rubygems_versions_by_gem_version() {
         ("1.0rc1", "1.0.rc.1"),
         (" 1.0 ", "1"),
         ("01.2", "1.2"),
+        ("", "0"),
+        (" ", "0"),
     ] {
         RUBYGEMS.assert_equal(a, b);
     }
