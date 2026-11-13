@@ -10,7 +10,12 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Goal: for each affected component, `forewarn` writes a draft CRA early warning with its deadlines, in a format an
   adapter owns so that a change of the regulatory format only touches it.
 - Why: a vendor should not write the report from scratch under pressure.
-- State: idea
+- State: in issues
+- Issues:
+  - [read_the_product_of_the_sbom](issues/read_the_product_of_the_sbom.md)
+  - [draft_the_early_warning_in_the_domain](issues/draft_the_early_warning_in_the_domain.md)
+  - [write_the_early_warning_in_an_adapter](issues/write_the_early_warning_in_an_adapter.md)
+  - [cli_draft_early_warnings](issues/cli_draft_early_warnings.md)
 
 ## Proof-of-concept demo
 
