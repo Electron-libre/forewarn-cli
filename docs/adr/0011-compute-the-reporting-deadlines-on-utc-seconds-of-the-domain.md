@@ -1,6 +1,6 @@
 # 0011. Compute the reporting deadlines on UTC seconds of the domain
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-13
 
 ## Context

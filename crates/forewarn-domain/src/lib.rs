@@ -4,6 +4,7 @@
 pub mod completeness;
 mod cve;
 pub mod date;
+pub mod deadlines;
 pub mod exploited;
 pub mod matching;
 mod purl;

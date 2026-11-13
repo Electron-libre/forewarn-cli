@@ -1,6 +1,6 @@
 ---
 id: RDL
-status: draft
+status: accepted
 adrs: [0011]
 ---
 

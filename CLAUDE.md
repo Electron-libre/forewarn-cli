@@ -10,7 +10,10 @@ prints both (`specs/cli-check.md`). The domain also matches components against O
 URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems, NuGet, Composer),
 grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
 and flags a match as actively exploited when a list of exploited vulnerabilities names its CVE, with the list and the
-date it gives as evidence (`specs/exploited-flagging.md`); the exploited-list adapter reads the CISA KEV catalog, from a file or
+date it gives as evidence (`specs/exploited-flagging.md`), and computes the CRA article 14(2) deadlines of such a
+vulnerability, 24 h and 72 h from the moment of awareness and 14 days from the moment a corrective measure is
+available, on a UTC instant of its own (`specs/reporting-deadlines.md`, ADR
+[0011](docs/adr/0011-compute-the-reporting-deadlines-on-utc-seconds-of-the-domain.md)); the exploited-list adapter reads the CISA KEV catalog, from a file or
 fetched into a cache under the refresh policy and the lock of the OSV archives (crate `forewarn-cache`), into such a
 list, with the catalog's version and release date (`specs/kev-reading.md`, ADR
 [0008](docs/adr/0008-exploited-lists-crate-and-a-shared-cache-crate.md)), and reads the exploited records of EUVD, from a

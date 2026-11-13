@@ -61,9 +61,9 @@ final report (+14 × 24 h after the measure) deadlines. Out of scope: clock, off
 1. [x] Instant: `date::Instant` (a `Date` and a time of day in UTC), its refusals, order, RFC 3339 writing and the
    addition of a duration in seconds across days, months and years; verified by `tests/reporting_deadlines.rs`;
    makes true RDL-5 to RDL-9. Spec and ADR 0011 drafts committed with it. (autonomous)
-2. [ ] Deadlines: `deadlines::ReportingDeadlines` computed from the awareness and an optional measure, refusing past
+2. [x] Deadlines: `deadlines::ReportingDeadlines` computed from the awareness and an optional measure, refusing past
    9999; verified by the scenarios of the spec in `tests/reporting_deadlines.rs`; makes true RDL-1 to RDL-4, RDL-10,
-   RDL-11; spec and ADR 0011 accepted.
+   RDL-11; spec and ADR 0011 accepted. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -80,3 +80,14 @@ final report (+14 × 24 h after the measure) deadlines. Out of scope: clock, off
 - red: RDL-5, RDL-6, RDL-7, RDL-8, RDL-9: unresolved imports `forewarn_domain::date::Instant`, `InvalidTime`.
 - Code review: no findings
 - not verified: none.
+
+## Summary of deliverable 2
+- done: `deadlines::reporting_deadlines` gives the early warning (+24 h), the notification (+72 h) and, from a
+  measure, the final report (+14 × 24 h), refusing a deadline past 9999 naming its moment; spec and ADR 0011
+  accepted; CLAUDE.md status names the capability.
+- checks: project-check passes (fmt, clippy pedantic, tests, specs); docs: CLAUDE.md updated, README n/a (no CLI
+  change yet).
+- red: RDL-H1, RDL-H2, RDL-1, RDL-2, RDL-3, RDL-4, RDL-10, RDL-11: unresolved import `forewarn_domain::deadlines`.
+- Code review: no findings
+- not verified: the reading of Regulation 1182/71 the non-goal and ADR 0011 rest on (from memory, not checked against
+  its text).
