@@ -29,6 +29,8 @@ pub(crate) enum Scheme {
     RubyGems,
     /// The ordering of `NuGet`, as `NuGet.Versioning` (VMT-27).
     NuGet,
+    /// The ordering of `Packagist`, as Composer normalizes versions and PHP compares them (VMT-28).
+    Packagist,
 }
 
 impl Scheme {
@@ -636,4 +638,210 @@ fn are_nuget_labels(text: &str) -> bool {
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-')
     })
+}
+
+/// The ordering of `Packagist`: a version normalized as Composer's `VersionParser` does, then compared by PHP's
+/// `version_compare` (VMT-28).
+pub(crate) struct Packagist;
+
+/// A part of a normalized `Packagist` version: a number, or a word ranked as `version_compare` ranks it.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum PhpPart {
+    Number(Number),
+    Word(u8),
+}
+
+/// The rank of `dev`, and of a number among the words of `version_compare`.
+const DEV: u8 = 0;
+const NUMBER: u8 = 4;
+/// `x` in a branch such as `1.x-dev`.
+const BRANCH_X: &str = "9999999";
+
+impl PhpPart {
+    fn rank(&self) -> u8 {
+        match self {
+            Self::Number(_) => NUMBER,
+            Self::Word(rank) => *rank,
+        }
+    }
+}
+
+impl VersionOrder for Packagist {
+    /// The parts of the normalized version, in order.
+    type Key = Vec<PhpPart>;
+
+    fn parse(version: &str) -> Option<Self::Key> {
+        let version = version.trim().to_ascii_lowercase();
+        if version.starts_with("dev-") || version.contains(char::is_whitespace) {
+            return None;
+        }
+        let version = match version.split_once('+') {
+            Some((main, metadata))
+                if !main.is_empty() && !metadata.is_empty() && !main.contains(',') =>
+            {
+                main.to_owned()
+            }
+            Some(_) => return None,
+            None => version,
+        };
+        let version = version.strip_prefix('v').unwrap_or(&version);
+        classical(version)
+            .or_else(|| dated(version))
+            .or_else(|| branch(version))
+    }
+
+    fn compare(a: &Self::Key, b: &Self::Key) -> Ordering {
+        let compare_parts = |a: &PhpPart, b: &PhpPart| match (a, b) {
+            (PhpPart::Number(a), PhpPart::Number(b)) => a.cmp(b),
+            _ => a.rank().cmp(&b.rank()),
+        };
+        // A version going on past the other: after it when it goes on with a number, else as its word against one.
+        let going_on = |part: &PhpPart| part.rank().cmp(&NUMBER).then(Ordering::Greater);
+        a.iter()
+            .zip(b)
+            .map(|(a, b)| compare_parts(a, b))
+            .find(|order| order.is_ne())
+            .unwrap_or_else(|| match (a.get(b.len()), b.get(a.len())) {
+                (Some(rest), _) => going_on(rest),
+                (_, Some(rest)) => going_on(rest).reverse(),
+                (None, None) => Ordering::Equal,
+            })
+    }
+}
+
+/// A classical version: one to four numbers, the first of at most five digits, padded with `0` to four, then the
+/// modifier.
+fn classical(version: &str) -> Option<Vec<PhpPart>> {
+    let mut cursor = Cursor::new(version);
+    let major = cursor.rest().bytes().take_while(u8::is_ascii_digit).count();
+    if !(1..=5).contains(&major) {
+        return None;
+    }
+    let mut parts = vec![PhpPart::Number(cursor.digits()?)];
+    while parts.len() < 4
+        && cursor.rest().starts_with('.')
+        && cursor.rest()[1..].starts_with(|c: char| c.is_ascii_digit())
+    {
+        cursor.eat(".");
+        parts.push(PhpPart::Number(cursor.digits()?));
+    }
+    parts.resize_with(4, || PhpPart::Number(Number::of("0")));
+    parts.extend(modifier(cursor.rest())?);
+    Some(parts)
+}
+
+/// A date version: four digits, one to six groups of two, then up to two groups of one to three, each group after an
+/// optional `.`, `:` or `-`, the numbers kept as they are written, then the modifier.
+fn dated(version: &str) -> Option<Vec<PhpPart>> {
+    let date_length = version
+        .bytes()
+        .take_while(|b| b.is_ascii_digit() || matches!(b, b'.' | b':' | b'-'))
+        .count();
+    (4..=date_length).rev().find_map(|end| {
+        let (date, rest) = version.split_at(end);
+        if !is_date(date.as_bytes()) {
+            return None;
+        }
+        let mut parts: Vec<PhpPart> = date
+            .split(|c: char| !c.is_ascii_digit())
+            .filter(|digits| !digits.is_empty())
+            .map(|digits| PhpPart::Number(Number::of(digits)))
+            .collect();
+        parts.extend(modifier(rest)?);
+        Some(parts)
+    })
+}
+
+/// Whether the text matches `\d{4}(?:[.:-]?\d{2}){1,6}(?:[.:-]?\d{1,3}){0,2}` whole.
+fn is_date(text: &[u8]) -> bool {
+    /// Whether the text is the groups left after `twos` groups of two digits and `tails` of one to three.
+    fn groups(text: &[u8], twos: usize, tails: usize) -> bool {
+        if text.is_empty() {
+            return twos >= 1;
+        }
+        let text = match text[0] {
+            b'.' | b':' | b'-' => &text[1..],
+            _ => text,
+        };
+        let digits = text.iter().take_while(|b| b.is_ascii_digit()).count();
+        let two = tails == 0 && twos < 6 && digits >= 2 && groups(&text[2..], twos + 1, 0);
+        two || (twos >= 1
+            && tails < 2
+            && (1..=digits.min(3)).any(|length| groups(&text[length..], twos, tails + 1)))
+    }
+    text.len() >= 4 && text[..4].iter().all(u8::is_ascii_digit) && groups(&text[4..], 0, 0)
+}
+
+/// A branch such as `1.x-dev`: one to four numbers or `x` (`*`), the missing ones as `x`, each `x` as `9999999`.
+fn branch(version: &str) -> Option<Vec<PhpPart>> {
+    let name = version.strip_suffix("dev")?;
+    let name = name.strip_suffix(['.', '-']).unwrap_or(name);
+    let items: Vec<&str> = name.split('.').collect();
+    let is_number = |item: &str| !item.is_empty() && item.bytes().all(|b| b.is_ascii_digit());
+    if items.len() > 4
+        || !is_number(items[0])
+        || !items[1..]
+            .iter()
+            .all(|item| is_number(item) || matches!(*item, "x" | "*"))
+    {
+        return None;
+    }
+    let mut parts: Vec<PhpPart> = (0..4)
+        .map(|i| match items.get(i) {
+            Some(item) if is_number(item) => PhpPart::Number(Number::of(item)),
+            _ => PhpPart::Number(Number::of(BRANCH_X)),
+        })
+        .collect();
+    parts.push(PhpPart::Word(DEV));
+    Some(parts)
+}
+
+/// The modifier after the numbers, whole: an optional `.`, `_` or `-`, an optional stability with its numbers, an
+/// optional `dev` after an optional `.` or `-`.
+fn modifier(text: &str) -> Option<Vec<PhpPart>> {
+    /// The stabilities, in the order Composer tries them, with their rank in `version_compare` (`None`: `stable`).
+    const STABILITIES: [(&str, Option<u8>); 9] = [
+        ("stable", None),
+        ("beta", Some(2)),
+        ("b", Some(2)),
+        ("rc", Some(3)),
+        ("alpha", Some(1)),
+        ("a", Some(1)),
+        ("patch", Some(5)),
+        ("pl", Some(5)),
+        ("p", Some(5)),
+    ];
+    let mut cursor = Cursor::new(text);
+    cursor.eat_word(&[".", "_", "-"]);
+    let mut parts = Vec::new();
+    let mut stable = false;
+    if let Some(place) = cursor.eat_word(&STABILITIES.map(|(word, _)| word)) {
+        if let Some(rank) = STABILITIES[place].1 {
+            parts.push(PhpPart::Word(rank));
+        } else {
+            stable = true;
+        }
+        loop {
+            let start = cursor.at;
+            cursor.eat_word(&[".", "-"]);
+            match cursor.digits() {
+                Some(number) if !stable => parts.push(PhpPart::Number(number)),
+                Some(_) => {}
+                None => {
+                    cursor.at = start;
+                    break;
+                }
+            }
+        }
+    }
+    let start = cursor.at;
+    cursor.eat_word(&[".", "-"]);
+    if cursor.eat("dev") {
+        if !stable {
+            parts.push(PhpPart::Word(DEV));
+        }
+    } else {
+        cursor.at = start;
+    }
+    cursor.is_done().then_some(parts)
 }

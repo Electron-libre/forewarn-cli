@@ -37,6 +37,12 @@ const NUGET: Package = Package {
     purl: "pkg:nuget/Newtonsoft.Json",
 };
 
+const PACKAGIST: Package = Package {
+    ecosystem: "Packagist",
+    name: "laravel/framework",
+    purl: "pkg:composer/laravel/framework",
+};
+
 fn introduced(version: &str) -> Event {
     Event::Introduced(version.into())
 }
@@ -358,5 +364,77 @@ fn reports_a_nuget_version_it_does_not_read_as_invalid() {
         "-1.0",
     ] {
         NUGET.assert_invalid(invalid, "2.0");
+    }
+}
+
+// spec: VMT-9, VMT-23, VMT-28
+#[test]
+fn evaluates_an_ecosystem_range_of_packagist_by_composer() {
+    let window = [introduced("0"), fixed("10.2.1")];
+    assert!(PACKAGIST.affects("v10.2.0", &window));
+    assert!(!PACKAGIST.affects("10.2.1.0", &window));
+    assert!(PACKAGIST.affects("10.2.1-RC1", &window));
+}
+
+// spec: VMT-28
+#[test]
+fn orders_packagist_versions_by_composer() {
+    PACKAGIST.assert_ordered(&[
+        "1.0-dev",
+        "1.0-alpha1",
+        "1.0-beta-dev",
+        "1.0-beta",
+        "1.0-beta2",
+        "1.0-beta10",
+        "1.0-RC1",
+        "1.0",
+        "1.0-patch1",
+        "1.0.1",
+        "1.0.x-dev",
+        "1.1",
+        "1.x-dev",
+        "2.0",
+        "99999",
+        "20240101",
+        "20240102",
+    ]);
+    for (a, b) in [
+        ("1.0", "v1.0.0.0"),
+        ("V1", "1.0.0"),
+        (" 1.0 ", "1.0"),
+        ("01.2", "1.2"),
+        ("1.0b2", "1.0-beta.2"),
+        ("1.0-BETA2", "1.0-beta2"),
+        ("1.0a1", "1.0-alpha1"),
+        ("1.0-rc1", "1.0-RC1"),
+        ("1.0pl1", "1.0-patch1"),
+        ("1.0p1", "1.0-patch1"),
+        ("1.0-stable", "1.0"),
+        ("1.0+build.5", "1.0"),
+        ("1.0.dev", "1.0-dev"),
+        ("1.0-beta1-dev", "1.0-beta.1.dev"),
+        ("2024-01-01", "2024:01:01"),
+    ] {
+        PACKAGIST.assert_equal(a, b);
+    }
+}
+
+// spec: VMT-28, VMT-10
+#[test]
+fn reports_a_packagist_version_composer_does_not_read_as_invalid() {
+    for invalid in [
+        "dev-main",
+        "master",
+        "1.0-foo",
+        "1.0 beta",
+        "1.0.0.0.0",
+        "1.0+",
+        "+1",
+        "a1",
+        "1.0 as 2.0",
+        "1.0@dev",
+        "12345678901234567890123",
+    ] {
+        PACKAGIST.assert_invalid(invalid, "2.0");
     }
 }

@@ -51,8 +51,8 @@ then `version_compare`), in the domain, with no new dependency. Every ecosystem 
 1. [x] NuGet: the `NuGet.Versioning` ordering as a `Scheme`; the "range not evaluated" tests (domain and
    `forewarn match`) and scenarios moved to `GIT` ranges; verified by the NuGet scenarios and the moved tests; makes
    true VMT-27, VMT-23 (NuGet row), VMT-8, VMT-10, MCH-2, MCH-16. (autonomous)
-2. [ ] Packagist: Composer's normalization and `version_compare` as a `Scheme`; verified by the Packagist scenarios;
-   makes true VMT-28, VMT-23 (Packagist row); the spec set `accepted`.
+2. [x] Packagist: Composer's normalization and `version_compare` as a `Scheme`; verified by the Packagist scenarios;
+   makes true VMT-28, VMT-23 (Packagist row); the spec set `accepted`. (autonomous)
 3. [ ] Docs (README) and the fixes of the `high` review of the whole issue.
 
 ## Decisions
@@ -79,4 +79,23 @@ then `version_compare`), in the domain, with no new dependency. Every ecosystem 
   reported `RangeNotEvaluated`.
 - Code review: no findings
 - not verified: none
+- decisions needed: none
+
+## Deliverable 2: Packagist
+- done: `Scheme::Packagist`, Composer's normalization (classical, date and `<n>.x-dev` versions) then the order of
+  `version_compare` (`Packagist` in `crates/forewarn-domain/src/version.rs`); the spec `accepted`; README says a
+  record with only `GIT` ranges is what stays not evaluated; CLAUDE.md lists Composer.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`), spec `accepted` |
+| docs | README, CLAUDE.md |
+| code review | low, see below |
+
+- red: VMT-28, VMT-23: `evaluates_an_ecosystem_range_of_packagist_by_composer`: the pair of `v10.2.0` was reported
+  `RangeNotEvaluated`.
+- Code review: no findings
+- not verified: Composer's `@dev` flag and `as` aliases are refused as invalid (non-goal), not stripped as Composer does
 - decisions needed: none

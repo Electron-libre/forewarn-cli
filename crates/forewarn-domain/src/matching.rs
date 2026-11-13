@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::purl::PackageUrl;
 use crate::sbom::Component;
-use crate::version::{Maven, NuGet, Pep440, RubyGems, Scheme, Semver, VersionOrder};
+use crate::version::{Maven, NuGet, Packagist, Pep440, RubyGems, Scheme, Semver, VersionOrder};
 use crate::vulnerability::{AffectedPackage, Event, Range, RangeKind, Vulnerability};
 
 /// How the name of a package URL type is built (VMT-4).
@@ -37,7 +37,12 @@ const ECOSYSTEMS: [(&str, &str, NameForm, Option<Scheme>); 8] = [
     ("golang", "Go", NameForm::Slash, Some(Scheme::Semver)),
     ("nuget", "NuGet", NameForm::Name, Some(Scheme::NuGet)),
     ("gem", "RubyGems", NameForm::Name, Some(Scheme::RubyGems)),
-    ("composer", "Packagist", NameForm::SlashRequired, None),
+    (
+        "composer",
+        "Packagist",
+        NameForm::SlashRequired,
+        Some(Scheme::Packagist),
+    ),
 ];
 
 /// Why a component cannot be matched at all (VMT-10).
@@ -598,6 +603,7 @@ impl ComponentPackage {
             Some(Scheme::Maven) => in_range::<Maven>(&self.version, &range.events),
             Some(Scheme::RubyGems) => in_range::<RubyGems>(&self.version, &range.events),
             Some(Scheme::NuGet) => in_range::<NuGet>(&self.version, &range.events),
+            Some(Scheme::Packagist) => in_range::<Packagist>(&self.version, &range.events),
             None => Err(PairReason::RangeNotEvaluated),
         }
     }

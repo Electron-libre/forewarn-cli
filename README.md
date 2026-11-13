@@ -36,8 +36,8 @@ forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, s
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
 records hold it (a `RUSTSEC` advisory and its `GHSA` mirror), two CVEs never merged: its id (its CVE when it has
 one), its aliases and each record with its source, marked when it does not affect the version or was not evaluated,
-apart from the components it could not evaluate (no package URL, no version, an ecosystem
-whose ranges are not compared yet: Packagist), how many are clean, and how fresh the OSV data is; `--format json` and `--allow-affected` work as for `check`. Only the
+apart from the components it could not evaluate (no package URL, no version, a record
+whose only ranges are `GIT` ranges), how many are clean, and how fresh the OSV data is; `--format json` and `--allow-affected` work as for `check`. Only the
 names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from the OSV bucket (`--osv-url` for a
 mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--cache` for another), again once a day
 (`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). Two runs that share a cache on one machine
