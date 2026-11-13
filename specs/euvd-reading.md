@@ -18,7 +18,8 @@ under a refresh policy, so that a European vendor watches the list it is expecte
 
 - **EUV-1** (deterministic) Reading an EUVD exploited file must return an exploited list named `EUVD` holding, for each
   record of its `items` in the order of the file, an entry per CVE alias of the record (EUV-17), in the order of its
-  aliases, each with the date of the record's `exploitedSince` (EUV-18), or with no date when it is absent or `null`.
+  aliases, each with the date of the record's `exploitedSince` (EUV-18), or with no date when it is absent, `null`, or
+  not a date of EUV-18, so that a change of its format in EUVD drops the dates, not the list.
 - **EUV-2** (deterministic) Reading must give no entry to a record none of whose aliases is a CVE id.
 - **EUV-3** (deterministic) Fetching the list must return the list that reading the downloaded file returns (EUV-1),
   and the freshness of the download: the UTC time it started, the URL of EUV-7 it paged, and the `Last-Modified` header
@@ -66,15 +67,13 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
 
 - **EUV-16** (deterministic) Reading a refused file must fail with the error of this table, the first cause that
-  applies in table order, naming the file, and the record by its position (from 0) in `items` and its `id` when the
-  cause is in a record, its message quoting the offending value when there is one.
+  applies in table order, naming the file.
 
   | Cause | Error |
   |---|---|
   | the file cannot be read (an I/O error) | cannot read the input, with the system's reason |
   | the file is not JSON | not JSON |
   | `items` is absent or not a list, an element of it is not an object, its `id` is absent or not a string, or its `aliases` or `exploitedSince` is neither absent, `null` nor a string | invalid EUVD list, with the parser's reason |
-  | the `exploitedSince` of a record is not a date of EUV-18 | invalid date, quoting it |
 
 - **EUV-17** (deterministic) The CVE aliases of a record must be the lines of its `aliases` (split on `\n`, a `\r`
   before it and the spaces around a line removed) that EXF-7 accepts as a CVE id, each once, ignoring ASCII case; the
@@ -131,8 +130,8 @@ under a refresh policy, so that a European vendor watches the list it is expecte
 - (EUV-16) Given a missing file, when it is read, then it fails with "cannot read the input" naming it.
 - (EUV-16) Given a file without `items`, or a record without `id`, or whose `aliases` is a list, when it is read, then
   it fails with "invalid EUVD list".
-- (EUV-16, EUV-18) Given a record at position 3 whose `exploitedSince` is `2026-11-10`, `Feb 29, 2026, 12:00:00 AM` or
-  `Nov 10 2026`, when the file is read, then it fails with "invalid date" quoting it and naming record 3 and its `id`.
+- (EUV-1, EUV-18) Given a record whose `exploitedSince` is `2026-11-10`, `Feb 29, 2026, 12:00:00 AM` or `Nov 10 2026`,
+  when the file is read, then its entries have no date, and the records around it keep theirs.
 - (EUV-19) Given records holding `description`, `epss`, `enisaIdProduct` and an unknown member, and a file with a
   `total`, when it is read, then it is read as EUV-1 says.
 

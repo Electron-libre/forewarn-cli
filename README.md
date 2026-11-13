@@ -56,7 +56,8 @@ with `--osv` or `--osv-api`: the request names no component. `--kev <file>` read
 (`known_exploited_vulnerabilities.json`) instead, for an air-gapped CI; `--no-kev` flags nothing against it.
 
 The vulnerabilities ENISA's European Vulnerability Database (EUVD) knows to be exploited flag the matches the same
-way, after the catalog, an entry per CVE of each EUVD record dated by its `exploitedSince`; the report gives their
+way, after the catalog, an entry per CVE of each EUVD record dated by its `exploitedSince` (undated when
+EUVD writes it in a form it does not know); the report gives their
 number and when they were downloaded. EUVD publishes no single file: the list is paged from its search
 (`exploited=true`, 100 records a page, about 18 requests; `--euvd-url` for a mirror) into the directory
 `euvd-exploited` of the same cache, under the same `--refresh` policy: the requests name no component. `--euvd <file>`
