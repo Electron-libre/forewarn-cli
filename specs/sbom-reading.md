@@ -73,11 +73,11 @@ check and the matching work on the components and a report names the product.
   | name | `metadata.component.name` |
   | version | `metadata.component.version` |
   | package URL | `metadata.component.purl`, as written |
-  | manufacturer | the first identity of `metadata.manufacturer` (1.6), `metadata.component.manufacturer` (1.6), then `metadata.manufacture` (deprecated in 1.6) |
+  | manufacturer | the first identity of `metadata.component.manufacturer` (1.6), then `metadata.manufacture` (deprecated in 1.6) |
   | supplier | the first identity of `metadata.supplier`, then `metadata.component.supplier` |
 
-- **SBR-11** (deterministic) Neither `metadata.component` nor the components nested in it must be returned among the
-  components of SBR-1, SBR-2 and SBR-6.
+- **SBR-11** (deterministic) Reading must not add `metadata.component` to the components of SBR-1, SBR-2 and SBR-6;
+  a component of `components` that describes the same product stays among them.
 
 ## Scenarios
 
@@ -106,17 +106,22 @@ check and the matching work on the components and a report names the product.
 - (SBR-1) Given a valid 1.6 SBOM with no `components`, when it is read, then it returns an empty list.
 - (SBR-9) Given a valid 1.6 SBOM with no `metadata`, or a `metadata` with no `component`, when it is read, then it
   returns its components and no product.
-- (SBR-10) Given a 1.6 SBOM whose `metadata.manufacturer` is named `Acme` and whose `metadata.component.manufacturer`
-  is named `Other`, when it is read, then the manufacturer of the product is `Acme`; with no
-  `metadata.manufacturer`, it is `Other`.
+- (SBR-10) Given a 1.6 SBOM whose `metadata.manufacturer`, the organization that made the SBOM, is named
+  `SBOM Service` and whose `metadata.component.manufacturer` is named `Acme`, when it is read, then the manufacturer
+  of the product is `Acme`; with no `metadata.component.manufacturer`, it has none.
+- (SBR-10) Given a 1.6 SBOM whose `metadata.component.manufacturer` is named `Acme` and whose `metadata.manufacture`
+  is named `Other`, when it is read, then the manufacturer of the product is `Acme`.
 - (SBR-10) Given a 1.5 SBOM whose `metadata.manufacture` is named `Acme`, when it is read, then the manufacturer of the
   product is `Acme`.
-- (SBR-10) Given a 1.6 SBOM whose `metadata.manufacturer` has the name `"  "` and the URL `https://acme.example`, when
-  it is read, then the manufacturer of the product is that URL.
+- (SBR-10) Given a 1.6 SBOM whose `metadata.component.manufacturer` has the name `"  "` and the URL
+  `https://acme.example`, when it is read, then the manufacturer of the product is that URL.
+- (SBR-10) Given an SBOM whose `metadata.supplier` is named `Acme` and whose `metadata.component.supplier` is named
+  `Other`, when it is read, then the supplier of the product is `Acme`.
 - (SBR-10) Given an SBOM with no `metadata.supplier` and a `metadata.component.supplier` named `Acme`, when it is read,
   then the supplier of the product is `Acme`.
-- (SBR-11) Given an SBOM whose `metadata.component` nests a component `inner`, when it is read, then neither the
-  product nor `inner` is among its components.
+- (SBR-11) Given an SBOM that lists its product only in `metadata.component`, when it is read, then the product is
+  not among its components; given one whose `components` also lists it (as `syft` and `cdxgen` do), it stays there
+  once.
 
 ## Non-goals
 
@@ -126,6 +131,8 @@ check and the matching work on the components and a report names the product.
 - Validating the SBOM against the CycloneDX JSON schema beyond what parsing needs.
 - The licenses, hashes and authors of the product, and the other fields of `metadata` (authors, tools, lifecycles):
   nothing uses them yet.
+- The organization that made the SBOM (`metadata.manufacturer` in 1.6): it is not the manufacturer of the product.
+- The components nested in `metadata.component`.
 - Services, dependencies and VEX statements: later milestones read them.
 - Deciding whether an SBOM without a product, or a product without a manufacturer, is incomplete for the CRA.
 - Deciding whether a field counts as present for the CRA: the completeness check (`specs/sbom-completeness.md`) does.

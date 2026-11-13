@@ -64,10 +64,19 @@ fn reads_the_sbom_of_syft() {
     );
 }
 
-// spec: SBR-9, SBR-H3
+// spec: SBR-9, SBR-11, SBR-H3
 #[test]
 fn reads_the_product_of_the_sbom_of_syft() {
     let sbom = read_fixture("syft.cdx.json");
+    let listed = sbom
+        .components
+        .iter()
+        .filter(|c| c.name == "rollcall-fixture-sample")
+        .count();
+    assert_eq!(
+        listed, 1,
+        "syft also lists the product among the components"
+    );
     assert_eq!(
         sbom.product,
         Some(Product {

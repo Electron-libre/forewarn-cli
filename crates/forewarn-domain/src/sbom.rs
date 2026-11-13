@@ -8,7 +8,8 @@ use std::fmt;
 pub struct Sbom {
     /// The version of the SBOM specification the document follows.
     pub spec_version: SpecVersion,
-    /// The product the document describes, when it names one; never one of [`Self::components`].
+    /// The product the document describes (`metadata.component`), when it names one; among [`Self::components`]
+    /// only when the document also lists it there.
     pub product: Option<Product>,
     /// Every component of the document, the nested ones included, in document order.
     pub components: Vec<Component>,

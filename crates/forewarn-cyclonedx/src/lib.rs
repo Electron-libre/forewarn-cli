@@ -109,19 +109,21 @@ fn spec_version(text: &str) -> Result<(CdxSpecVersion, SpecVersion), ReadError> 
         .ok_or_else(|| ReadError::UnsupportedSpecVersion(text.to_owned()))
 }
 
-/// The product of `metadata.component` (SBR-10): the manufacturer of the metadata before that of the component, then
-/// the deprecated `manufacture`; the supplier of the metadata before that of the component.
+/// The product of `metadata.component` (SBR-10): its own manufacturer, else the deprecated `metadata.manufacture`
+/// (`metadata.manufacturer` made the SBOM, not the product); the supplier of the metadata before that of the component.
 fn product(metadata: &Metadata) -> Option<Product> {
     let component = metadata.component.as_ref()?;
+    let Component {
+        name,
+        version,
+        purl,
+        ..
+    } = to_domain(component);
     Some(Product {
-        name: component.name.to_string(),
-        version: component.version.as_ref().map(ToString::to_string),
-        purl: component.purl.as_ref().map(ToString::to_string),
-        manufacturer: first_identity([
-            &metadata.manufacturer,
-            &component.manufacturer,
-            &metadata.manufacture,
-        ]),
+        name,
+        version,
+        purl,
+        manufacturer: first_identity([&component.manufacturer, &metadata.manufacture]),
         supplier: first_identity([&metadata.supplier, &component.supplier]),
     })
 }

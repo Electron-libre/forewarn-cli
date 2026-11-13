@@ -368,8 +368,10 @@ fn application(extra: &Value) -> Value {
 #[test]
 fn reads_the_product_the_sbom_describes() {
     let metadata = json!({
-        "component": application(&json!({ "purl": "pkg:generic/shop@2.1.0" })),
-        "manufacturer": { "name": "Acme" },
+        "component": application(&json!({
+            "purl": "pkg:generic/shop@2.1.0",
+            "manufacturer": { "name": "Acme" },
+        })),
         "supplier": { "name": "Acme Distribution" },
     });
     assert_eq!(
@@ -400,17 +402,31 @@ fn reads_no_product_without_a_metadata_component() {
 
 // spec: SBR-10
 #[test]
-fn takes_the_manufacturer_of_the_metadata_before_that_of_the_product() {
-    let component = application(&json!({ "manufacturer": { "name": "Other" } }));
-    let both = json!({ "component": component, "manufacturer": { "name": "Acme" } });
-    let only_component = json!({ "component": component });
+fn takes_the_manufacturer_of_the_product_not_the_one_of_the_bom() {
+    let component = application(&json!({ "manufacturer": { "name": "Acme" } }));
+    let both = json!({ "component": component, "manufacturer": { "name": "SBOM Service" } });
+    let only_bom =
+        json!({ "component": application(&json!({})), "manufacturer": { "name": "SBOM Service" } });
     assert_eq!(
         product_of("1.6", &both).and_then(|p| p.manufacturer),
         Some("Acme".into())
     );
     assert_eq!(
-        product_of("1.6", &only_component).and_then(|p| p.manufacturer),
-        Some("Other".into())
+        product_of("1.6", &only_bom).and_then(|p| p.manufacturer),
+        None
+    );
+}
+
+// spec: SBR-10
+#[test]
+fn takes_the_manufacturer_of_the_product_before_the_deprecated_manufacture() {
+    let metadata = json!({
+        "component": application(&json!({ "manufacturer": { "name": "Acme" } })),
+        "manufacture": { "name": "Other" },
+    });
+    assert_eq!(
+        product_of("1.6", &metadata).and_then(|p| p.manufacturer),
+        Some("Acme".into())
     );
 }
 
@@ -428,10 +444,8 @@ fn takes_the_deprecated_manufacture_as_the_manufacturer() {
 // spec: SBR-10
 #[test]
 fn takes_the_identity_of_a_manufacturer_with_a_blank_name() {
-    let metadata = json!({
-        "component": application(&json!({})),
-        "manufacturer": { "name": "  ", "url": ["https://acme.example"] },
-    });
+    let manufacturer = json!({ "name": "  ", "url": ["https://acme.example"] });
+    let metadata = json!({ "component": application(&json!({ "manufacturer": manufacturer })) });
     assert_eq!(
         product_of("1.6", &metadata).and_then(|p| p.manufacturer),
         Some("https://acme.example".into())
@@ -440,19 +454,23 @@ fn takes_the_identity_of_a_manufacturer_with_a_blank_name() {
 
 // spec: SBR-10
 #[test]
-fn takes_the_supplier_of_the_product_without_one_in_the_metadata() {
-    let metadata = json!({ "component": application(&json!({ "supplier": { "name": "Acme" } })) });
-    let product = product_of("1.6", &metadata).expect("a product");
-    assert_eq!(product.supplier, Some("Acme".into()));
+fn takes_the_supplier_of_the_metadata_before_that_of_the_product() {
+    let component = application(&json!({ "supplier": { "name": "Other" } }));
+    let both = json!({ "component": component, "supplier": { "name": "Acme" } });
+    let only_component = json!({ "component": component });
+    assert_eq!(
+        product_of("1.6", &both).and_then(|p| p.supplier),
+        Some("Acme".into())
+    );
+    let product = product_of("1.6", &only_component).expect("a product");
+    assert_eq!(product.supplier, Some("Other".into()));
     assert_eq!(product.manufacturer, None);
 }
 
 // spec: SBR-11
 #[test]
-fn keeps_the_product_and_its_nested_components_out_of_the_components() {
-    let metadata = json!({
-        "component": application(&json!({ "components": [{ "type": "library", "name": "inner" }] })),
-    });
+fn adds_no_component_for_the_product() {
+    let metadata = json!({ "component": application(&json!({})) });
     let sbom = read(&with_metadata("1.6", &metadata)).expect("readable");
     assert_eq!(sbom.components, vec![named("serde")]);
     assert_eq!(sbom.product.map(|p| p.name), Some("shop".into()));

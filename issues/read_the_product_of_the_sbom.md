@@ -69,3 +69,14 @@ manufacturer, supplier) on `Sbom`; the product never joins the matched component
 - Code review: no findings
 - not verified: none.
 - decisions needed: none.
+
+## Deliverable 2 (review fixes)
+- done: the manufacturer of the product is that of `metadata.component`, else `metadata.manufacture`
+  (`metadata.manufacturer` is the maker of the SBOM in 1.6); SBR-11 narrowed (syft and cdxgen also list the product
+  among the components); precedence tests; `product` reuses `to_domain`; follow-up
+  `match_the_components_nested_in_the_product`.
+- checks: project-check pass.
+- red: SBR-10: `takes_the_manufacturer_of_the_product_not_the_one_of_the_bom` got `SBOM Service`, expected `Acme`.
+- Code review: no findings
+- not verified: none.
+- decisions needed: none.
