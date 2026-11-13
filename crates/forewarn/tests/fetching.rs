@@ -96,12 +96,39 @@ impl Mirror {
             .insert(format!("/{ecosystem}/all.zip"), (archive, last_modified));
     }
 
+    /// Serves at `/kev.json` a KEV catalog of version `2026.11.12`, released 2026-11-12, naming `CVE-2020-26235`
+    /// (`time` 0.1.43) added on 2021-12-10.
+    fn serve_kev(&self) {
+        let catalog = json!({
+            "catalogVersion": "2026.11.12",
+            "dateReleased": "2026-11-12T18:00:00.000Z",
+            "vulnerabilities": [{"cveID": "CVE-2020-26235", "dateAdded": "2021-12-10"}],
+        });
+        self.routes.lock().expect("the routes").insert(
+            "/kev.json".to_owned(),
+            (
+                serde_json::to_vec(&catalog).expect("serializes"),
+                Some(LAST_MODIFIED),
+            ),
+        );
+    }
+
+    fn kev_url(&self) -> String {
+        format!("{}/kev.json", self.base)
+    }
+
     fn requests(&self) -> Vec<String> {
         self.requests.lock().expect("the requests").clone()
     }
 }
 
 const LAST_MODIFIED: &str = "Wed, 11 Nov 2026 08:00:00 GMT";
+
+/// The KEV catalog of the KEV adapter's tests, naming `CVE-2021-44228` and `CVE-2023-4966`.
+const KEV_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../forewarn-exploited/tests/fixtures/kev.json"
+);
 
 fn component(name: &str, version: &str, purl: Option<&str>) -> Value {
     let mut component = json!({"type": "library", "name": name, "version": version});
@@ -139,7 +166,14 @@ fn path(path: &Path) -> &str {
 
 /// Runs `forewarn match` with `args` on `sbom` from standard input, the cache in `cache`, the archives from `mirror`.
 fn fetch(cache: &Path, mirror: &Mirror, args: &[&str], sbom: &[u8]) -> Run {
-    let mut all = vec!["match", "--cache", path(cache), "--osv-url", &mirror.base];
+    let mut all = vec![
+        "match",
+        "--no-kev",
+        "--cache",
+        path(cache),
+        "--osv-url",
+        &mirror.base,
+    ];
     all.extend_from_slice(args);
     all.push("-");
     run_with(&all, Some(sbom), &[])
@@ -391,7 +425,7 @@ fn osv_paths_exclude_the_options_of_the_fetch() {
         vec!["--refresh", "always"],
         vec!["--osv-url", "http://127.0.0.1:9"],
     ] {
-        let mut args = vec!["match", "--osv", path(&osv)];
+        let mut args = vec!["match", "--osv", path(&osv), "--no-kev"];
         args.extend(extra.iter());
         args.push("-");
         let run = run_with(&args, Some(&crates()), &[]);
@@ -405,7 +439,7 @@ fn the_default_cache_is_under_xdg_cache_home_else_home() {
     let mirror = crates_io_mirror();
     let xdg = TempDir::new().expect("a directory");
     let home = TempDir::new().expect("a directory");
-    let url = ["match", "--osv-url", &mirror.base, "-"];
+    let url = ["match", "--no-kev", "--osv-url", &mirror.base, "-"];
     let run = run_with(
         &url,
         Some(&crates()),
@@ -430,11 +464,11 @@ fn the_default_cache_is_under_xdg_cache_home_else_home() {
 
 // spec: MCH-10, MCH-12
 #[test]
-fn no_cache_directory_is_an_invalid_argument_unless_osv_paths_are_given() {
+fn no_cache_directory_is_an_invalid_argument_unless_nothing_is_fetched() {
     let mirror = crates_io_mirror();
     let unset = [("XDG_CACHE_HOME", None), ("HOME", None)];
     let run = run_with(
-        &["match", "--osv-url", &mirror.base, "-"],
+        &["match", "--no-kev", "--osv-url", &mirror.base, "-"],
         Some(&crates()),
         &unset,
     );
@@ -444,12 +478,19 @@ fn no_cache_directory_is_an_invalid_argument_unless_osv_paths_are_given() {
     assert!(run.stderr.contains("forewarn match"), "{}", run.stderr);
     assert_eq!(mirror.requests(), Vec::<String>::new());
     let osv = Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-osv/tests/fixtures");
-    let local = run_with(
+    let fetched_kev = run_with(
         &["match", "--osv", path(&osv), "-"],
         Some(&crates()),
         &unset,
     );
-    assert_eq!(local.code, 1, "{}", local.stderr);
+    assert_eq!(fetched_kev.code, 2, "{}", fetched_kev.stderr);
+    for kev in [vec!["--no-kev"], vec!["--kev", KEV_FIXTURE]] {
+        let mut args = vec!["match", "--osv", path(&osv)];
+        args.extend(kev.iter());
+        args.push("-");
+        let local = run_with(&args, Some(&crates()), &unset);
+        assert_eq!(local.code, 1, "{kev:?}: {}", local.stderr);
+    }
 }
 
 // spec: MCH-12
@@ -460,7 +501,7 @@ fn a_relative_xdg_cache_home_is_ignored() {
     let work = TempDir::new().expect("a directory");
     let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_forewarn"));
     let output = command
-        .args(["match", "--osv-url", &mirror.base, "-"])
+        .args(["match", "--no-kev", "--osv-url", &mirror.base, "-"])
         .current_dir(work.path())
         .env("XDG_CACHE_HOME", ".cache")
         .env("HOME", home.path())
@@ -479,4 +520,170 @@ fn a_relative_xdg_cache_home_is_ignored() {
     assert_eq!(output.status.code(), Some(1));
     assert!(home.path().join(".cache/forewarn/osv/crates.io").is_dir());
     assert!(!work.path().join(".cache").exists());
+}
+
+/// Runs `forewarn match` with `args` on `sbom`, the cache in `cache`, the archives and the KEV catalog from `mirror`.
+fn fetch_with_kev(cache: &Path, mirror: &Mirror, args: &[&str], sbom: &[u8]) -> Run {
+    let kev_url = mirror.kev_url();
+    let mut all = vec!["match", "--cache", path(cache), "--kev-url", &kev_url];
+    all.extend_from_slice(args);
+    all.push("-");
+    run_with(&all, Some(sbom), &[])
+}
+
+// spec: MCH-H4, MCH-29, MCH-30, MCH-33, MCH-34, MCH-35, MCH-10
+#[test]
+fn a_ci_job_fetches_the_kev_catalog_into_its_cache_and_sees_the_exploited_match() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = crates_io_mirror();
+    mirror.serve_kev();
+    let osv_url = ["--osv-url", &mirror.base];
+    let human = fetch_with_kev(cache.path(), &mirror, &osv_url, &crates());
+    assert_eq!(human.code, 6, "{}", human.stderr);
+    assert_eq!(human.stderr, "");
+    assert_eq!(mirror.requests(), ["/kev.json", "/crates.io/all.zip"]);
+    assert!(cache.path().join("cisa-kev").is_dir());
+    let json = fetch_with_kev(
+        cache.path(),
+        &mirror,
+        &["--osv-url", &mirror.base, "--format", "json"],
+        &crates(),
+    );
+    let report = json_report(&json);
+    let list = &report["exploitedLists"][0];
+    let at = list["downloadedAt"].as_str().expect("a time").to_owned();
+    OffsetDateTime::parse(&at, &Rfc3339).expect("RFC 3339");
+    assert_eq!(
+        report["exploitedLists"],
+        json!([{
+            "kind": "fetched",
+            "name": "CISA KEV",
+            "version": "2026.11.12",
+            "released": "2026-11-12",
+            "url": mirror.kev_url(),
+            "downloadedAt": at,
+            "lastModified": LAST_MODIFIED,
+            "entryCount": 1,
+        }])
+    );
+    assert_eq!(report["exploitedCount"], 1);
+    assert_eq!(
+        report["affected"][0]["exploited"],
+        json!([{"list": "CISA KEV", "cve": "CVE-2020-26235", "dateAdded": "2021-12-10"}])
+    );
+    assert!(
+        human.stdout.contains(&format!(
+            "Exploited lists:\n  CISA KEV: catalog 2026.11.12 released 2026-11-12, 1 entry, downloaded {at} \
+             from {}, Last-Modified {LAST_MODIFIED}\nAffected (1, 1 actively exploited):\n",
+            mirror.kev_url()
+        )),
+        "{}",
+        human.stdout
+    );
+    assert!(
+        human
+            .stdout
+            .contains("\n    actively exploited: CISA KEV CVE-2020-26235 added 2021-12-10\n"),
+        "{}",
+        human.stdout
+    );
+}
+
+// spec: MCH-30, MCH-35
+#[test]
+fn the_cached_catalog_is_read_back_offline_without_a_request() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = crates_io_mirror();
+    mirror.serve_kev();
+    let args = ["--osv-url", &mirror.base, "--format", "json"];
+    let first = fetch_with_kev(cache.path(), &mirror, &args, &crates());
+    assert_eq!(first.code, 6, "{}", first.stderr);
+    let offline = [&args[..], &["--refresh", "offline"]].concat();
+    let second = fetch_with_kev(cache.path(), &mirror, &offline, &crates());
+    assert_eq!(second.code, 6, "{}", second.stderr);
+    assert_eq!(mirror.requests().len(), 2, "{:?}", mirror.requests());
+    assert_eq!(
+        json_report(&second)["exploitedLists"],
+        json_report(&first)["exploitedLists"]
+    );
+}
+
+// spec: MCH-6, MCH-10, MCH-30
+#[test]
+fn local_osv_records_still_fetch_the_catalog_under_the_refresh_policy() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = Mirror::new();
+    mirror.serve_kev();
+    let osv = Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-osv/tests/fixtures");
+    let args = ["--osv", path(&osv), "--refresh", "always"];
+    for _ in 0..2 {
+        let run = fetch_with_kev(cache.path(), &mirror, &args, &crates());
+        assert_eq!(run.code, 6, "{}", run.stderr);
+    }
+    assert_eq!(mirror.requests(), ["/kev.json", "/kev.json"]);
+}
+
+// spec: MCH-10, MCH-14, MCH-30
+#[test]
+fn a_catalog_not_cached_offline_is_named_and_exits_with_5() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = Mirror::new();
+    let osv = Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-osv/tests/fixtures");
+    let run = fetch_with_kev(
+        cache.path(),
+        &mirror,
+        &["--osv", path(&osv), "--refresh", "offline"],
+        &crates(),
+    );
+    assert_eq!(run.code, 5, "{}", run.stderr);
+    assert_eq!(run.stdout, "");
+    assert_eq!(run.stderr.lines().count(), 1, "{}", run.stderr);
+    assert!(
+        run.stderr.contains("CISA KEV") && run.stderr.contains("not cached"),
+        "{}",
+        run.stderr
+    );
+    assert_eq!(mirror.requests(), Vec::<String>::new());
+}
+
+// spec: MCH-31, MCH-32
+#[test]
+fn a_kev_file_or_no_kev_sends_no_request_for_the_catalog() {
+    let mirror = crates_io_mirror();
+    mirror.serve_kev();
+    for kev in [vec!["--kev", KEV_FIXTURE], vec!["--no-kev"]] {
+        let cache = TempDir::new().expect("a cache");
+        let mut args = vec![
+            "match",
+            "--cache",
+            path(cache.path()),
+            "--osv-url",
+            &mirror.base,
+        ];
+        args.extend(kev.iter());
+        args.push("-");
+        let run = run_with(&args, Some(&crates()), &[]);
+        assert_eq!(run.code, 1, "{kev:?}: {}", run.stderr);
+        assert!(!cache.path().join("cisa-kev").exists());
+    }
+    assert_eq!(
+        mirror.requests(),
+        ["/crates.io/all.zip", "/crates.io/all.zip"]
+    );
+}
+
+// spec: MCH-10
+#[test]
+fn the_kev_options_exclude_each_other() {
+    for kev in [
+        vec!["--kev", KEV_FIXTURE, "--no-kev"],
+        vec!["--kev", KEV_FIXTURE, "--kev-url", "http://127.0.0.1:9"],
+        vec!["--no-kev", "--kev-url", "http://127.0.0.1:9"],
+    ] {
+        let mut args = vec!["match", "--osv", KEV_FIXTURE];
+        args.extend(kev.iter());
+        args.push("-");
+        let run = run_with(&args, Some(&crates()), &[]);
+        assert_eq!(run.code, 2, "{kev:?}: {}", run.stderr);
+    }
 }

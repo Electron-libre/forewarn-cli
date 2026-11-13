@@ -1,6 +1,6 @@
 ---
 id: MCH
-status: draft
+status: accepted
 adrs: [0001, 0004, 0006, 0008]
 ---
 
@@ -127,19 +127,20 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   1 clean component of 3, and the command exits with 1.
 - **MCH-H2** (happy; MCH-4, MCH-5, MCH-8, MCH-9, MCH-13, MCH-16) Given a CI job with an empty cache and an OSV mirror
   serving the `crates.io` archive with a `Last-Modified` header, when it runs
-  `forewarn match --format json --allow-affected --cache cache/ --osv-url <mirror> sbom.json` on an SBOM of crates,
+  `forewarn match --format json --allow-affected --no-kev --cache cache/ --osv-url <mirror> sbom.json` on an SBOM of crates,
   then only `<mirror>/crates.io/all.zip` is requested, the JSON report lists the affected crates and the archive with
   its download time, URL and `Last-Modified`, and the command exits with 0.
 - **MCH-H3** (happy; MCH-24, MCH-26, MCH-27) Given an OSV API mirror naming `RUSTSEC-2020-0071` for `time` 0.1.43, when
-  the vendor runs `forewarn match --osv-api --osv-api-url <mirror> sbom.json` on an SBOM of crates, then one
+  the vendor runs `forewarn match --osv-api --no-kev --osv-api-url <mirror> sbom.json` on an SBOM of crates, then one
   `querybatch` request names the crates, `time` 0.1.43 is listed with `RUSTSEC-2020-0071`, the report gives the API
   with the time of the query, and the command exits with 1.
-- **MCH-H4** (happy; MCH-29, MCH-30, MCH-33, MCH-34, MCH-35, MCH-10) Given an SBOM with `log4j-core` 2.14.1 and
-  `time` 0.1.43, OSV records affecting both, and a KEV mirror publishing a catalog that names `CVE-2021-44228`, added
-  on 2021-12-10, when a CI job runs `forewarn match --cache cache/ --kev-url <mirror> sbom.json`, then the catalog is
+- **MCH-H4** (happy; MCH-29, MCH-30, MCH-33, MCH-34, MCH-35, MCH-10) Given an SBOM with `time` 0.1.43 and `serde`
+  1.0.0, an OSV mirror serving the `crates.io` archive, and a KEV mirror publishing a catalog that names
+  `CVE-2020-26235`, added on 2021-12-10, when a CI job runs
+  `forewarn match --cache cache/ --osv-url <mirror> --kev-url <mirror>/kev.json sbom.json`, then the catalog is
   downloaded into `cache/cisa-kev`, the report lists `CISA KEV` with its version, release date, number of entries,
-  download time and URL, marks `log4j-core` actively exploited with `CISA KEV`, `CVE-2021-44228` and 2021-12-10,
-  leaves `time` unmarked, counts 1 actively exploited match, and the command exits with 6.
+  download time, URL and `Last-Modified`, marks `time` actively exploited with `CISA KEV`, `CVE-2020-26235` and
+  2021-12-10, counts 1 actively exploited match, and the command exits with 6.
 - **MCH-H5** (happy; MCH-31, MCH-16, MCH-29, MCH-33) Given an air-gapped CI job with a KEV catalog file naming
   `CVE-2021-44228`, when it runs `forewarn match --osv records/ --kev kev.json --format json sbom.json`, then no
   request is sent, `exploitedLists` gives the file with its path, version and release date, the match of
@@ -147,8 +148,8 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   that of `time` an empty `exploited`, and `exploitedCount` is 1.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.
-- (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no request is
-  sent, the source list is empty, and every component is reported not evaluated.
+- (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no OSV archive
+  is requested, the source list is empty, and every component is reported not evaluated.
 - (MCH-10, MCH-14) Given an empty cache and `--refresh offline`, when an SBOM of crates is matched, then standard error
   names `crates.io` and "not cached", and the command exits with 5.
 - (MCH-10, MCH-14) Given `--osv` naming a directory holding a record that is not JSON, when the SBOM is matched, then
@@ -195,8 +196,8 @@ actively exploited, with the freshness of the data used and an exit code a CI jo
   gives it `"affects": false`.
 - (MCH-24) Given a component `pkg:golang/github.com/x/y@v1.2.3`, when it is matched with `--osv-api`, then the
   `querybatch` request names the `Go` package `github.com/x/y` at version `1.2.3`.
-- (MCH-24) Given an SBOM whose components have no package URL, when it is matched with `--osv-api`, then no request
-  is sent and the source shows the API with 0 records.
+- (MCH-24) Given an SBOM whose components have no package URL, when it is matched with `--osv-api`, then the API is
+  not queried and the source shows the API with 0 records.
 - (MCH-10, MCH-12, MCH-24) Given neither `--cache`, `XDG_CACHE_HOME` nor `HOME`, when the command runs with
   `--osv-api` and `--kev` or `--no-kev`, then it runs.
 - (MCH-10) Given `--osv-api` with `--osv` or `--osv-url`, or `--osv-api-url` alone, when the command runs, then it

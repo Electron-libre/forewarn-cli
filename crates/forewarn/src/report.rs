@@ -157,12 +157,17 @@ pub enum ExploitedSource<'a> {
         catalog: &'a Catalog,
         path: &'a Path,
     },
+    /// The KEV catalog, fetched into the cache, with the freshness of its download.
+    Fetched {
+        catalog: &'a Catalog,
+        freshness: &'a Freshness,
+    },
 }
 
 impl ExploitedSource<'_> {
-    fn catalog(&self) -> &Catalog {
+    pub fn catalog(&self) -> &Catalog {
         match self {
-            Self::Local { catalog, .. } => catalog,
+            Self::Local { catalog, .. } | Self::Fetched { catalog, .. } => catalog,
         }
     }
 }
@@ -289,17 +294,8 @@ fn push_source(text: &mut String, source: &Source) {
         } => {
             text.push_str("  ");
             push_escaped(text, ecosystem);
-            let _ = write!(
-                text,
-                ": {count} {}, downloaded {} from ",
-                records(*count),
-                utc(freshness.downloaded_at)
-            );
-            push_escaped(text, &freshness.url);
-            if let Some(last_modified) = &freshness.last_modified {
-                text.push_str(", Last-Modified ");
-                push_escaped(text, last_modified);
-            }
+            let _ = write!(text, ": {count} {}, ", records(*count));
+            push_download(text, freshness);
             text.push('\n');
         }
         Source::Api {
@@ -346,8 +342,19 @@ fn push_exploited_source(text: &mut String, source: &ExploitedSource) {
             text.push_str("local ");
             push_escaped(text, &path.to_string_lossy());
         }
+        ExploitedSource::Fetched { freshness, .. } => push_download(text, freshness),
     }
     text.push('\n');
+}
+
+/// Pushes when and where a copy was downloaded, and its `Last-Modified` when the server sent one (MCH-4, MCH-33).
+fn push_download(text: &mut String, freshness: &Freshness) {
+    let _ = write!(text, "downloaded {} from ", utc(freshness.downloaded_at));
+    push_escaped(text, &freshness.url);
+    if let Some(last_modified) = &freshness.last_modified {
+        text.push_str(", Last-Modified ");
+        push_escaped(text, last_modified);
+    }
 }
 
 /// Pushes the line marking a match actively exploited, with each list naming it (MCH-29).
@@ -460,6 +467,12 @@ fn exploited_list_json(source: &ExploitedSource) -> Value {
         ExploitedSource::Local { path, .. } => {
             list["kind"] = json!("local");
             list["path"] = json!(path.to_string_lossy());
+        }
+        ExploitedSource::Fetched { freshness, .. } => {
+            list["kind"] = json!("fetched");
+            list["url"] = json!(freshness.url);
+            list["downloadedAt"] = json!(utc(freshness.downloaded_at));
+            list["lastModified"] = json!(freshness.last_modified);
         }
     }
     list

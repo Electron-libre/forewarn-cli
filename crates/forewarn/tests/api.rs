@@ -137,7 +137,7 @@ fn crates() -> Vec<u8> {
 
 /// Runs `forewarn match --osv-api` with `args` on `sbom` from standard input, the API at `api`.
 fn query(api: &OsvApi, args: &[&str], sbom: &[u8]) -> Run {
-    let mut all = vec!["match", "--osv-api", "--osv-api-url", &api.base];
+    let mut all = vec!["match", "--no-kev", "--osv-api", "--osv-api-url", &api.base];
     all.extend_from_slice(args);
     all.push("-");
     run_with(&all, Some(sbom), &[])
@@ -230,6 +230,7 @@ fn without_the_flag_the_api_is_not_queried() {
     let run = run_with(
         &[
             "match",
+            "--no-kev",
             "--cache",
             cache.path().to_str().expect("UTF-8"),
             "--osv-url",
@@ -254,7 +255,7 @@ fn the_api_excludes_the_options_of_the_archives_and_the_local_records() {
         vec!["--refresh", "always"],
         vec!["--osv-url", "http://127.0.0.1:9"],
     ] {
-        let mut args = vec!["match", "--osv-api"];
+        let mut args = vec!["match", "--osv-api", "--no-kev"];
         args.extend(extra.iter());
         args.push("-");
         let run = run_with(&args, Some(&crates()), &[]);
@@ -274,7 +275,14 @@ fn the_api_needs_no_cache_directory() {
     let api = OsvApi::new(None);
 
     let run = run_with(
-        &["match", "--osv-api", "--osv-api-url", &api.base, "-"],
+        &[
+            "match",
+            "--osv-api",
+            "--no-kev",
+            "--osv-api-url",
+            &api.base,
+            "-",
+        ],
         Some(&crates()),
         &[("XDG_CACHE_HOME", None), ("HOME", None)],
     );

@@ -61,13 +61,14 @@ struct MatchArgs {
     sbom: PathBuf,
     /// An OSV record file, or a directory of them (an extracted OSV archive), read instead of fetching the OSV
     /// archives; repeat it for several.
-    #[arg(long, conflicts_with_all = ["cache", "refresh", "osv_url"])]
+    #[arg(long, conflicts_with = "osv_url")]
     osv: Vec<PathBuf>,
-    /// The cache of the OSV archives [default: `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`].
+    /// The cache of the OSV archives and of the CISA KEV catalog (`cisa-kev`) [default:
+    /// `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`].
     #[arg(long)]
     cache: Option<PathBuf>,
-    /// When to download an archive again: `offline`, `if-missing`, `always`, or when older than an age (`30m`, `12h`,
-    /// `7d`) [default: 1d].
+    /// When to download an archive or the CISA KEV catalog again: `offline`, `if-missing`, `always`, or when older
+    /// than an age (`30m`, `12h`, `7d`) [default: 1d].
     #[arg(long, value_parser = parse_refresh)]
     refresh: Option<Refresh>,
     /// The URL the OSV archives are downloaded from (`<url>/<ecosystem>/all.zip`), a mirror for example
@@ -76,18 +77,22 @@ struct MatchArgs {
     osv_url: Option<String>,
     /// Query the OSV API instead of fetching the OSV archives: sends the OSV ecosystem, name and version of each
     /// component to the OSV API, out of the CI; the answer depends on the moment of the query.
-    #[arg(long, conflicts_with_all = ["osv", "cache", "refresh", "osv_url"])]
+    #[arg(long, conflicts_with_all = ["osv", "osv_url"])]
     osv_api: bool,
     /// The URL of the OSV API queried with `--osv-api` [default: `https://api.osv.dev`].
     #[arg(long, requires = "osv_api")]
     osv_api_url: Option<String>,
     /// A CISA KEV catalog file (`known_exploited_vulnerabilities.json`) the matches are flagged against, read instead
-    /// of fetching the catalog.
-    #[arg(long, conflicts_with = "no_kev")]
+    /// of fetching the catalog into the cache.
+    #[arg(long, conflicts_with_all = ["no_kev", "kev_url"])]
     kev: Option<PathBuf>,
-    /// Flag no match as actively exploited: use no CISA KEV catalog.
-    #[arg(long)]
+    /// Flag no match as actively exploited: neither fetch nor read a CISA KEV catalog.
+    #[arg(long, conflicts_with = "kev_url")]
     no_kev: bool,
+    /// The URL the CISA KEV catalog is downloaded from, a mirror for example [default:
+    /// `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`].
+    #[arg(long)]
+    kev_url: Option<String>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -132,14 +137,36 @@ fn run_check(args: &CheckArgs) -> Result<ExitCode, u8> {
 
 fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
-    let archives = (args.osv.is_empty() && !args.osv_api).then(|| archives(args));
+    let fetches_archives = args.osv.is_empty() && !args.osv_api;
+    let fetches_kev = args.kev.is_none() && !args.no_kev;
+    if !fetches_archives && !fetches_kev && (args.cache.is_some() || args.refresh.is_some()) {
+        usage_error(
+            clap::error::ErrorKind::ArgumentConflict,
+            "--cache and --refresh apply to what is fetched: neither the OSV archives (--osv, --osv-api) nor the \
+             CISA KEV catalog (--kev, --no-kev) are",
+        );
+    }
+    let cache = (fetches_archives || fetches_kev).then(|| cache_directory(args));
+    let refresh = args.refresh.unwrap_or(DEFAULT_REFRESH);
+    let archives = cache
+        .clone()
+        .filter(|_| fetches_archives)
+        .map(|cache| archives(args, cache, refresh));
+    let feed = cache
+        .filter(|_| fetches_kev)
+        .map(|cache| kev_feed(args, cache, refresh));
     let sbom = read_sbom(&args.sbom)?;
-    let catalog = args
-        .kev
-        .as_deref()
-        .map(kev::read_file)
-        .transpose()
-        .map_err(|error| no_records(&error))?;
+    let catalog = match (&args.kev, feed) {
+        (Some(path), _) => Some(KevCatalog::Local(
+            kev::read_file(path).map_err(|error| no_records(&error))?,
+            path,
+        )),
+        (None, Some(feed)) => Some(KevCatalog::Fetched(
+            feed.fetch(SystemTime::now)
+                .map_err(|error| no_records(&error))?,
+        )),
+        (None, None) => None,
+    };
     let mut records = Records::default();
     let mut fetched = Vec::new();
     if let Some(archives) = archives {
@@ -164,16 +191,15 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         let read = read_osv(path).map_err(|error| no_records(&error))?;
         local.push((path, records.add(read)));
     }
-    let lists: Vec<ExploitedList> = catalog.iter().map(|c| c.list.clone()).collect();
+    let lists: Vec<ExploitedList> = catalog
+        .iter()
+        .map(|catalog| catalog.source().catalog().list.clone())
+        .collect();
     let matching = flag_exploited(
         match_components(&sbom.components, &records.vulnerabilities),
         &lists,
     );
-    let exploited: Vec<ExploitedSource> = catalog
-        .iter()
-        .zip(&args.kev)
-        .map(|(catalog, path)| ExploitedSource::Local { catalog, path })
-        .collect();
+    let exploited: Vec<ExploitedSource> = catalog.iter().map(KevCatalog::source).collect();
     let sources: Vec<Source> = fetched
         .iter()
         .map(|(ecosystem, freshness, records)| Source::Archive {
@@ -200,25 +226,64 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
 }
 
-/// The archives of OSV the arguments name; exits with 2 when no cache directory can be found (MCH-12).
-fn archives(args: &MatchArgs) -> Archives {
-    let Some(cache) = args.cache.clone().or_else(default_cache) else {
-        let mut cli = Cli::command();
-        // Builds the names of the subcommands, so that the usage printed is that of `forewarn match`.
-        cli.build();
-        cli.find_subcommand_mut("match")
-            .expect("the match subcommand")
-            .error(
+/// The CISA KEV catalog of a run: a file given with `--kev`, or fetched into the cache (MCH-30, MCH-31).
+enum KevCatalog<'a> {
+    Local(kev::Catalog, &'a Path),
+    Fetched(kev::FetchedCatalog),
+}
+
+impl KevCatalog<'_> {
+    fn source(&self) -> ExploitedSource<'_> {
+        match self {
+            Self::Local(catalog, path) => ExploitedSource::Local { catalog, path },
+            Self::Fetched(fetched) => ExploitedSource::Fetched {
+                catalog: &fetched.catalog,
+                freshness: &fetched.freshness,
+            },
+        }
+    }
+}
+
+/// Prints a usage error of `forewarn match` and exits with 2, as `clap` does for the errors it finds.
+fn usage_error(kind: clap::error::ErrorKind, message: &str) -> ! {
+    let mut cli = Cli::command();
+    // Builds the names of the subcommands, so that the usage printed is that of `forewarn match`.
+    cli.build();
+    cli.find_subcommand_mut("match")
+        .expect("the match subcommand")
+        .error(kind, message)
+        .exit()
+}
+
+/// The cache directory of MCH-12; exits with 2 when none can be found.
+fn cache_directory(args: &MatchArgs) -> PathBuf {
+    args.cache
+        .clone()
+        .or_else(default_cache)
+        .unwrap_or_else(|| {
+            usage_error(
                 clap::error::ErrorKind::MissingRequiredArgument,
                 "no cache directory: give --cache, or set XDG_CACHE_HOME or HOME",
             )
-            .exit();
-    };
-    let mut archives = Archives::new(cache, args.refresh.unwrap_or(DEFAULT_REFRESH));
+        })
+}
+
+/// The archives of OSV the arguments name (MCH-13).
+fn archives(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> Archives {
+    let mut archives = Archives::new(cache, refresh);
     if let Some(url) = &args.osv_url {
         archives.base_url.clone_from(url);
     }
     archives
+}
+
+/// The CISA KEV catalog the arguments name, kept in the entry `cisa-kev` of the cache (MCH-34, MCH-35).
+fn kev_feed(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> kev::Feed {
+    let mut feed = kev::Feed::new(cache, refresh);
+    if let Some(url) = &args.kev_url {
+        feed.url.clone_from(url);
+    }
+    feed
 }
 
 /// The OSV API the arguments name (MCH-27).
@@ -407,7 +472,9 @@ mod tests {
     use forewarn_osv::api::OSV_API;
     use forewarn_osv::fetch::OSV_ARCHIVES;
 
-    use super::{Cli, Command, api, archives};
+    use forewarn_exploited::kev::KEV_CATALOG;
+
+    use super::{Cli, Command, DEFAULT_REFRESH, api, archives, kev_feed};
 
     // spec: MCH-27 (internal: a query of the OSV API needs the network)
     #[test]
@@ -437,7 +504,7 @@ mod tests {
             let Command::Match(args) = Cli::parse_from(args).command else {
                 panic!("a match command")
             };
-            archives(&args).base_url
+            archives(&args, "c".into(), DEFAULT_REFRESH).base_url
         };
         let default = ["forewarn", "match", "--cache", "c", "-"];
         assert_eq!(base_url(&default), OSV_ARCHIVES);
@@ -451,5 +518,19 @@ mod tests {
             "-",
         ];
         assert_eq!(base_url(&mirror), "http://m");
+    }
+
+    // spec: MCH-34 (internal: a download from cisa.gov needs the network)
+    #[test]
+    fn the_kev_catalog_comes_from_cisa_unless_a_url_is_given() {
+        let url = |args: &[&str]| {
+            let Command::Match(args) = Cli::parse_from(args).command else {
+                panic!("a match command")
+            };
+            kev_feed(&args, "c".into(), DEFAULT_REFRESH).url
+        };
+        assert_eq!(url(&["forewarn", "match", "-"]), KEV_CATALOG);
+        let mirror = ["forewarn", "match", "--kev-url", "http://m/kev.json", "-"];
+        assert_eq!(url(&mirror), "http://m/kev.json");
     }
 }

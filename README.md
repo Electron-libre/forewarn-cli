@@ -31,7 +31,7 @@ forewarn match sbom.cdx.json                      # fetch the OSV archive of eac
 forewarn match --refresh offline sbom.cdx.json    # an air-gapped CI: the cache only, no request
 forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
 forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, sending the packages of the SBOM out
-forewarn match --kev kev.json sbom.cdx.json       # flag the matches a CISA KEV catalog file names as actively exploited
+forewarn match --kev kev.json sbom.cdx.json       # a CISA KEV catalog file instead of fetching the catalog
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
@@ -49,8 +49,11 @@ answer depends on the moment of the query, which the report gives; it is never o
 
 Each match whose CVE the CISA Known Exploited Vulnerabilities catalog names is marked actively exploited, with the
 catalog and the date it added the CVE as evidence (`exploited` in the JSON report); the report gives the catalog's
-version, release date and number of entries. `--kev <file>` reads a downloaded catalog
-(`known_exploited_vulnerabilities.json`); `--no-kev` flags nothing, and the report says so.
+version, release date and number of entries, and when it was downloaded. The catalog is downloaded from CISA
+(`--kev-url` for a mirror) into the directory `cisa-kev` of the same cache, under the same `--refresh` policy, also
+with `--osv` or `--osv-api`: the request names no component. `--kev <file>` reads a downloaded catalog
+(`known_exploited_vulnerabilities.json`) instead, for an air-gapped CI; `--no-kev` flags nothing, and the report says
+so.
 
 It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
 `--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records or the KEV catalog

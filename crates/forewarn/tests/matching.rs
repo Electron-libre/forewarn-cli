@@ -97,11 +97,11 @@ fn prints_the_same_result_as_json() {
     let run = run(
         &[
             "match",
+            "--no-kev",
             "--format",
             "json",
             "--osv",
             path(&osv),
-            "--no-kev",
             "-",
         ],
         Some(&three_components()),
@@ -151,6 +151,7 @@ fn reads_several_osv_paths_files_or_directories_in_order() {
     let run = run(
         &[
             "match",
+            "--no-kev",
             "--format",
             "json",
             "--osv",
@@ -190,7 +191,7 @@ fn an_sbom_no_record_affects_is_clean_and_exits_with_0() {
         &json!([component("time", "0.2.23", Some("pkg:cargo/time@0.2.23"))]),
     );
     let run = run(
-        &["match", "--osv", path(&osv_fixtures()), "-"],
+        &["match", "--no-kev", "--osv", path(&osv_fixtures()), "-"],
         Some(&input),
     );
     assert_eq!(run.code, 0, "{}", run.stderr);
@@ -208,11 +209,18 @@ fn an_sbom_no_record_affects_is_clean_and_exits_with_0() {
 fn allow_affected_exits_with_0_and_leaves_the_report_unchanged() {
     let osv = osv_fixtures();
     let failing = run(
-        &["match", "--osv", path(&osv), "-"],
+        &["match", "--no-kev", "--osv", path(&osv), "-"],
         Some(&three_components()),
     );
     let allowed = run(
-        &["match", "--allow-affected", "--osv", path(&osv), "-"],
+        &[
+            "match",
+            "--no-kev",
+            "--allow-affected",
+            "--osv",
+            path(&osv),
+            "-",
+        ],
         Some(&three_components()),
     );
     assert_eq!((failing.code, allowed.code), (1, 0));
@@ -237,7 +245,10 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
             Some("pkg:nuget/Newtonsoft.Json@2.1")
         )]),
     );
-    let human = run(&["match", "--osv", path(osv.path()), "-"], Some(&input));
+    let human = run(
+        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        Some(&input),
+    );
     assert_eq!(human.code, 0, "{}", human.stderr);
     assert!(
         human.stdout.contains(
@@ -248,7 +259,15 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
         human.stdout
     );
     let json = run(
-        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     );
     let report = json_report(&json);
@@ -283,7 +302,15 @@ fn a_pypi_component_in_an_ecosystem_range_is_affected() {
         ]),
     );
     let json = run(
-        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     );
     assert_eq!(json.code, 1, "{}", json.stderr);
@@ -315,7 +342,15 @@ fn every_reason_has_its_json_name() {
         ]),
     );
     let run = run(
-        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     );
     assert_eq!(run.code, 0, "{}", run.stderr);
@@ -344,7 +379,7 @@ fn an_unreadable_record_names_its_file_and_exits_with_5() {
     let broken = osv.path().join("broken.json");
     fs::write(&broken, "not json").expect("the file is written");
     let run = run(
-        &["match", "--osv", path(osv.path()), "-"],
+        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
         Some(&three_components()),
     );
     assert_eq!(run.code, 5);
@@ -358,7 +393,7 @@ fn an_unreadable_record_names_its_file_and_exits_with_5() {
 #[test]
 fn an_unreadable_sbom_names_standard_input_and_exits_with_3() {
     let run = run(
-        &["match", "--osv", path(&osv_fixtures()), "-"],
+        &["match", "--no-kev", "--osv", path(&osv_fixtures()), "-"],
         Some(b"not json"),
     );
     assert_eq!(run.code, 3);
@@ -371,7 +406,13 @@ fn an_unreadable_sbom_names_standard_input_and_exits_with_3() {
 #[test]
 fn an_unreadable_sbom_is_reported_before_the_osv_records() {
     let run = run(
-        &["match", "--osv", "/does/not/exist", "/does/not/exist.json"],
+        &[
+            "match",
+            "--no-kev",
+            "--osv",
+            "/does/not/exist",
+            "/does/not/exist.json",
+        ],
         None,
     );
     assert_eq!(run.code, 3, "{}", run.stderr);
@@ -388,9 +429,17 @@ fn invalid_arguments_exit_with_2() {
     let input = three_components();
     let osv = osv_fixtures();
     for args in [
-        vec!["match", "--format", "xml", "--osv", path(&osv), "-"],
-        vec!["match", "--osv", path(&osv)],
-        vec!["match", "--unknown", "-"],
+        vec![
+            "match",
+            "--no-kev",
+            "--format",
+            "xml",
+            "--osv",
+            path(&osv),
+            "-",
+        ],
+        vec!["match", "--no-kev", "--osv", path(&osv)],
+        vec!["match", "--no-kev", "--unknown", "-"],
     ] {
         let run = run(&args, Some(&input));
         assert_eq!(run.code, 2, "{args:?}: {}", run.stderr);
@@ -398,7 +447,15 @@ fn invalid_arguments_exit_with_2() {
     }
     assert_eq!(
         run(
-            &["match", "--format", "human", "--osv", path(&osv), "-"],
+            &[
+                "match",
+                "--no-kev",
+                "--format",
+                "human",
+                "--osv",
+                path(&osv),
+                "-"
+            ],
             Some(&input)
         )
         .code,
@@ -421,7 +478,10 @@ fn escapes_the_control_characters_of_the_sbom_and_the_records() {
         "1.6",
         &json!([component("time", "0.1.43", Some("pkg:cargo/time@0.1.43"))]),
     );
-    let run = run(&["match", "--osv", path(osv.path()), "-"], Some(&input));
+    let run = run(
+        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        Some(&input),
+    );
     assert_eq!(run.code, 1, "{}", run.stderr);
     assert!(
         run.stdout.contains(
@@ -450,7 +510,10 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
     .expect("the fixture is JSON");
     let osv = records(&[rustsec, mirror]);
     let input = three_components();
-    let human = run(&["match", "--osv", path(osv.path()), "-"], Some(&input));
+    let human = run(
+        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        Some(&input),
+    );
     assert_eq!(human.code, 1, "{}", human.stderr);
     assert!(
         human.stdout.contains(
@@ -462,7 +525,15 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
         human.stdout
     );
     let report = json_report(&run(
-        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     ));
     assert_eq!(
@@ -506,7 +577,10 @@ fn marks_the_records_that_do_not_affect_the_component_or_were_not_evaluated() {
     .expect("the fixture is JSON");
     let osv = records(&[rustsec, fixed, git]);
     let input = three_components();
-    let human = run(&["match", "--osv", path(osv.path()), "-"], Some(&input));
+    let human = run(
+        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
+        Some(&input),
+    );
     assert!(
         human.stdout.contains(
             "records GHSA-fixed from GHSA (does not affect), GHSA-git from GHSA (not evaluated), \
@@ -516,7 +590,15 @@ fn marks_the_records_that_do_not_affect_the_component_or_were_not_evaluated() {
         human.stdout
     );
     let report = json_report(&run(
-        &["match", "--format", "json", "--osv", path(osv.path()), "-"],
+        &[
+            "match",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
         Some(&input),
     ));
     assert_eq!(
@@ -550,7 +632,13 @@ fn a_report_that_cannot_be_written_is_named_and_exits_with_4() {
     let sbom = sbom.path().join("sbom.json");
     fs::write(&sbom, three_components()).expect("the SBOM is written");
     let output = Command::new(env!("CARGO_BIN_EXE_forewarn"))
-        .args(["match", "--osv", path(&osv_fixtures()), path(&sbom)])
+        .args([
+            "match",
+            "--no-kev",
+            "--osv",
+            path(&osv_fixtures()),
+            path(&sbom),
+        ])
         .stdout(full)
         .output()
         .expect("the binary runs");
@@ -568,6 +656,7 @@ fn a_record_read_twice_is_matched_once() {
     let run = run(
         &[
             "match",
+            "--no-kev",
             "--format",
             "json",
             "--osv",
@@ -595,7 +684,7 @@ fn a_directory_whose_records_are_in_subdirectories_shows_0_records() {
     )
     .expect("the record is copied");
     let run = run(
-        &["match", "--osv", path(osv.path()), "-"],
+        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
         Some(&three_components()),
     );
     assert_eq!(run.code, 0, "{}", run.stderr);
@@ -614,7 +703,7 @@ fn an_error_naming_a_file_with_a_newline_stays_on_one_line() {
     let osv = TempDir::new().expect("a temporary directory");
     fs::write(osv.path().join("a\n\u{1b}[2Jb.json"), "not json").expect("the file is written");
     let run = run(
-        &["match", "--osv", path(osv.path()), "-"],
+        &["match", "--no-kev", "--osv", path(osv.path()), "-"],
         Some(&three_components()),
     );
     assert_eq!(run.code, 5);
