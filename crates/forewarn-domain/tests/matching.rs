@@ -633,8 +633,8 @@ fn groups_records_through_another_record() {
 // spec: VMT-15
 #[test]
 fn groups_records_of_one_component_only() {
-    let time = time_record("A-1", "A", &["CVE-1"], "0");
-    let mut regex = time_record("B-1", "B", &["CVE-1"], "0");
+    let time = time_record("A-1", "A", &["CVE-2023-0001"], "0");
+    let mut regex = time_record("B-1", "B", &["CVE-2023-0001"], "0");
     regex.affected[0].name = "regex".into();
     let report = match_components(
         &[
@@ -643,7 +643,10 @@ fn groups_records_of_one_component_only() {
         ],
         &[time, regex],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1"), ("regex", "CVE-1")]);
+    assert_eq!(
+        ids(&report),
+        [("time", "CVE-2023-0001"), ("regex", "CVE-2023-0001")]
+    );
     assert_eq!(report.matches()[0].records, [record("A-1", "A")]);
     assert_eq!(report.matches()[1].records, [record("B-1", "B")]);
 }
@@ -673,11 +676,19 @@ fn names_each_match_by_its_cve_and_lists_every_other_id_once() {
     let report = match_components(
         &[component("pkg:cargo/time@1.0.0")],
         &[
-            time_record("B-1", "B", &["CVE-2", "A-1", "CVE-1", "A-1"], "0"),
-            time_record("A-1", "A", &["CVE-2", "B-1"], "0"),
+            time_record(
+                "B-1",
+                "B",
+                &["CVE-2023-0002", "A-1", "CVE-2023-0001", "A-1"],
+                "0",
+            ),
+            time_record("A-1", "A", &["CVE-2023-0002", "B-1"], "0"),
         ],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1"), ("time", "CVE-2")]);
+    assert_eq!(
+        ids(&report),
+        [("time", "CVE-2023-0001"), ("time", "CVE-2023-0002")]
+    );
     assert_eq!(report.matches()[0].aliases, ["B-1"]);
     assert_eq!(report.matches()[1].aliases, ["A-1", "B-1"]);
 }
@@ -776,12 +787,15 @@ fn keeps_two_cves_apart_and_puts_a_record_of_both_in_each() {
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
         &[
-            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-1"], "0"),
-            time_record("RUSTSEC-B", "RUSTSEC", &["CVE-2"], "0"),
-            time_record("GHSA-X", "GHSA", &["CVE-1", "CVE-2"], "0"),
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2023-0001"], "0"),
+            time_record("RUSTSEC-B", "RUSTSEC", &["CVE-2023-0002"], "0"),
+            time_record("GHSA-X", "GHSA", &["CVE-2023-0001", "CVE-2023-0002"], "0"),
         ],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1"), ("time", "CVE-2")]);
+    assert_eq!(
+        ids(&report),
+        [("time", "CVE-2023-0001"), ("time", "CVE-2023-0002")]
+    );
     assert_eq!(record_ids(&report.matches()[0]), ["GHSA-X", "RUSTSEC-A"]);
     assert_eq!(record_ids(&report.matches()[1]), ["GHSA-X", "RUSTSEC-B"]);
     assert_eq!(report.matches()[0].aliases, ["GHSA-X", "RUSTSEC-A"]);
@@ -794,12 +808,15 @@ fn puts_a_record_without_cve_bridging_two_cves_in_each() {
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
         &[
-            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-1"], "0"),
-            time_record("RUSTSEC-B", "RUSTSEC", &["CVE-2"], "0"),
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2023-0001"], "0"),
+            time_record("RUSTSEC-B", "RUSTSEC", &["CVE-2023-0002"], "0"),
             time_record("GHSA-Y", "GHSA", &["RUSTSEC-A", "RUSTSEC-B"], "0"),
         ],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1"), ("time", "CVE-2")]);
+    assert_eq!(
+        ids(&report),
+        [("time", "CVE-2023-0001"), ("time", "CVE-2023-0002")]
+    );
     assert_eq!(record_ids(&report.matches()[0]), ["GHSA-Y", "RUSTSEC-A"]);
     assert_eq!(record_ids(&report.matches()[1]), ["GHSA-Y", "RUSTSEC-B"]);
     assert_eq!(report.matches()[0].aliases, ["GHSA-Y", "RUSTSEC-A"]);
@@ -812,12 +829,12 @@ fn groups_records_without_cve_through_each_other_into_a_cve() {
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
         &[
-            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-1"], "0"),
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2023-0001"], "0"),
             time_record("GHSA-1", "GHSA", &["RUSTSEC-A"], "0"),
             time_record("OSV-1", "OSV", &["GHSA-1"], "0"),
         ],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1")]);
+    assert_eq!(ids(&report), [("time", "CVE-2023-0001")]);
     assert_eq!(
         record_ids(&report.matches()[0]),
         ["GHSA-1", "OSV-1", "RUSTSEC-A"]
@@ -848,7 +865,7 @@ fn never_names_a_match_by_the_cve_of_a_record_not_affecting() {
         &[component("pkg:cargo/time@0.1.43")],
         &[
             time_record("RUSTSEC-A", "RUSTSEC", &["GHSA-M"], "0"),
-            fixed_time_record("GHSA-M", &["CVE-9", "RUSTSEC-A"]),
+            fixed_time_record("GHSA-M", &["CVE-2023-0009", "RUSTSEC-A"]),
         ],
     );
     assert_eq!(ids(&report), [("time", "RUSTSEC-A")]);
@@ -861,7 +878,7 @@ fn never_names_a_match_by_the_cve_of_a_record_not_affecting() {
 fn reports_nothing_for_a_record_not_affecting_alone() {
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
-        &[fixed_time_record("GHSA-M", &["CVE-9"])],
+        &[fixed_time_record("GHSA-M", &["CVE-2023-0009"])],
     );
     assert_eq!(report, MatchReport::default());
 }
@@ -872,11 +889,11 @@ fn reports_the_pair_of_a_record_whose_other_cve_names_no_match() {
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
         &[
-            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-1"], "0"),
-            unevaluated_time_record("GHSA-X", &["CVE-1", "CVE-2"]),
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2023-0001"], "0"),
+            unevaluated_time_record("GHSA-X", &["CVE-2023-0001", "CVE-2023-0002"]),
         ],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1")]);
+    assert_eq!(ids(&report), [("time", "CVE-2023-0001")]);
     assert_eq!(record_ids(&report.matches()[0]), ["GHSA-X", "RUSTSEC-A"]);
     assert_eq!(
         report.not_evaluated(),
@@ -895,7 +912,10 @@ fn reports_the_pair_of_a_record_whose_other_cve_names_no_match() {
 fn reports_the_pair_of_a_record_in_two_unaffected_groups_once() {
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
-        &[unevaluated_time_record("GHSA-X", &["CVE-1", "CVE-2"])],
+        &[unevaluated_time_record(
+            "GHSA-X",
+            &["CVE-2023-0001", "CVE-2023-0002"],
+        )],
     );
     assert_eq!(report.matches(), []);
     assert_eq!(report.not_evaluated().len(), 1);
@@ -907,13 +927,16 @@ fn never_links_records_without_cve_through_the_id_of_a_record_with_one() {
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
         &[
-            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-1"], "0"),
-            time_record("RUSTSEC-B", "RUSTSEC", &["CVE-2"], "0"),
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2023-0001"], "0"),
+            time_record("RUSTSEC-B", "RUSTSEC", &["CVE-2023-0002"], "0"),
             time_record("GHSA-Y", "GHSA", &["RUSTSEC-A"], "0"),
             time_record("GHSA-W", "GHSA", &["RUSTSEC-A", "RUSTSEC-B"], "0"),
         ],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1"), ("time", "CVE-2")]);
+    assert_eq!(
+        ids(&report),
+        [("time", "CVE-2023-0001"), ("time", "CVE-2023-0002")]
+    );
     assert_eq!(
         record_ids(&report.matches()[0]),
         ["GHSA-W", "GHSA-Y", "RUSTSEC-A"]
@@ -925,12 +948,12 @@ fn never_links_records_without_cve_through_the_id_of_a_record_with_one() {
 #[test]
 fn merges_the_copies_of_a_record_given_twice() {
     let fixed_copy = fixed_time_record("GHSA-X", &[]);
-    let affecting_copy = time_record("GHSA-X", "GHSA", &["CVE-1"], "0");
+    let affecting_copy = time_record("GHSA-X", "GHSA", &["CVE-2023-0001"], "0");
     let report = match_components(
         &[component("pkg:cargo/time@0.1.43")],
         &[fixed_copy, affecting_copy],
     );
-    assert_eq!(ids(&report), [("time", "CVE-1")]);
+    assert_eq!(ids(&report), [("time", "CVE-2023-0001")]);
     assert_eq!(report.matches()[0].records, [record("GHSA-X", "GHSA")]);
 }
 
@@ -1023,4 +1046,34 @@ fn lists_a_record_not_affecting_through_a_lower_case_cve() {
             record("RUSTSEC-A", "RUSTSEC"),
         ]
     );
+}
+
+// spec: VMT-29, VMT-16, VMT-17
+#[test]
+fn keeps_as_written_an_alias_starting_with_cve_without_its_shape() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[time_record(
+            "RUSTSEC-A",
+            "RUSTSEC",
+            &["CVE-2023-1111", "CVE-2023-1111-dup", "cve-pending"],
+            "0",
+        )],
+    );
+    assert_eq!(ids(&report), [("time", "CVE-2023-1111")]);
+    assert_eq!(
+        report.matches()[0].aliases,
+        ["CVE-2023-1111-dup", "RUSTSEC-A", "cve-pending"]
+    );
+}
+
+// spec: VMT-29, VMT-16
+#[test]
+fn names_a_match_by_its_record_when_its_cve_alias_lacks_the_shape() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[time_record("RUSTSEC-A", "RUSTSEC", &["CVE-2021-123"], "0")],
+    );
+    assert_eq!(ids(&report), [("time", "RUSTSEC-A")]);
+    assert_eq!(report.matches()[0].aliases, ["CVE-2021-123"]);
 }

@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use crate::cve::{is_cve, read_id};
 use crate::purl::PackageUrl;
 use crate::sbom::Component;
 use crate::version::{Maven, NuGet, Packagist, Pep440, RubyGems, Scheme, Semver, VersionOrder};
@@ -269,25 +270,10 @@ impl<'a> Index<'a> {
 struct Named<'a> {
     record: &'a Vulnerability,
     outcome: Outcome,
-    /// Its id and aliases, each `CVE-` id in upper case (VMT-29).
+    /// Its id and aliases, each CVE id in upper case (VMT-29).
     ids: BTreeSet<Cow<'a, str>>,
-    /// The `CVE-` ids among them.
+    /// The CVE ids among them.
     cves: BTreeSet<Cow<'a, str>>,
-}
-
-/// Whether `id` starts with `CVE-`, in any ASCII case (VMT-29).
-fn is_cve(id: &str) -> bool {
-    id.get(..4)
-        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("CVE-"))
-}
-
-/// The id as matching reads it: a `CVE-` id in upper case, any other as written (VMT-29).
-fn read_id(id: &str) -> Cow<'_, str> {
-    if is_cve(id) && id.bytes().any(|b| b.is_ascii_lowercase()) {
-        Cow::Owned(id.to_ascii_uppercase())
-    } else {
-        Cow::Borrowed(id)
-    }
 }
 
 impl<'a> Named<'a> {

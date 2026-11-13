@@ -17,7 +17,10 @@ both.
   `matching.rs` tests the prefix only; `is_cve` of `exploited.rs` tests the shape of EXF-7.
 * `Vulnerability.aliases` keeps each id as its source writes it: each new reader of the domain (the early warning
   draft, other callers of the crate) has to read a CVE id again.
-* Not measured: how many ids or aliases of the OSV archives start with `CVE-` without the shape of EXF-7.
+* Measured on 2026-11-13 over the 293,984 records of the `all.zip` archives of `crates.io`, `Go`, `Maven`, `npm`,
+  `NuGet`, `Packagist`, `PyPI` and `RubyGems` (48,135 ids and aliases starting with `CVE-`): one alias starts with
+  `CVE-` without the shape of EXF-7, `CVE-2020-13665 ` (a trailing space) in `DRUPAL-CORE-2020-006`; a second record,
+  `DRUPAL-CONTRIB-2026-040`, writes ` CVE-2026-49977 `, which neither reading takes for a CVE id.
 * Many tests of `crates/forewarn-domain/tests/matching.rs` use `CVE-1`, `CVE-2` as CVE ids: with the shape of EXF-7,
   they would need ids of that shape.
 
@@ -39,3 +42,43 @@ Flag actively exploited vulnerabilities (KEV, EUVD)
 * `crates/forewarn-domain/src/matching.rs`: `is_cve`, `read_id`, `Named`.
 * `crates/forewarn-domain/src/exploited.rs`: `is_cve`, `ExploitedEntry::new`.
 * `issues/done/compare_cve_ids_ignoring_case_in_matching.md`: the measure of lower-case CVE ids.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Matching reads a CVE id as flagging does: the shape of EXF-7, any case, upper-cased; an id starting with `CVE-` without
+that shape is a plain id, kept as written. One crate-private module of the domain holds the reading (candidate 1).
+Out of scope: a CVE id type (candidate 2), trimming the spaces some OSV aliases carry.
+
+## Plan
+1. [x] Shared CVE id: module `cve` of `forewarn-domain` (`is_cve`, `read_id`) used by `matching.rs` and
+   `exploited.rs`; the tests of `matching.rs` move from `CVE-1` to shaped ids; verified by new matching tests on
+   `CVE-2023-1111-dup`, `cve-pending` and `CVE-2021-123`; makes true VMT-29 (amended). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 6b8a2e5d0d08e107d3de00f956f7eb9899f1dec1
+- 1 a: an issue trims the spaces around OSV aliases in the OSV adapter.
+- 2 a: the reading of a CVE id stays `pub(crate)`.
+
+## Deliverable 1
+done: module `cve` of the domain (`is_cve` of the shape of EXF-7, `read_id`) used by matching and flagging; VMT-29
+amended; the tests and scenarios of VMT move from `CVE-1` to shaped ids.
+
+| check | result |
+|---|---|
+| tests | `cargo test` green |
+| lint | clippy pedantic clean, fmt clean |
+| specs | `check-specs` clean for VMT (accepted); pre-existing warning on `cli-match.md` |
+| docs | no doc names the reading besides the spec |
+| code review | see below |
+
+red: VMT-29, VMT-16, VMT-17: `left: [("time", "CVE-2023-1111"), ("time", "CVE-2023-1111-DUP"), ("time", "CVE-PENDING")] right: [("time", "CVE-2023-1111")]`
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none
