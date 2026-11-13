@@ -15,7 +15,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [read_the_product_of_the_sbom](issues/done/read_the_product_of_the_sbom.md)
   - [draft_the_early_warning_in_the_domain](issues/done/draft_the_early_warning_in_the_domain.md)
   - [write_the_early_warning_in_an_adapter](issues/done/write_the_early_warning_in_an_adapter.md)
-  - [cli_draft_early_warnings](issues/cli_draft_early_warnings.md)
+  - [cli_draft_early_warnings](issues/done/cli_draft_early_warnings.md)
   - [keep_the_euvd_id_of_an_exploited_entry](issues/keep_the_euvd_id_of_an_exploited_entry.md)
   - [tell_a_manufacturer_name_from_its_contact](issues/tell_a_manufacturer_name_from_its_contact.md)
 
