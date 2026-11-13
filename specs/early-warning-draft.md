@@ -83,8 +83,9 @@ document a person copies into the ENISA Single Reporting Platform form.
   (RDL-7), and a final report with no measure given as due 14 days after a corrective or mitigating measure is
   available, with no date (RDL-4).
 - **EWD-16** (deterministic) A value of the SBOM or of a list written into a draft must have each ASCII punctuation
-  character preceded by a backslash and each control character written as its escape (`\n`, `\u{1b}`), so that it
-  reads as its text and forges no line, list item, emphasis, link or HTML.
+  character preceded by a backslash, each control character written as its escape (`\n`, `\u{1b}`), each
+  bidirectional or invisible formatting character as its Unicode escape (`\u{202e}`) and each leading space as
+  `&#32;`, so that it reads as its text and forges no line, list item, code block, emphasis, link or HTML.
 
 ## Scenarios
 
@@ -139,6 +140,10 @@ document a person copies into the ENISA Single Reporting Platform form.
 - (EWD-16) Given a component named `a|b*c_[x](y)<i>` and a product name holding a newline then `# Title`, when the draft
   is written, then the name reads `a\|b\*c\_\[x\]\(y\)\<i\>` and the product name stays on its line, the newline
   written `\\n` and the `#` escaped.
+- (EWD-16) Given a component named `    rm` with a version holding U+202E and U+200B, when the draft is written, then
+  its name opens on four `&#32;` and its version shows `\u{202e}` and `\u{200b}`, escaped.
+- (EWD-13) Given a draft whose product has no name but whose fields to complete leave it out, when it is written, then
+  `6. Product Name` reads `not given`, the field marked only as the list of the fields to complete says.
 
 ## Non-goals
 

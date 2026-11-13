@@ -30,13 +30,12 @@ pub fn markdown(draft: &EarlyWarning) -> String {
     text.push_str("\n\nTo complete before entering it into the ENISA Single Reporting Platform: ");
     if draft.to_complete.is_empty() {
         text.push_str("nothing");
-    } else {
-        let labels: Vec<&str> = draft
-            .to_complete
-            .iter()
-            .map(|&field| label(field))
-            .collect();
-        text.push_str(&labels.join(", "));
+    }
+    for (i, &field) in draft.to_complete.iter().enumerate() {
+        if i > 0 {
+            text.push_str(", ");
+        }
+        text.push_str(label(field));
     }
     text.push_str(".\n");
 
@@ -96,8 +95,8 @@ fn push_evidence(text: &mut String, draft: &EarlyWarning) {
 /// Pushes the fields of the early warning, in the order of the glossary (EWD-14).
 fn push_fields(text: &mut String, draft: &EarlyWarning) {
     text.push_str("\n## Fields of the early warning (ENISA CRA SRP glossary 1.6)\n\n");
-    push_field(text, TITLE, None);
-    push_field(text, SUMMARY, None);
+    push_field(text, draft, ToComplete::Title, None);
+    push_field(text, draft, ToComplete::Summary, None);
     push_label(text, MANUFACTURER);
     if let Some(manufacturer) = &draft.manufacturer {
         push_escaped(text, manufacturer);
@@ -105,14 +104,26 @@ fn push_fields(text: &mut String, draft: &EarlyWarning) {
     } else {
         text.push_str("not in the SBOM (filled by the platform from your registration)\n");
     }
-    push_field(text, MEMBER_STATES, None);
-    push_field(text, PRODUCT_NAME, draft.product_name.as_deref());
-    push_field(text, PRODUCT_VERSION, draft.product_version.as_deref());
+    push_field(text, draft, ToComplete::MemberStates, None);
+    push_field(
+        text,
+        draft,
+        ToComplete::ProductName,
+        draft.product_name.as_deref(),
+    );
+    push_field(
+        text,
+        draft,
+        ToComplete::ProductVersion,
+        draft.product_version.as_deref(),
+    );
     let _ = writeln!(text, "- **{COMPONENT}**:");
     for affected in &draft.components {
         push_component(text, affected);
     }
-    push_field(text, CVE, Some(&draft.cve));
+    push_label(text, CVE);
+    push_escaped(text, &draft.cve);
+    text.push('\n');
     push_label(text, EUVD);
     match &draft.euvd {
         Some(euvd) => push_escaped(text, euvd),
@@ -135,12 +146,14 @@ fn push_label(text: &mut String, label: &str) {
     let _ = write!(text, "- **{label}**: ");
 }
 
-/// Pushes a field holding `value`, escaped, or marked to complete when `None` (EWD-13).
-fn push_field(text: &mut String, label: &str, value: Option<&str>) {
-    push_label(text, label);
+/// Pushes a field the vendor may have to complete: marked to complete when the draft lists it so, the one list
+/// the line of the fields to complete reads too (EWD-13), else `value`, escaped, or `not given`.
+fn push_field(text: &mut String, draft: &EarlyWarning, field: ToComplete, value: Option<&str>) {
+    push_label(text, label(field));
     match value {
+        _ if draft.to_complete.contains(&field) => text.push_str(TO_COMPLETE),
         Some(value) => push_escaped(text, value),
-        None => text.push_str(TO_COMPLETE),
+        None => text.push_str("not given"),
     }
     text.push('\n');
 }
@@ -163,22 +176,43 @@ fn push_component(text: &mut String, affected: &AffectedComponent) {
     text.push('\n');
 }
 
-/// Pushes a value of the SBOM or of a feed so that Markdown reads it as its text: a backslash before each ASCII
-/// punctuation character, each control character written as its escape (`\n`, `\u{1b}`), itself escaped (EWD-16).
+/// Pushes a value of the SBOM or of a feed so that Markdown reads it as its text (EWD-16): a backslash before each
+/// ASCII punctuation character, each control character written as its escape (`\n`, `\u{1b}`) and each bidirectional
+/// or invisible formatting character as its Unicode escape (`\u{202e}`), those escapes themselves escaped, and each
+/// leading space as `&#32;`, which no list item reads as an indented code block.
 fn push_escaped(text: &mut String, value: &str) {
+    let trimmed = value.trim_start_matches(' ');
+    for _ in 0..value.len() - trimmed.len() {
+        text.push_str("&#32;");
+    }
     let mut push = |c: char| {
         if c.is_ascii_punctuation() {
             text.push('\\');
         }
         text.push(c);
     };
-    for c in value.chars() {
+    for c in trimmed.chars() {
         if c.is_control() {
             c.escape_default().for_each(&mut push);
+        } else if is_formatting(c) {
+            c.escape_unicode().for_each(&mut push);
         } else {
             push(c);
         }
     }
+}
+
+/// Whether `c` is a bidirectional, zero-width or separator formatting character, which a viewer draws as nothing or
+/// uses to reorder the text around it (EWD-16).
+fn is_formatting(c: char) -> bool {
+    matches!(
+        c,
+        '\u{061c}'
+            | '\u{200b}'..='\u{200f}'
+            | '\u{2028}'..='\u{202e}'
+            | '\u{2060}'..='\u{2069}'
+            | '\u{feff}'
+    )
 }
 
 #[cfg(test)]
@@ -345,5 +379,30 @@ mod tests {
             "shop\\\\n\\# Title\\\\u\\{1b\\}"
         );
         assert!(!text.lines().any(|line| line.starts_with("# Title")));
+    }
+
+    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    #[test]
+    fn a_value_hides_no_text_and_opens_no_code_block() {
+        let mut draft = log4shell();
+        draft.components[0].component.name = "    rm".to_owned();
+        draft.components[0].component.version = Some("1.0\u{202e}2\u{200b}".to_owned());
+        let text = markdown(&draft);
+        assert!(
+            text.contains("\n  - &#32;&#32;&#32;&#32;rm 1\\.0\\\\u\\{202e\\}2\\\\u\\{200b\\}, "),
+            "{text}"
+        );
+    }
+
+    // spec: EWD-13 (internal: no command writes a draft before cli_draft_early_warnings)
+    #[test]
+    fn the_fields_marked_are_those_the_draft_lists_to_complete() {
+        let mut draft = log4shell();
+        draft.product_name = None;
+        let text = markdown(&draft);
+        assert_eq!(field(&text, "6. Product Name"), "not given");
+        assert!(text.contains(
+            "Platform: 2. Title, 3. Summary, 5. Member States where product available.\n"
+        ));
     }
 }

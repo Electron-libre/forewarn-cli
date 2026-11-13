@@ -50,6 +50,9 @@ and the files (`cli_draft_early_warnings`), a JSON form (no reader found, ADR 00
 1. [x] Markdown writer: module `crates/forewarn/src/early_warning.rs`, `markdown(&EarlyWarning) -> String`, with ADR
    0013 and the amended spec; verified by internal tests (no command prints a draft before `cli_draft_early_warnings`);
    makes true EWD-12 to EWD-16. (autonomous)
+2. [x] Fixes of the `high` review of the issue: the fields marked to complete read from the draft's list only, leading
+   spaces and bidirectional or invisible characters escaped (EWD-16 amended); verified by two more internal tests.
+   (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -65,3 +68,12 @@ and the files (`cli_draft_early_warnings`), a JSON form (no reader found, ADR 00
 - Code review: no findings
 - not verified: the rendering in a Markdown viewer (the tests check the source); no command prints a draft yet
   (`cli_draft_early_warnings`), the module carries an `expect(dead_code)` until then.
+
+## Deliverable 2 summary
+- done: fixes of the `high` review (7 findings): 1 (marks from `to_complete` only), 2 (leading spaces `&#32;`),
+  3 (bidi and invisible characters escaped, EWD-16 amended), 7 (no `Vec` for the labels) fixed; 4 and 5 (escaping and
+  component formatting beside `report`) not fixed: the Markdown escape and separators differ from the text report's;
+  6 (separators inside a value) not fixed: the punctuation stays visible in the source and the order of the parts is
+  fixed. The bidi escaping missing from the text report becomes the issue `escape_formatting_characters_in_the_reports`.
+- Code review: no findings
+- red: none: the two tests were written with the fixes, never run against the code before them.

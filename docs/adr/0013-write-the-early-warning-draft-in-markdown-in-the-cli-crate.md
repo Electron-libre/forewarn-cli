@@ -24,8 +24,9 @@ render the same draft, but no such consumer exists yet.
   reading `**TO COMPLETE**`. Markdown reads as plain text in a terminal or an editor and renders in a CI artifact or a
   ticket.
 - **Every value from the SBOM or a feed is escaped**: each ASCII punctuation character is preceded by a backslash
-  (CommonMark allows it before any of them) and each control character is written as its escape, so a component
-  name cannot open a list item, a heading, a link or HTML.
+  (CommonMark allows it before any of them), each control character and each bidirectional or invisible formatting
+  character is written as its escape, and a leading space as `&#32;`, so a component name cannot open a list item, a
+  heading, a code block, a link or HTML, nor reorder or hide the text a person copies into the form.
 - **No JSON form**: no reader of it was found; the JSON report of `forewarn match` already serves a machine.
 
 ## Consequences
