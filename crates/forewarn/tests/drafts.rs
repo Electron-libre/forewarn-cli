@@ -217,6 +217,10 @@ fn the_file_name_keeps_only_the_safe_characters_of_the_first_100_of_the_product_
     );
     assert_eq!(draft_name(None), ["CVE-2021-44228.md"]);
     assert_eq!(
+        draft_name(Some(json!({"type": "application", "name": " shop\n"}))),
+        [DRAFT]
+    );
+    assert_eq!(
         draft_name(Some(json!({"type": "application", "name": "   "}))),
         ["CVE-2021-44228.md"]
     );

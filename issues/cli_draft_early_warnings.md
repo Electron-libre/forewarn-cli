@@ -46,6 +46,9 @@ written. Out of scope: removing stale drafts, printing a draft on standard outpu
    binary in `crates/forewarn/tests/drafts.rs`; makes true MXL-27, MXL-29, MXL-30, MXL-31, MXL-32, MXL-33, MXL-34. (autonomous)
 2. [x] Name the drafts in the report: a line per draft in the human report, the member `drafts` in the JSON report;
    verified by tests through the binary; makes true MXL-28, MXL-35, MXL-H6, the `drafts` row of MCH-16. (autonomous)
+3. [x] Fixes of the `high` review of the issue: a draft written through a new temporary file of a random name,
+   flushed before the rename; the product name trimmed in the file name; the CVE of the report line escaped;
+   verified by the tests of `drafts.rs`; makes true MXL-31, MXL-34. (autonomous)
 
 ## Decisions
 - Command: an option `--drafts <dir>` of `match`, not a subcommand: the same inputs, one run, one exit code.
@@ -74,3 +77,20 @@ written. Out of scope: removing stale drafts, printing a draft on standard outpu
 - red: MXL-H6, MXL-28, MXL-35, MCH-16: `"drafts"` was `Null` in the JSON report and no draft line in the human one.
 - Code review: no findings
 - not verified: nothing.
+
+## Deliverable 3: fixes of the `high` review
+- done: the temporary file is created new (random name, never a link followed) with `tempfile`, now a dependency of
+  the CLI (MIT OR Apache-2.0), flushed with `sync_all` before the rename and removed on failure; the product name is
+  trimmed before naming the file (MXL-31 amended); the CVE of the human line is escaped; an import moved.
+- checks: tests ok, clippy ok, fmt ok, specs ok, docs n/a (no behaviour the docs state changed), code review low done.
+- red: MXL-31: ` shop\n` named `_shop_-CVE-2021-44228.md` (finding of the `high` review); MXL-34: none, the test
+  of a failed rename stays green, the fix closes a race no test reproduces.
+- Code review: no findings
+- `high` review: 10 findings
+  - fixed: the temporary name of a PID (two runs, a link), no flush before the rename, a temporary file left (kept
+    for a SIGKILL only), the product name not trimmed, the import and the CVE not escaped.
+  - not fixed, validated decision: exit 7 with no report when a draft cannot be written (question 3 of the plan);
+    a rerun replaces a draft the vendor may have completed (MXL-29, the issue's approach).
+  - not fixed: the drafts written before a failure not named (the error names the failing one, the run is rerun);
+    a non-UTF-8 path printed lossy, as every path of the reports; deadlines computed twice for the domain's
+    drafting API, the `expect` resting on the check of `awareness`.

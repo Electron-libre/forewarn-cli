@@ -6,8 +6,6 @@ use std::fmt::Write;
 use std::path::Path;
 
 use forewarn_domain::completeness::{CompletenessReport, Field};
-
-use crate::drafts::Written;
 use forewarn_domain::exploited::{Evidence, FlaggedMatch, FlaggedReport};
 use forewarn_domain::matching::{ComponentReason, ComponentRef, PairReason, Reason, RecordStatus};
 use forewarn_domain::sbom::{Sbom, SpecVersion};
@@ -19,6 +17,8 @@ use forewarn_domain::exploited::ExploitedList;
 use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
+
+use crate::drafts::Written;
 use time::OffsetDateTime;
 use time::macros::format_description;
 
@@ -300,7 +300,9 @@ pub fn matching_human(report: &MatchReport) -> String {
     if let Some(drafts) = drafts {
         let _ = writeln!(text, "Draft early warnings ({}):", drafts.len());
         for draft in drafts {
-            let _ = write!(text, "  {}: ", draft.cve);
+            text.push_str("  ");
+            push_escaped(&mut text, &draft.cve);
+            text.push_str(": ");
             push_escaped(&mut text, &draft.path.to_string_lossy());
             text.push('\n');
         }

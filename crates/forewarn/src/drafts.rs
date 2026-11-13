@@ -3,9 +3,8 @@
 
 use std::fmt;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process;
 
 use forewarn_domain::early_warning::EarlyWarning;
 
@@ -72,7 +71,7 @@ fn file_name(draft: &EarlyWarning) -> String {
     let cve = safe(draft.cve.chars());
     match &draft.product_name {
         Some(product) => {
-            let product = safe(product.chars().take(PRODUCT_NAME_LENGTH));
+            let product = safe(product.trim().chars().take(PRODUCT_NAME_LENGTH));
             format!("{product}-{cve}.md")
         }
         None => format!("{cve}.md"),
@@ -92,15 +91,17 @@ fn safe(characters: impl Iterator<Item = char>) -> String {
         .collect()
 }
 
-/// Writes `text` to a temporary file beside `path`, then renames it over `path`, so that `path` holds either its former
-/// content or the whole text (MXL-34); the temporary file is removed when the rename fails.
+/// Writes `text` to a new temporary file of a random name beside `path`, flushed to the disk, then renames it over
+/// `path`, so that `path` holds either its former content or the whole text (MXL-34); the temporary file is removed
+/// when a step fails.
 fn replace(path: &Path, text: &str) -> io::Result<()> {
-    let mut temporary = path.as_os_str().to_owned();
-    temporary.push(format!(".{}.tmp", process::id()));
-    let temporary = PathBuf::from(temporary);
-    let written = fs::write(&temporary, text).and_then(|()| fs::rename(&temporary, path));
-    if written.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    written
+    let directory = path.parent().unwrap_or(Path::new("."));
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".forewarn-draft-")
+        .suffix(".tmp")
+        .tempfile_in(directory)?;
+    temporary.write_all(text.as_bytes())?;
+    temporary.as_file().sync_all()?;
+    temporary.persist(path).map_err(|error| error.error)?;
+    Ok(())
 }
