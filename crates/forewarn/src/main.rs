@@ -1,5 +1,5 @@
 //! The `forewarn` command line: parses the arguments and wires the adapters to the domain (`specs/cli-check.md`,
-//! `specs/cli-match.md`).
+//! `specs/cli-match.md`, `specs/cli-match-exploited.md`).
 
 mod report;
 
@@ -207,7 +207,7 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     }
     // The exploited lists come after the OSV records, so that a local error is reported before a download.
     let (catalog, euvd_list) = exploited_lists(args, feed, euvd_feed)?;
-    // CISA KEV, then EUVD: the order of the evidence (EXF-5, MCH-36).
+    // CISA KEV, then EUVD: the order of the evidence (EXF-5, MXL-6).
     let exploited: Vec<ExploitedSource> = catalog
         .iter()
         .map(KevCatalog::source)
@@ -243,8 +243,8 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
 }
 
-/// The CISA KEV catalog and the EUVD list of a run, the files given read before a list is fetched (MCH-30, MCH-31,
-/// MCH-36, MCH-37).
+/// The CISA KEV catalog and the EUVD list of a run, the files given read before a list is fetched (MXL-2, MXL-3,
+/// MXL-6, MXL-7).
 fn exploited_lists(
     args: &MatchArgs,
     kev_feed: Option<kev::Feed>,
@@ -274,7 +274,7 @@ fn exploited_lists(
     Ok((local_kev.or(fetched_kev), local_euvd.or(fetched_euvd)))
 }
 
-/// The CISA KEV catalog of a run: a file given with `--kev`, or fetched into the cache (MCH-30, MCH-31).
+/// The CISA KEV catalog of a run: a file given with `--kev`, or fetched into the cache (MXL-2, MXL-3).
 enum KevCatalog<'a> {
     Local(kev::Catalog, &'a Path),
     Fetched(kev::FetchedCatalog),
@@ -294,7 +294,7 @@ impl KevCatalog<'_> {
     }
 }
 
-/// The exploited list of EUVD of a run: a file given with `--euvd`, or paged into the cache (MCH-36, MCH-37).
+/// The exploited list of EUVD of a run: a file given with `--euvd`, or paged into the cache (MXL-6, MXL-7).
 enum EuvdList<'a> {
     Local(ExploitedList, &'a Path),
     Fetched(euvd::FetchedList),
@@ -363,7 +363,7 @@ fn archives(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> Archives {
     archives
 }
 
-/// The EUVD list the arguments name, kept in the entry `euvd-exploited` of the cache (MCH-40, MCH-41).
+/// The EUVD list the arguments name, kept in the entry `euvd-exploited` of the cache (MXL-12, MXL-13).
 fn euvd_feed(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> euvd::Feed {
     let mut feed = euvd::Feed::new(cache, refresh);
     if let Some(url) = &args.euvd_url {
@@ -372,7 +372,7 @@ fn euvd_feed(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> euvd::Feed {
     feed
 }
 
-/// The CISA KEV catalog the arguments name, kept in the entry `cisa-kev` of the cache (MCH-34, MCH-35).
+/// The CISA KEV catalog the arguments name, kept in the entry `cisa-kev` of the cache (MXL-10, MXL-11).
 fn kev_feed(args: &MatchArgs, cache: PathBuf, refresh: Refresh) -> kev::Feed {
     let mut feed = kev::Feed::new(cache, refresh);
     if let Some(url) = &args.kev_url {
@@ -616,7 +616,7 @@ mod tests {
         assert_eq!(base_url(&mirror), "http://m");
     }
 
-    // spec: MCH-34 (internal: a download from cisa.gov needs the network)
+    // spec: MXL-10 (internal: a download from cisa.gov needs the network)
     #[test]
     fn the_kev_catalog_comes_from_cisa_unless_a_url_is_given() {
         let url = |args: &[&str]| {
@@ -630,7 +630,7 @@ mod tests {
         assert_eq!(url(&mirror), "http://m/kev.json");
     }
 
-    // spec: MCH-40 (internal: paging the EUVD search needs the network)
+    // spec: MXL-12 (internal: paging the EUVD search needs the network)
     #[test]
     fn the_euvd_list_comes_from_enisa_unless_a_url_is_given() {
         let url = |args: &[&str]| {

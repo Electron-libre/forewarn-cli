@@ -151,7 +151,7 @@ pub enum Source<'a> {
     Local { path: &'a Path, records: usize },
 }
 
-/// An exploited list the matches are flagged against, and where it came from (MCH-33).
+/// An exploited list the matches are flagged against, and where it came from (MXL-5).
 pub struct ExploitedSource<'a> {
     pub list: &'a ExploitedList,
     /// The version and the release date of a catalog that gives them (CISA KEV); none for EUVD.
@@ -318,7 +318,7 @@ fn push_source(text: &mut String, source: &Source) {
 }
 
 /// Pushes an exploited list with its catalog's version and release date when it gives them, its entry count and where
-/// it came from (MCH-33).
+/// it came from (MXL-5).
 fn push_exploited_source(text: &mut String, source: &ExploitedSource) {
     text.push_str("  ");
     push_escaped(text, &source.list.name);
@@ -340,7 +340,7 @@ fn push_exploited_source(text: &mut String, source: &ExploitedSource) {
     text.push('\n');
 }
 
-/// Pushes when and where a copy was downloaded, and its `Last-Modified` when the server sent one (MCH-4, MCH-33).
+/// Pushes when and where a copy was downloaded, and its `Last-Modified` when the server sent one (MCH-4, MXL-5).
 fn push_download(text: &mut String, freshness: &Freshness) {
     let _ = write!(text, "downloaded {} from ", utc(freshness.downloaded_at));
     push_escaped(text, &freshness.url);
@@ -350,7 +350,7 @@ fn push_download(text: &mut String, freshness: &Freshness) {
     }
 }
 
-/// Pushes the line marking a match actively exploited, with each list naming it (MCH-29).
+/// Pushes the line marking a match actively exploited, with each list naming it (MXL-1).
 fn push_evidence(text: &mut String, evidence: &[Evidence]) {
     text.push_str("    actively exploited: ");
     for (i, named) in evidence.iter().enumerate() {

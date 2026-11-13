@@ -588,7 +588,7 @@ fn fetch_with_kev(cache: &Path, mirror: &Mirror, args: &[&str], sbom: &[u8]) -> 
     run_with(&all, Some(sbom), &[])
 }
 
-// spec: MCH-H4, MCH-29, MCH-30, MCH-33, MCH-34, MCH-35, MCH-10
+// spec: MXL-H1, MXL-1, MXL-2, MXL-5, MXL-10, MXL-11, MCH-10
 #[test]
 fn a_ci_job_fetches_the_kev_catalog_into_its_cache_and_sees_the_exploited_match() {
     let cache = TempDir::new().expect("a cache");
@@ -646,7 +646,7 @@ fn a_ci_job_fetches_the_kev_catalog_into_its_cache_and_sees_the_exploited_match(
     );
 }
 
-// spec: MCH-30, MCH-35
+// spec: MXL-2, MXL-11
 #[test]
 fn the_cached_catalog_is_read_back_offline_without_a_request() {
     let cache = TempDir::new().expect("a cache");
@@ -665,7 +665,7 @@ fn the_cached_catalog_is_read_back_offline_without_a_request() {
     );
 }
 
-// spec: MCH-6, MCH-10, MCH-30
+// spec: MCH-6, MCH-10, MXL-2
 #[test]
 fn local_osv_records_still_fetch_the_catalog_under_the_refresh_policy() {
     let cache = TempDir::new().expect("a cache");
@@ -680,7 +680,7 @@ fn local_osv_records_still_fetch_the_catalog_under_the_refresh_policy() {
     assert_eq!(mirror.requests(), ["/kev.json", "/kev.json"]);
 }
 
-// spec: MCH-10, MCH-14, MCH-30
+// spec: MCH-10, MCH-14, MXL-2
 #[test]
 fn a_catalog_not_cached_offline_is_named_and_exits_with_5() {
     let cache = TempDir::new().expect("a cache");
@@ -703,7 +703,7 @@ fn a_catalog_not_cached_offline_is_named_and_exits_with_5() {
     assert_eq!(mirror.requests(), Vec::<String>::new());
 }
 
-// spec: MCH-31, MCH-32
+// spec: MXL-3, MXL-4
 #[test]
 fn a_kev_file_or_no_kev_sends_no_request_for_the_catalog() {
     let mirror = crates_io_mirror();
@@ -763,7 +763,7 @@ fn osv_fixtures() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../forewarn-osv/tests/fixtures")
 }
 
-// spec: MCH-H6, MCH-36, MCH-33, MCH-29, MCH-40, MCH-41, MCH-16
+// spec: MXL-H3, MXL-6, MXL-5, MXL-1, MXL-12, MXL-13, MCH-16
 #[test]
 fn a_ci_job_pages_the_euvd_list_into_its_cache_and_sees_its_evidence_after_kev() {
     let cache = TempDir::new().expect("a cache");
@@ -824,7 +824,7 @@ fn a_ci_job_pages_the_euvd_list_into_its_cache_and_sees_its_evidence_after_kev()
     );
 }
 
-// spec: MCH-36, MCH-41
+// spec: MXL-6, MXL-13
 #[test]
 fn the_cached_euvd_list_is_read_back_offline_without_a_request() {
     let cache = TempDir::new().expect("a cache");
@@ -844,7 +844,7 @@ fn the_cached_euvd_list_is_read_back_offline_without_a_request() {
     );
 }
 
-// spec: MCH-38, MCH-37
+// spec: MXL-8, MXL-7
 #[test]
 fn an_euvd_file_or_no_euvd_sends_no_request_to_euvd() {
     let mirror = Mirror::new();
@@ -872,7 +872,7 @@ fn an_euvd_file_or_no_euvd_sends_no_request_to_euvd() {
     );
 }
 
-// spec: MCH-10, MCH-14, MCH-36
+// spec: MCH-10, MCH-14, MXL-6
 #[test]
 fn an_euvd_list_that_cannot_be_paged_is_named_and_exits_with_5() {
     let cache = TempDir::new().expect("a cache");

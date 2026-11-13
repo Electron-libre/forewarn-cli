@@ -143,7 +143,7 @@ under a refresh policy, so that a European vendor watches the list it is expecte
 ## Non-goals
 
 - Flagging the matches (`specs/exploited-flagging.md`), choosing the cache directory, printing the freshness or the
-  flag in `forewarn match` (`specs/cli-match.md`).
+  flag in `forewarn match` (`specs/cli-match.md`, `specs/cli-match-exploited.md`).
 - The endpoint `/api/exploitedvulnerabilities`: it gives only the latest few exploited records, not the list.
 - The CSV dump `/api/dump/cve-euvd-mapping`: it maps EUVD ids to CVE ids but says nothing of exploitation.
 - An entry for a record with no CVE alias (keyed by its `EUVD-` id): flagging compares CVE ids only (EXF-4).

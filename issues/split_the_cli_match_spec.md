@@ -34,3 +34,33 @@ the OSV records, each spec under the bound.
 
 # Hints
 * Never renumber an accepted requirement in place: tests and issues cite the ids.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Move the exploited-list family of `specs/cli-match.md` (MCH-29 to MCH-41, happy paths MCH-H4 to MCH-H6 and their edge
+scenarios, two non-goals, ADRs 0008 and 0009) into `specs/cli-match-exploited.md` (id `MXL`); MCH-10, MCH-14 and
+MCH-16 keep their rows, pointing to MXL ids. No behaviour changes: only citations move.
+
+## Plan
+1. [x] Split the spec: `specs/cli-match-exploited.md` with MXL-1 to MXL-13 and MXL-H1 to MXL-H3, MCH-29 to MCH-41
+   `withdrawn: moved to MXL-n`, the tests of `exploited.rs`, `fetching.rs` and `main.rs` and the doc comments of
+   `main.rs` and `report.rs` re-cited; verified by `check-specs` (no bound warning, both specs `accepted`) and
+   `project-check` unchanged; makes true MXL-1 to MXL-13. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 81c02509f597eb7b0aa6bbde117eac32405abd86
+- Mapping: MCH-29→MXL-1, 30→2, 31→3, 32→4, 33→5, 36→6, 37→7, 38→8, 39→9 (Behaviour), 34→10, 35→11, 40→12, 41→13
+  (Contract); MCH-H4→MXL-H1, H5→H2, H6→H3. The happy paths cannot be withdrawn (the checker only knows withdrawn
+  requirements), so MCH-H4 to MCH-H6 disappear and their tests cite the MXL ones.
+
+## Summary of deliverable 1
+- done: `specs/cli-match-exploited.md` (MXL-1 to MXL-13, MXL-H1 to MXL-H3) holds the exploited lists of `forewarn match`;
+  `specs/cli-match.md` keeps 28 live requirements, MCH-29 to MCH-41 withdrawn as moved; tests and doc comments re-cited.
+- checks: project-check pass (fmt, clippy, tests); check-specs pass, no bound warning; docs: CLAUDE.md and the
+  non-goals of `exploited-flagging.md` and `euvd-reading.md` point to the new spec.
+- red: none (no test added: the existing tests are only re-cited).
+- Code review: no findings
