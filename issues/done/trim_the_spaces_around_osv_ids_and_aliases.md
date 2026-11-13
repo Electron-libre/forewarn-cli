@@ -85,7 +85,7 @@ decisions needed: none
 ## Deliverable 2
 done: an alias empty or of ASCII whitespace only is dropped (OSR-35); `trimmed` reuses a `String` with nothing to
 trim; a test keeps a no-break space around an alias (OSR-34); follow-up issue
-`issues/refuse_an_osv_record_with_an_empty_id.md`.
+`issues/done/refuse_an_osv_record_with_an_empty_id.md`.
 
 | check | result |
 |---|---|
@@ -102,7 +102,7 @@ Code review: no findings
 Findings of the `high` review of the issue (6):
 1. an alias of whitespace only becomes `""` and can group unrelated records: fixed (OSR-35).
 2. an id of whitespace only becomes `""`: not fixed here, the read of an empty id predates the issue; follow-up
-   `issues/refuse_an_osv_record_with_an_empty_id.md`.
+   `issues/done/refuse_an_osv_record_with_an_empty_id.md`.
 3. the API compares the requested id with the trimmed id of the record, so `GHSA-x\n` answering `GHSA-x` is
    accepted: not fixed, consistent with OSR-34 (the record names that id once read).
 4. trimming belongs in the domain (candidate 2): not fixed, candidate 1 was validated at the plan.

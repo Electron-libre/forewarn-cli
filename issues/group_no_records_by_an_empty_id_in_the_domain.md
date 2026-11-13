@@ -13,7 +13,7 @@ fields and the domain is meant to be reused by other callers (the hosted service
 grouping should not depend on each adapter's guard.
 
 # Findings
-* Found by the `high` review of `issues/refuse_an_osv_record_with_an_empty_id.md`.
+* Found by the `high` review of `issues/done/refuse_an_osv_record_with_an_empty_id.md`.
 * `Named::new` in `crates/forewarn-domain/src/matching.rs` inserts `record.id` and each alias into its `ids` as given.
 
 # Approach
