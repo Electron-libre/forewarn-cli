@@ -37,8 +37,8 @@ exit code a CI job can act on.
 - **MCH-9** (deterministic) `forewarn match --allow-affected <sbom>` must exit with the code of an SBOM with no match
   when a component is affected, the report printed unchanged.
 - **MCH-24** (deterministic) `forewarn match --osv-api <sbom>` must query the OSV API (OSR-24) for the OSV ecosystem,
-  name and version of each component that maps to one (VMT-4), match against the records it returns, and fetch no
-  archive.
+  name and version of each component that maps to one (VMT-4), the version of a Go component without its leading `v`,
+  match against the records it returns, and fetch no archive.
 - **MCH-25** (deterministic) `forewarn match` without `--osv-api` must send no request to the OSV API.
 - **MCH-26** (deterministic) `forewarn match --osv-api <sbom>` must print the OSV API as its source of records, with
   its URL, the UTC time of the query and the number of records read (OSR-25).
@@ -144,6 +144,8 @@ exit code a CI job can act on.
 - (MCH-1, MCH-16) Given a directory holding `RUSTSEC-2020-0071` affecting `time` 0.1.43 and its `GHSA` mirror fixed at
   0.1.40, when the SBOM is matched, then the human report marks the mirror as not affecting `time` and the JSON report
   gives it `"affects": false`.
+- (MCH-24) Given a component `pkg:golang/github.com/x/y@v1.2.3`, when it is matched with `--osv-api`, then the
+  `querybatch` request names the `Go` package `github.com/x/y` at version `1.2.3`.
 - (MCH-24) Given an SBOM whose components have no package URL, when it is matched with `--osv-api`, then no request
   is sent and the source shows the API with 0 records.
 - (MCH-10, MCH-12, MCH-24) Given neither `--cache`, `XDG_CACHE_HOME` nor `HOME`, when the command runs with

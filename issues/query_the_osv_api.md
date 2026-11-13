@@ -51,6 +51,10 @@ and the time of the query as the source. Out of scope: caching the answers, retr
 2. [x] CLI: `--osv-api` and `--osv-api-url` on `forewarn match`, the API source in both reports, the help and the docs
    saying what leaves the CI; verified by end-to-end tests of the binary against a loopback server; makes true MCH-24
    to MCH-28, MCH-H3, the match spec `accepted`. (~400 lines) (autonomous)
+3. [x] Review fixes of the whole issue (`high` review): a `next_page_token` given twice refused instead of paging
+   forever, a record holding another id refused, a Go version queried without its leading `v`, one path-segment check
+   shared by ecosystem names and ids, the request body built without a fallible serialization, the doc of `utc`;
+   verified by 3 new tests; OSR-28, OSR-31, MCH-24 amended. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -77,3 +81,15 @@ and the time of the query as the source. Out of scope: caching the answers, retr
 - red: MCH-H3, MCH-24, MCH-26, MCH-27, MCH-16, MCH-12, MCH-14, MCH-28: exit code 2, `unexpected argument
   '--osv-api'` (MCH-10 and MCH-25 passed before the code: their exit codes do not depend on the flag existing).
 - Code review: no findings
+
+## Summary of deliverable 3
+- done: the fixes of the `high` review listed in the plan; follow-up issue
+  `issues/evaluate_ecosystem_ranges_beyond_semver.md` (roadmap: Match known vulnerabilities).
+- checks: tests pass (3 new), clippy pedantic clean, `check-specs` passes.
+- red: OSR-28, OSR-31, MCH-24: a fix of a review finding, the tests written with the fix.
+- High review: 9 findings. Fixed: endless pagination, record id not checked, Go `v` prefix, duplicated name check,
+  misleading serialization error, `utc` doc. Not fixed: `ECOSYSTEM` ranges of PyPI/Maven not evaluated (outside the
+  issue: follow-up issue); record requests one after another (a perf choice: few ids per SBOM, kept simple); the
+  loopback test server copied per test file (each serves a different protocol; sharing it across two crates needs a
+  test-support crate).
+- Code review (low): no findings

@@ -84,6 +84,16 @@ fn parse_record(bytes: &[u8]) -> Result<Vulnerability, Cause> {
     }
 }
 
+/// Whether a name can be a path segment of a URL and a file name as it is: not empty, not first `.`, only ASCII
+/// letters, digits, `.`, `-`, `_` and the bytes of `extra` (OSR-17, OSR-31).
+fn is_path_segment(name: &str, extra: &[u8]) -> bool {
+    !name.is_empty()
+        && !name.starts_with('.')
+        && name.bytes().all(|b| {
+            b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_') || extra.contains(&b)
+        })
+}
+
 /// Refuses a `schema_version` string whose major is not 1; any other value is not read.
 fn check_schema_version(version: Option<&Value>) -> Result<(), Cause> {
     match version {

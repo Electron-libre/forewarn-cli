@@ -519,3 +519,34 @@ fn a_record_request_answering_404_fails_with_cannot_query() {
         "{error:?}"
     );
 }
+
+// spec: OSR-28, OSR-31
+#[test]
+fn a_next_page_token_given_twice_is_refused() {
+    let server = Server::new(|_| ok(&json!({"results": [{"next_page_token": "same"}]})));
+
+    let error = query_error(&server, &[package("a", "1.0.0")]);
+
+    assert!(matches!(error, QueryError::InvalidAnswer(_)), "{error:?}");
+    assert!(error.to_string().contains("\"same\""), "{error}");
+    assert_eq!(server.lines().len(), 2);
+}
+
+// spec: OSR-31
+#[test]
+fn a_record_holding_another_id_is_refused() {
+    let server = Server::new(|request| {
+        if request.path == "/v1/querybatch" {
+            answer(request, |_| vec!["GHSA-a"])
+        } else {
+            (200, record("RUSTSEC-b"))
+        }
+    });
+
+    let error = query_error(&server, &[package("a", "1.0.0")]);
+
+    assert!(
+        matches!(&error, QueryError::Record { id, cause: Cause::Invalid(reason) } if id == "GHSA-a" && reason.contains("\"RUSTSEC-b\"")),
+        "{error:?}"
+    );
+}

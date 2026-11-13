@@ -150,8 +150,9 @@ pub enum Source<'a> {
     Local { path: &'a Path, records: usize },
 }
 
-/// A time (of a download, of a query) in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time a damaged
-/// cache could hold that the calendar of `time` cannot write (before 1970 or after the year 9999).
+/// A time of a download or of a query in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time
+/// the calendar of `time` cannot write (before 1970 or after the year 9999), which a damaged cache or a clock set
+/// wrong could give.
 fn utc(time: SystemTime) -> String {
     time.duration_since(SystemTime::UNIX_EPOCH)
         .ok()

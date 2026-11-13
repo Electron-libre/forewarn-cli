@@ -127,9 +127,9 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   | Cause | Error |
   |---|---|
   | the API cannot be reached, or answers with a status other than 200 | cannot query the OSV API, with the URL and the reason or the status |
-  | an answer of `querybatch` is not JSON, or does not hold one result per query with a list of ids | invalid OSV API answer, with the parser's reason |
+  | an answer of `querybatch` is not JSON, does not hold one result per query with a list of ids, or gives a query a `next_page_token` it already gave that query | invalid OSV API answer, with the reason |
   | an id of a result is empty, starts with `.`, or holds a character other than an ASCII letter, a digit, `.`, `-`, `_` and `:` | invalid record id, quoting it |
-  | the record of an id cannot be read (OSR-9) | the error of OSR-9, naming the id |
+  | the record of an id cannot be read (OSR-9), or holds another id | the error of OSR-9, naming the id; invalid OSV record for another id, quoting it |
 
 ## Scenarios
 
@@ -210,6 +210,10 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 - (OSR-28) Given an API answering the first query with a `next_page_token`, when it is queried, then a second
   `querybatch` request holds that query alone with the token as `page_token`, and the ids of both pages are read.
 - (OSR-30) Given no package, when it is queried, then no request is sent and no vulnerability is returned.
+- (OSR-28, OSR-31) Given an API answering every page of a query with the same `next_page_token`, when it is queried,
+  then it fails with "invalid OSV API answer" after two `querybatch` requests.
+- (OSR-31) Given an API answering `/v1/vulns/GHSA-a` with the record `RUSTSEC-b`, when it is queried, then it fails
+  with "invalid OSV record" naming `GHSA-a` and quoting `RUSTSEC-b`.
 - (OSR-31) Given an API answering 503, when it is queried, then it fails with "cannot query the OSV API" quoting the
   status.
 - (OSR-31) Given an API answering `querybatch` with a text that is not JSON, when it is queried, then it fails with

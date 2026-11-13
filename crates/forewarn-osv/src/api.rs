@@ -9,7 +9,7 @@ use std::time::SystemTime;
 use forewarn_domain::vulnerability::Vulnerability;
 use serde::{Deserialize, Serialize};
 
-use crate::{Cause, ReadError, fetch, parse_record};
+use crate::{Cause, ReadError, fetch, is_path_segment, parse_record};
 
 /// Where the OSV API answers.
 pub const OSV_API: &str = "https://api.osv.dev";
@@ -114,11 +114,6 @@ struct QueryPackage<'a> {
     name: &'a str,
 }
 
-#[derive(Serialize)]
-struct Batch<'a, 'q> {
-    queries: &'q [Query<'a>],
-}
-
 #[derive(Deserialize)]
 struct BatchAnswer {
     results: Vec<BatchResult>,
@@ -169,12 +164,15 @@ impl Api {
             })
             .collect();
         let mut ids = BTreeSet::new();
+        // The tokens each query was sent with: one given twice would page forever.
+        let mut tokens = HashSet::new();
         let url = format!("{base}/v1/querybatch");
         while !pending.is_empty() {
             let mut next = Vec::new();
             for batch in pending.chunks(BATCH) {
-                let body = serde_json::to_vec(&Batch { queries: batch })
-                    .map_err(|e| QueryError::InvalidAnswer(e.to_string()))?;
+                let body = serde_json::json!({ "queries": batch })
+                    .to_string()
+                    .into_bytes();
                 let answer: BatchAnswer = serde_json::from_slice(&post(&agent, &url, body)?)
                     .map_err(|e| QueryError::InvalidAnswer(e.to_string()))?;
                 if answer.results.len() != batch.len() {
@@ -187,6 +185,12 @@ impl Api {
                 for (query, result) in batch.iter().zip(answer.results) {
                     ids.extend(result.vulns.into_iter().map(|named| named.id));
                     if let Some(token) = result.next_page_token {
+                        let key = (query.package.ecosystem, query.package.name, query.version);
+                        if !tokens.insert((key, token.clone())) {
+                            return Err(QueryError::InvalidAnswer(format!(
+                                "the next_page_token {token:?} was already given for a query"
+                            )));
+                        }
                         next.push(Query {
                             package: query.package,
                             version: query.version,
@@ -198,14 +202,21 @@ impl Api {
             pending = next;
         }
         // Every id is checked before the first record is requested.
-        if let Some(id) = ids.iter().find(|id| !is_valid_id(id)) {
+        if let Some(id) = ids.iter().find(|id| !is_path_segment(id, b":")) {
             return Err(QueryError::InvalidId(id.clone()));
         }
         let vulnerabilities = ids
             .into_iter()
             .map(|id| {
                 let bytes = get(&agent, &format!("{base}/v1/vulns/{id}"))?;
-                parse_record(&bytes).map_err(|cause| QueryError::Record { id, cause })
+                match parse_record(&bytes) {
+                    Ok(record) if record.id == id => Ok(record),
+                    Ok(record) => Err(QueryError::Record {
+                        cause: Cause::Invalid(format!("the record holds the id {:?}", record.id)),
+                        id,
+                    }),
+                    Err(cause) => Err(QueryError::Record { id, cause }),
+                }
             })
             .collect::<Result<_, _>>()?;
         Ok(Answer {
@@ -213,15 +224,6 @@ impl Api {
             vulnerabilities,
         })
     }
-}
-
-/// Whether an id can name a path of the API as it is (OSR-31).
-fn is_valid_id(id: &str) -> bool {
-    !id.is_empty()
-        && !id.starts_with('.')
-        && id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b':'))
 }
 
 fn post(agent: &ureq::Agent, url: &str, body: Vec<u8>) -> Result<Vec<u8>, QueryError> {

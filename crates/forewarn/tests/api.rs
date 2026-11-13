@@ -312,3 +312,27 @@ fn the_help_says_what_the_api_receives() {
         "{help}"
     );
 }
+
+// spec: MCH-24
+#[test]
+fn a_go_version_is_queried_without_its_leading_v() {
+    let api = OsvApi::new(None);
+    let sbom = bom(
+        "1.6",
+        &json!([component(
+            "y",
+            "v1.2.3",
+            Some("pkg:golang/github.com/x/y@v1.2.3")
+        )]),
+    );
+
+    let run = query(&api, &[], &sbom);
+
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(
+        api.requests()[0].1,
+        Some(json!({"queries": [
+            {"package": {"ecosystem": "Go", "name": "github.com/x/y"}, "version": "1.2.3"},
+        ]}))
+    );
+}

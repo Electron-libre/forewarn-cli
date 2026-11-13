@@ -36,6 +36,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [lock_the_osv_cache_against_concurrent_runs](issues/done/lock_the_osv_cache_against_concurrent_runs.md)
   - [share_the_osv_cache_lock_between_readers](issues/share_the_osv_cache_lock_between_readers.md)
   - [match_large_archives_without_the_cross_product](issues/done/match_large_archives_without_the_cross_product.md)
+  - [evaluate_ecosystem_ranges_beyond_semver](issues/evaluate_ecosystem_ranges_beyond_semver.md)
 
 ## Flag actively exploited vulnerabilities (KEV, EUVD)
 

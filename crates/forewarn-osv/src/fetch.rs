@@ -11,7 +11,7 @@ use std::time::{Duration, Instant, SystemTime};
 use forewarn_domain::vulnerability::Vulnerability;
 use serde::{Deserialize, Serialize};
 
-use crate::{ReadError, read_directory};
+use crate::{ReadError, is_path_segment, read_directory};
 
 /// Where OSV publishes the archive of each ecosystem.
 pub const OSV_ARCHIVES: &str = "https://osv-vulnerabilities.storage.googleapis.com";
@@ -174,7 +174,7 @@ impl Archives {
         agent: &ureq::Agent,
         clock: &impl Fn() -> SystemTime,
     ) -> Result<Snapshot, FetchCause> {
-        if !is_valid_name(ecosystem) {
+        if !is_path_segment(ecosystem, b"") {
             return Err(FetchCause::InvalidName);
         }
         // Held until the fetch is done with the ecosystem: a second run waits for it (OSR-19).
@@ -328,15 +328,6 @@ pub(crate) fn agent() -> ureq::Agent {
         .timeout_recv_body(Some(BODY_TIMEOUT))
         .build()
         .into()
-}
-
-/// Whether a name is one OSR-17 accepts: it names a directory of the cache and a path of the URL as it is.
-fn is_valid_name(name: &str) -> bool {
-    !name.is_empty()
-        && !name.starts_with('.')
-        && name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
 }
 
 /// The freshness of the snapshot of a directory; none when the directory holds no snapshot, or one whose freshness

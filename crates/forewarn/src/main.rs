@@ -271,7 +271,8 @@ fn ecosystems(sbom: &Sbom) -> Vec<&'static str> {
     ecosystems
 }
 
-/// The OSV ecosystem, name and version of each component that maps to an ecosystem, in the order of the SBOM (MCH-24).
+/// The OSV ecosystem, name and version of each component that maps to an ecosystem, in the order of the SBOM; a Go
+/// version without its leading `v`, as OSV writes the versions of Go modules (MCH-24).
 fn packages(sbom: &Sbom) -> Vec<Package> {
     sbom.components
         .iter()
@@ -279,7 +280,10 @@ fn packages(sbom: &Sbom) -> Vec<Package> {
         .map(|package| Package {
             ecosystem: package.ecosystem.to_owned(),
             name: package.name,
-            version: package.version,
+            version: match (package.ecosystem, package.version.strip_prefix('v')) {
+                ("Go", Some(bare)) => bare.to_owned(),
+                _ => package.version,
+            },
         })
         .collect()
 }
