@@ -212,9 +212,10 @@ impl TryFrom<RawEvent> for OsvEvent {
 }
 
 impl From<Record> for Vulnerability {
-    /// Reads the id and each alias without the ASCII whitespace around them (OSR-34).
+    /// Reads the id and each alias without the ASCII whitespace around them (OSR-34), an alias left empty dropped
+    /// (OSR-35).
     fn from(record: Record) -> Self {
-        let id = record.id.trim_ascii().to_owned();
+        let id = trimmed(record.id);
         let source = id
             .split_once('-')
             .map(|(prefix, _)| prefix)
@@ -226,8 +227,9 @@ impl From<Record> for Vulnerability {
             aliases: record
                 .aliases
                 .unwrap_or_default()
-                .iter()
-                .map(|alias| alias.trim_ascii().to_owned())
+                .into_iter()
+                .map(trimmed)
+                .filter(|alias| !alias.is_empty())
                 .collect(),
             withdrawn: record.withdrawn.is_some(),
             affected: record
@@ -238,6 +240,15 @@ impl From<Record> for Vulnerability {
                 .collect(),
             id,
         }
+    }
+}
+
+/// The text without the ASCII whitespace around it, reusing it when there is none.
+fn trimmed(text: String) -> String {
+    if text.trim_ascii().len() == text.len() {
+        text
+    } else {
+        text.trim_ascii().to_owned()
     }
 }
 

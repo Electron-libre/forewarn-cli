@@ -247,6 +247,30 @@ fn the_id_is_read_without_the_whitespace_around_it_and_gives_the_source() {
     assert_eq!(vulnerability.aliases, ["GHSA-a b".to_owned()]);
 }
 
+// spec: OSR-34
+#[test]
+fn a_whitespace_that_is_not_ascii_is_kept_around_an_alias() {
+    let vulnerability = read_value(&json!({
+        "id": "DRUPAL-CONTRIB-2026-040",
+        "aliases": ["CVE-2026-49977\u{a0}"],
+    }))
+    .expect("the record is read");
+
+    assert_eq!(vulnerability.aliases, ["CVE-2026-49977\u{a0}".to_owned()]);
+}
+
+// spec: OSR-35
+#[test]
+fn an_alias_left_empty_is_dropped() {
+    let vulnerability = read_value(&json!({
+        "id": "DRUPAL-CONTRIB-2026-040",
+        "aliases": ["CVE-2026-49977", " ", "", "\t"],
+    }))
+    .expect("the record is read");
+
+    assert_eq!(vulnerability.aliases, ["CVE-2026-49977".to_owned()]);
+}
+
 // spec: OSR-6
 #[test]
 fn a_withdrawn_record_is_kept_flagged_withdrawn() {

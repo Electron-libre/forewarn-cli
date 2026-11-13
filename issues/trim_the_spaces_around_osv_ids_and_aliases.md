@@ -46,6 +46,8 @@ the OSV API, which share the parsing. Out of scope: the domain (candidate 2), `r
 ## Plan
 1. [x] Trim the id and aliases in the OSV adapter: `From<Record> for Vulnerability` trims them; verified by tests of
    `crates/forewarn-osv/tests/reading.rs` on the two scenarios of OSR-34; makes true OSR-34. (autonomous)
+2. [x] Fixes of the `high` review: drop an alias left empty, keep a `String` with no whitespace around it, test the
+   boundaries of OSR-34; verified by `reading.rs`; makes true OSR-35. (autonomous)
 
 ## Measure
 2026-11-13, the `all.zip` archives of `crates.io`, `Go`, `Maven`, `npm`, `NuGet`, `Packagist`, `PyPI`, `RubyGems`:
@@ -54,6 +56,7 @@ aliases with ASCII spaces: `CVE-2020-13665 ` (`DRUPAL-CORE-2020-006`), ` CVE-202
 No id, alias or `related` holds whitespace inside.
 
 ## Decisions
+- The issue is fully done: both deliverables committed, the `high` review settled in deliverable 2.
 - Mode: autonomous
 - Base commit: 96c81188715676cd14af6fd42abd559ac9df5448
 
@@ -76,5 +79,36 @@ Code review: no findings
 
 not verified: a `forewarn match` run on the Packagist archive flagging `DRUPAL-CONTRIB-2026-040` (the domain is
 covered by its own tests).
+
+decisions needed: none
+
+## Deliverable 2
+done: an alias empty or of ASCII whitespace only is dropped (OSR-35); `trimmed` reuses a `String` with nothing to
+trim; a test keeps a no-break space around an alias (OSR-34); follow-up issue
+`issues/refuse_an_osv_record_with_an_empty_id.md`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | spec only |
+| code review | pass |
+
+red: OSR-35: `left: ["CVE-2026-49977", "", "", ""]` / `right: ["CVE-2026-49977"]`
+
+Code review: no findings
+
+Findings of the `high` review of the issue (6):
+1. an alias of whitespace only becomes `""` and can group unrelated records: fixed (OSR-35).
+2. an id of whitespace only becomes `""`: not fixed here, the read of an empty id predates the issue; follow-up
+   `issues/refuse_an_osv_record_with_an_empty_id.md`.
+3. the API compares the requested id with the trimmed id of the record, so `GHSA-x\n` answering `GHSA-x` is
+   accepted: not fixed, consistent with OSR-34 (the record names that id once read).
+4. trimming belongs in the domain (candidate 2): not fixed, candidate 1 was validated at the plan.
+5. each alias reallocated: fixed (`trimmed`).
+6. no test of the boundaries of OSR-34: fixed (no-break space kept, whitespace-only aliases dropped).
+
+not verified: none
 
 decisions needed: none
