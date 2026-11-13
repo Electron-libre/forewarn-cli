@@ -12,11 +12,13 @@ pub(crate) fn is_cve(id: &str) -> bool {
         })
 }
 
-/// The id as the domain reads it: a CVE id in upper case, any other as written (VMT-29).
-pub(crate) fn read_id(id: &str) -> Cow<'_, str> {
-    if is_cve(id) && id.bytes().any(|b| b.is_ascii_lowercase()) {
-        Cow::Owned(id.to_ascii_uppercase())
+/// `id` as a CVE id written in upper case (EXF-9, VMT-29), or `None` when it is not one (EXF-7).
+pub(crate) fn read_cve(id: &str) -> Option<Cow<'_, str>> {
+    if !is_cve(id) {
+        None
+    } else if id.bytes().any(|b| b.is_ascii_lowercase()) {
+        Some(Cow::Owned(id.to_ascii_uppercase()))
     } else {
-        Cow::Borrowed(id)
+        Some(Cow::Borrowed(id))
     }
 }

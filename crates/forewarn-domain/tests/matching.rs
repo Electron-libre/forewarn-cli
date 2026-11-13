@@ -1077,3 +1077,16 @@ fn names_a_match_by_its_record_when_its_cve_alias_lacks_the_shape() {
     assert_eq!(ids(&report), [("time", "RUSTSEC-A")]);
     assert_eq!(report.matches()[0].aliases, ["CVE-2021-123"]);
 }
+
+// spec: VMT-29, VMT-15
+#[test]
+fn compares_an_id_starting_with_cve_without_its_shape_as_written() {
+    let report = match_components(
+        &[component("pkg:cargo/time@0.1.43")],
+        &[
+            time_record("GHSA-X", "GHSA", &["cve-pending"], "0"),
+            time_record("RUSTSEC-A", "RUSTSEC", &["CVE-PENDING"], "0"),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "GHSA-X"), ("time", "RUSTSEC-A")]);
+}

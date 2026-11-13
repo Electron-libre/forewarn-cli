@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::cve::{is_cve, read_id};
+use crate::cve::{is_cve, read_cve};
 use crate::purl::PackageUrl;
 use crate::sbom::Component;
 use crate::version::{Maven, NuGet, Packagist, Pep440, RubyGems, Scheme, Semver, VersionOrder};
@@ -278,11 +278,19 @@ struct Named<'a> {
 
 impl<'a> Named<'a> {
     fn new(record: &'a Vulnerability, outcome: Outcome) -> Self {
-        let ids: BTreeSet<Cow<str>> = std::iter::once(&record.id)
-            .chain(&record.aliases)
-            .map(|id| read_id(id))
-            .collect();
-        let cves = ids.iter().filter(|id| is_cve(id)).cloned().collect();
+        let mut ids = BTreeSet::new();
+        let mut cves = BTreeSet::new();
+        for id in std::iter::once(&record.id).chain(&record.aliases) {
+            match read_cve(id) {
+                Some(cve) => {
+                    ids.insert(cve.clone());
+                    cves.insert(cve);
+                }
+                None => {
+                    ids.insert(Cow::Borrowed(id.as_str()));
+                }
+            }
+        }
         Self {
             record,
             outcome,

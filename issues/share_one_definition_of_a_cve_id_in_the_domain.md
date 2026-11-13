@@ -56,6 +56,9 @@ Out of scope: a CVE id type (candidate 2), trimming the spaces some OSV aliases 
 1. [x] Shared CVE id: module `cve` of `forewarn-domain` (`is_cve`, `read_id`) used by `matching.rs` and
    `exploited.rs`; the tests of `matching.rs` move from `CVE-1` to shaped ids; verified by new matching tests on
    `CVE-2023-1111-dup`, `cve-pending` and `CVE-2021-123`; makes true VMT-29 (amended). (autonomous)
+2. [x] Review fixes of the `high` review: `read_cve` reads a CVE id in one pass for matching and `ExploitedEntry::new`;
+   a test fixes that `cve-pending` and `CVE-PENDING` are compared as written; verified by `cargo test`; VMT-29,
+   VMT-15. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -76,6 +79,36 @@ amended; the tests and scenarios of VMT move from `CVE-1` to shaped ids.
 | code review | see below |
 
 red: VMT-29, VMT-16, VMT-17: `left: [("time", "CVE-2023-1111"), ("time", "CVE-2023-1111-DUP"), ("time", "CVE-PENDING")] right: [("time", "CVE-2023-1111")]`
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none
+
+## High review (base..37c5f55)
+Code review: 6 findings
+1. The alias `CVE-2020-13665 ` is no longer read as a CVE id: not fixed, decision 1 a, issue
+   `trim_the_spaces_around_osv_ids_and_aliases`; it was not flaggable before either (its match was named with the space).
+2. `cve-pending` and `CVE-PENDING` no longer grouped, untested: fixed, test
+   `compares_an_id_starting_with_cve_without_its_shape_as_written`.
+3. `is_cve` run twice in flagging: fixed, `read_cve`.
+4. `ExploitedEntry::new` upper-cased by hand: fixed, `read_cve`.
+5. `is_cve` run twice in `Named::new`: fixed, one pass; the check of `to_match` on the aliases of a group stays.
+6. CVE ids read where they are used, not where a `Vulnerability` is built: not fixed, candidate 2 left out of scope.
+
+## Deliverable 2
+done: the fixes above.
+
+| check | result |
+|---|---|
+| tests | `cargo test` green |
+| lint | clippy pedantic clean, fmt clean |
+| specs | VMT accepted, traced |
+| docs | nothing to update |
+| code review | see below |
+
+red: none (the test of finding 2 states behaviour of deliverable 1, it passed at once)
 
 Code review: no findings
 
