@@ -32,8 +32,8 @@ component out (ADR [0006](docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md
 OSV archives of the ecosystems it uses, local records given with `--osv`, or, with `--osv-api`, the records the
 OSV API names for its components (`specs/cli-match.md`), each match the CISA KEV catalog or EUVD names marked
 actively exploited with its evidence (the catalog fetched into the same cache or read with `--kev`, the EUVD list paged
-into it or read with `--euvd`), and exits with 6 on such a match, printing with each its CRA reporting deadlines from `--aware-since` (by default
-the moment of the run) and `--measure-available` (`specs/cli-match-exploited.md`).
+into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-since` (by default the moment of the
+run) and `--measure-available`, and exits with 6 on such a match (`specs/cli-match-exploited.md`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 

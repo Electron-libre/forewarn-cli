@@ -16,7 +16,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
 use forewarn_domain::date::{Date, Moment};
-use forewarn_domain::deadlines::reporting_deadlines;
+use forewarn_domain::deadlines::{DeadlinePastRange, reporting_deadlines};
 use forewarn_domain::exploited::{ExploitedList, flag_exploited};
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
@@ -45,7 +45,7 @@ enum Command {
     /// Print the spec version of an SBOM and the components missing a supplier, a license or a hash.
     Check(CheckArgs),
     /// Print the components of an SBOM affected by known OSV vulnerabilities, those the CISA KEV catalog or EUVD names
-    /// marked actively exploited, and those that could not be evaluated.
+    /// marked actively exploited with their CRA reporting deadlines, and those that could not be evaluated.
     Match(Box<MatchArgs>),
 }
 
@@ -120,12 +120,12 @@ struct MatchArgs {
     /// (`2026-11-13T09:30:00Z`, an offset is converted to UTC), from which their early warning (24 h) and notification
     /// (72 h) deadlines are computed [default: the moment of the run].
     #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
-    aware_since: Option<Moment>,
+    aware_since: Option<GivenMoment>,
     /// The moment a corrective or mitigating measure became available, an RFC 3339 instant, from which the final
     /// report deadline (14 days) is computed; without it the final report is due 14 days after a measure is
     /// available.
     #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
-    measure_available: Option<Moment>,
+    measure_available: Option<GivenMoment>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -260,52 +260,72 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
 }
 
 /// The moments the reporting deadlines of the run are computed from, and those deadlines (MXL-14 to MXL-17); exits
-/// with 2 when a deadline falls past the year 9999 (MXL-20).
+/// with 2, naming the option and the value given, when a deadline falls past the year 9999 (MXL-20).
 fn awareness(args: &MatchArgs) -> Awareness {
-    let since = args.aware_since.unwrap_or_else(|| {
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .ok()
-            .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
-            .and_then(|seconds| OffsetDateTime::from_unix_timestamp(seconds).ok())
-            .and_then(moment)
-            .unwrap_or_else(|| {
-                usage_error(
-                    clap::error::ErrorKind::InvalidValue,
-                    "the clock of the system gives no moment of the years 1 to 9999: give --aware-since",
-                )
-            })
-    });
-    let deadlines = reporting_deadlines(since, args.measure_available).unwrap_or_else(|error| {
-        let option = if args.aware_since == Some(error.0) {
-            "--aware-since"
-        } else {
-            "--measure-available"
-        };
-        usage_error(
-            clap::error::ErrorKind::InvalidValue,
-            &format!("invalid value '{}' for '{option}': {error}", error.0),
+    let since = args.aware_since.as_ref().map_or_else(
+        || {
+            report::offset_date_time(SystemTime::now())
+                .and_then(moment)
+                .unwrap_or_else(|| {
+                    usage_error(
+                        clap::error::ErrorKind::InvalidValue,
+                        "the clock of the system gives no moment of the years 1 to 9999: give --aware-since",
+                    )
+                })
+        },
+        |given| given.moment,
+    );
+    // The moment of awareness first, so that the error of a final report names the measure (MXL-20).
+    reporting_deadlines(since, None)
+        .unwrap_or_else(|error| past_range("--aware-since", args.aware_since.as_ref(), error));
+    let measure_available = args.measure_available.as_ref().map(|given| given.moment);
+    let deadlines = reporting_deadlines(since, measure_available).unwrap_or_else(|error| {
+        past_range(
+            "--measure-available",
+            args.measure_available.as_ref(),
+            error,
         )
     });
     Awareness {
         since,
         given: args.aware_since.is_some(),
-        measure_available: args.measure_available,
+        measure_available,
         deadlines,
     }
 }
 
+/// Exits with 2 naming the option and the value given whose deadline falls past the year 9999 (MXL-20).
+fn past_range(option: &str, given: Option<&GivenMoment>, error: DeadlinePastRange) -> ! {
+    let text = given.map_or_else(|| error.0.to_string(), |given| given.text.clone());
+    usage_error(
+        clap::error::ErrorKind::InvalidValue,
+        &format!("invalid value '{text}' for '{option}': {error}"),
+    )
+}
+
+/// A moment given on the command line, with the text it was read from, so that an error names what the user typed.
+#[derive(Clone)]
+struct GivenMoment {
+    text: String,
+    moment: Moment,
+}
+
 /// Reads an RFC 3339 instant into a moment of UTC, its offset applied and its fraction of a second dropped, so that no
 /// deadline is computed later (MXL-19, MXL-20).
-fn parse_moment(text: &str) -> Result<Moment, String> {
+fn parse_moment(text: &str) -> Result<GivenMoment, String> {
     let time = OffsetDateTime::parse(text, &Rfc3339)
         .map_err(|error| format!("an RFC 3339 instant such as `2026-11-13T09:30:00Z`: {error}"))?;
-    moment(time).ok_or_else(|| "an instant of the years 1 to 9999 in UTC".to_owned())
+    let moment =
+        moment(time).ok_or_else(|| "an instant of the years 1 to 9999 in UTC".to_owned())?;
+    Ok(GivenMoment {
+        text: text.to_owned(),
+        moment,
+    })
 }
 
 /// The moment of UTC of a time, to the second; `None` outside the years 1 to 9999.
 fn moment(time: OffsetDateTime) -> Option<Moment> {
-    let utc = time.to_offset(time::UtcOffset::UTC);
+    let utc = time.checked_to_offset(time::UtcOffset::UTC)?;
     let date = Date::new(
         u16::try_from(utc.year()).ok()?,
         u8::from(utc.month()),

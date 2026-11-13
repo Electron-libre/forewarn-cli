@@ -69,12 +69,13 @@ reads a file of the shape `{"items": [...]}` instead (a copy of `euvd-exploited/
 CI; `--no-euvd` flags nothing against it. With `--no-kev` and `--no-euvd`, the report says that no list was used.
 
 Each actively exploited match carries the deadlines CRA article 14(2) sets for reporting it (a line `report by:` under
-its evidence, `deadlines` in the JSON report): the early warning 24 hours and the notification 72 hours after the moment the vendor became aware of it,
-`--aware-since <instant>` (RFC 3339, an offset is converted to UTC) or, by default, the moment of the run; the final
-report 14 days after `--measure-available <instant>`, the moment a corrective or mitigating measure became available,
-else due 14 days after one is, with no date. One moment of awareness applies to every match of the run; the human
-report prints it, given or read from the clock, above the matches when one is actively exploited, and the JSON report
-gives it as `awareSince`, and the measure as `measureAvailable`. An instant refused exits with 2.
+its evidence, `deadlines` in the JSON report): the early warning 24 hours and the notification 72 hours after the
+moment the vendor became aware of it, `--aware-since <instant>` (RFC 3339, an offset is converted to UTC) or, by
+default, the moment of the run; the final report 14 days after `--measure-available <instant>`, the moment a corrective
+or mitigating measure became available, else due 14 days after one is, with no date. One moment of awareness applies
+to every match of the run: when one is actively exploited, the human report prints it, given or read from the clock,
+above the matches, and the JSON report gives it as `awareSince`, the measure as `measureAvailable` (both `null`
+otherwise, so that a report read from the clock stays the same). An instant refused exits with 2.
 
 It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
 `--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records, the KEV catalog or the EUVD

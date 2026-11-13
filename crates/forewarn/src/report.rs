@@ -179,14 +179,17 @@ pub struct Awareness {
     pub deadlines: ReportingDeadlines,
 }
 
+/// A time of the system clock to the second, UTC; `None` before 1970 or past the range of `time`.
+pub fn offset_date_time(time: SystemTime) -> Option<OffsetDateTime> {
+    let elapsed = time.duration_since(SystemTime::UNIX_EPOCH).ok()?;
+    OffsetDateTime::from_unix_timestamp(i64::try_from(elapsed.as_secs()).ok()?).ok()
+}
+
 /// A time of a download or of a query in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time
 /// the calendar of `time` cannot write (before 1970 or after the year 9999), which a damaged cache or a clock set
 /// wrong could give.
 fn utc(time: SystemTime) -> String {
-    time.duration_since(SystemTime::UNIX_EPOCH)
-        .ok()
-        .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
-        .and_then(|seconds| OffsetDateTime::from_unix_timestamp(seconds).ok())
+    offset_date_time(time)
         .and_then(|time| {
             time.format(format_description!(
                 "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
@@ -463,6 +466,7 @@ pub fn matching_json(
         })
         .collect();
     let exploited_lists: Vec<Value> = exploited.iter().map(exploited_list_json).collect();
+    let exploited_any = matching.exploited_count() > 0;
     let affected: Vec<Value> = matching
         .matches()
         .iter()
@@ -489,8 +493,12 @@ pub fn matching_json(
         "osv": sources,
         "exploitedLists": exploited_lists,
         "exploitedCount": matching.exploited_count(),
-        "awareSince": awareness.since.to_string(),
-        "measureAvailable": awareness.measure_available.map(|moment| moment.to_string()),
+        // Only with an exploited match, so that a run reading the clock gives the same report as long as none is.
+        "awareSince": exploited_any.then(|| awareness.since.to_string()),
+        "measureAvailable": awareness
+            .measure_available
+            .filter(|_| exploited_any)
+            .map(|moment| moment.to_string()),
         "affected": affected,
         "notEvaluated": not_evaluated,
     });

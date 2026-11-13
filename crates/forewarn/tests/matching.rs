@@ -109,8 +109,6 @@ fn prints_the_same_result_as_json() {
             "--no-kev",
             "--format",
             "json",
-            "--aware-since",
-            "2026-11-13T09:30:00Z",
             "--osv",
             path(&osv),
             "-",
@@ -127,7 +125,7 @@ fn prints_the_same_result_as_json() {
             "osv": [{"kind": "local", "path": path(&osv), "recordCount": 4}],
             "exploitedLists": [],
             "exploitedCount": 0,
-            "awareSince": "2026-11-13T09:30:00Z",
+            "awareSince": null,
             "measureAvailable": null,
             "affected": [{
                 "name": "time",

@@ -51,6 +51,8 @@ left or overdue. The domain stays clock-free: the CLI parses RFC 3339 (offsets c
 2. [x] Human report: the moment of awareness (given or from the clock) and the measure, then the deadlines under the
    evidence of each exploited match; verified by integration tests, MXL-H4 among them; makes true MXL-18 and the
    human side of MXL-14 to MXL-16. (autonomous)
+3. [x] Docs and the fixes of the `high` review of the whole issue; verified by the tests of MXL-20 and MCH-16;
+   makes true MXL-20 for offsets and the measure, and the `null` rows of MCH-16. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -66,6 +68,7 @@ left or overdue. The domain stays clock-free: the CLI parses RFC 3339 (offsets c
 - red: MXL-14, MXL-15, MXL-16, MXL-17, MXL-19, MXL-20, MXL-21: `unexpected argument '--aware-since' found`.
 - Code review: no findings
 - checks: project-check green, check-specs clean (both specs `draft` until deliverable 2 traces MXL-18).
+- Code review: no findings
 - not verified: none.
 
 ## Deliverable 2
@@ -74,4 +77,19 @@ left or overdue. The domain stays clock-free: the CLI parses RFC 3339 (offsets c
 - red: MXL-H4, MXL-14, MXL-15, MXL-16, MXL-17, MXL-18, MXL-21: the report lacks `Reporting deadlines` and `report by:`.
 - Code review: no findings
 - checks: project-check green, check-specs clean.
+- Code review: no findings
+- not verified: none.
+
+## Deliverable 3
+- done: docs of the whole issue (README reflowed, CLAUDE.md, the help of `match`), and the fixes of the `high` review:
+  no panic on an instant past 9999 once converted to UTC (`checked_to_offset`), a final report past 9999 names
+  `--measure-available` even when both moments are equal, the error names the value as typed, `awareSince` and
+  `measureAvailable` `null` without an actively exploited match (MCH-16 amended, so that a report read from the clock
+  stays deterministic), the clock conversion shared with `report::utc`, the redundant dev-dependency on `time` removed.
+- red: MXL-20: `local datetime out of valid range` (exit 101) and `for '--aware-since'` instead of
+  `--measure-available`; MCH-16: `awareSince` a string instead of `null`.
+- High review: 8 findings; 6 fixed; not fixed: a refused instant exits with 2 even with no exploited match (MXL-20
+  chose it: an invalid value stays an invalid argument); a domain constructor from Unix seconds (an API change of the
+  domain, out of this issue).
+- Code review: no findings
 - not verified: none.
