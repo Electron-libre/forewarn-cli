@@ -4,7 +4,7 @@
 //! download holds and how it is read is the source's: it hands [`Cache::fetch`] two functions. The freshness of a
 //! download records the name and the size of each file it stored, checked before the copy is read (ADR 0010).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io;
@@ -64,7 +64,8 @@ struct Record {
     files: Option<Files>,
 }
 
-/// The size of each file of an entry directory, by name, but its freshness.
+/// The size of each file of an entry directory, by name, but its freshness and the hidden files a system tool may
+/// leave there (`.DS_Store`), which no source reads.
 type Files = BTreeMap<String, u64>;
 
 /// How a file of a cached copy differs from what its download stored.
@@ -447,7 +448,10 @@ fn check<E>(directory: &Path, stored: Option<&Files>) -> Result<Option<Damage>, 
         return Ok(None);
     };
     let found = list_files(directory)?;
-    let names: std::collections::BTreeSet<&String> = stored.keys().chain(found.keys()).collect();
+    if *stored == found {
+        return Ok(None);
+    }
+    let names: BTreeSet<&String> = stored.keys().chain(found.keys()).collect();
     Ok(names.into_iter().find_map(|name| {
         let change = match (stored.get(name), found.get(name)) {
             (Some(_), None) => Change::Removed,
@@ -462,13 +466,13 @@ fn check<E>(directory: &Path, stored: Option<&Files>) -> Result<Option<Damage>, 
     }))
 }
 
-/// The size of each file of a directory, by name, but its freshness.
+/// The size of each file of a directory, by name, but its freshness and its hidden files.
 fn list_files<E>(directory: &Path) -> Result<Files, Error<E>> {
     let mut files = Files::new();
     for entry in fs::read_dir(directory).map_err(|e| cache_error(&e))? {
         let entry = entry.map_err(|e| cache_error(&e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
-        if name != FRESHNESS_FILE {
+        if name != FRESHNESS_FILE && !name.starts_with('.') {
             let size = entry.metadata().map_err(|e| cache_error(&e))?.len();
             files.insert(name, size);
         }

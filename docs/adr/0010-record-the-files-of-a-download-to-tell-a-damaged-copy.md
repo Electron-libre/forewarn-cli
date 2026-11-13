@@ -1,6 +1,6 @@
 # 0010. Record the files of a download to tell a damaged cached copy
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-13
 
 ## Context
@@ -14,7 +14,8 @@ such as a permission refused or too many open files (`issues/check_the_integrity
 ## Decision
 
 - **A manifest in the freshness**: a download records in `forewarn-freshness`, beside the time and the URL, the name
-  and the size of each file it stored in the entry directory.
+  and the size of each file it stored in the entry directory. Hidden files (a name starting with `.`, such as the
+  `.DS_Store` a system tool leaves) are left out on both sides: no source reads them.
 - **Checked before a read**: a cached copy whose files differ from its manifest (a file missing, added, or of another
   size) is damaged: downloaded again once, as before, or refused under `offline` with the first file that differs. A
   copy that matches its manifest and fails to read is reported as it is, with no download.
@@ -29,4 +30,8 @@ such as a permission refused or too many open files (`issues/check_the_integrity
 
 - A record file removed or truncated outside forewarn is detected; an edit that keeps its size is read as it now is.
 - A record a newer forewarn refuses no longer downloads the archive at each run: it fails with the reason.
-- The first fetch of each entry after the upgrade downloads it again.
+- The first fetch of each entry after the upgrade downloads it again; where that download fails (no network), the
+  fetch fails rather than reading the older copy. Runs of an earlier forewarn sharing the cache rewrite the freshness
+  without a manifest, and the next run of this one downloads again.
+- A copy changed at the same size (zero-filled) is no longer downloaded again: its read error is reported, and
+  `--refresh always` or removing the entry recovers it.

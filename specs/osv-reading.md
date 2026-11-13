@@ -100,7 +100,8 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 - **OSR-37** (deterministic) withdrawn: replaced by OSR-38 to OSR-41, which tell a damaged snapshot from one that
   cannot be read by the files its download stored.
 - **OSR-38** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a snapshot whose files
-  differ from those its download stored (a file removed, added, or of another size, changed outside forewarn) must
+  differ from those its download stored (a file removed, added, or of another size, changed outside forewarn; a file
+  whose name starts with `.` is not compared) must
   download the archive again, at most once per fetch, and return what that download returns.
 - **OSR-39** (deterministic) A fetch under `offline` of a snapshot whose files differ from those its download stored
   must fail with the error of OSR-18, without a request.
@@ -128,7 +129,7 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   | the archive is not a zip archive | not a zip archive, with the reason |
   | an entry of the archive has an absolute name, a name holding `\`, or a name with a `..` component | unsafe archive entry, quoting its name |
   | a record of the archive cannot be read (OSR-9) | the error of OSR-9, naming the entry |
-  | the policy is `offline` and the files of the snapshot differ from those its download stored (OSR-39) | damaged cached copy, naming the first file that differs and whether it is missing, added or of another size |
+  | the policy is `offline` and the files of the snapshot differ from those its download stored (OSR-39) | damaged cached copy, naming the first file that differs and whether it was removed, added or has another size |
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
 - **OSR-22** (deterministic) A fetch must wait for another fetch of the same ecosystem (OSR-19) at most the time the
   caller gives, 40 minutes unless the caller gives another, then fail with the error of OSR-18.
@@ -215,6 +216,8 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 - (OSR-38) Given a snapshot of `crates.io` whose record file `RUSTSEC-2020-0071.json` was removed, or truncated, or
   beside which a file `extra.json` was added, its record of freshness intact, when `crates.io` is fetched under
   `if-missing`, then the archive is downloaded once and its vulnerabilities returned.
+- (OSR-38) Given a snapshot beside whose records a hidden file `.DS_Store` was left, when it is fetched under
+  `offline`, then its vulnerabilities are returned: a file whose name starts with `.` is not compared.
 - (OSR-39) Given the same snapshot, when it is fetched under `offline`, then it fails with "damaged cached copy"
   naming `RUSTSEC-2020-0071.json` (or `extra.json`) and no request is sent.
 - (OSR-38, OSR-16) Given a snapshot whose record file was removed and a server answering 503, when it is fetched

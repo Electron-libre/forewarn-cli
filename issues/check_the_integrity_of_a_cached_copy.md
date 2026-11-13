@@ -53,6 +53,9 @@ error on a matching copy is reported as it is. Out of scope: hashes, edits that 
 2. [x] KEV catalog and EUVD list: their fetch errors carry the damage, tests moved off KEV-18/EUV-21; verified by
    `kev_fetching.rs` and `euvd_fetching.rs`; makes true KEV-19 to KEV-22, EUV-22 to EUV-24; specs set `accepted`. (autonomous)
 
+3. [x] Fixes of the `high` review: hidden files left out of the manifest, the word "removed" in the error tables, a
+   fast path for an intact copy, a test of OSR-41 under `older-than`; ADR 0010 accepted with its consequences. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: d621b74840eca667d1a9edf423a19f979b096b60
@@ -77,4 +80,19 @@ error on a matching copy is reported as it is. Out of scope: hashes, edits that 
 - done: tests of KEV-19, KEV-21, KEV-22, EUV-23, EUV-24 added, KEV-18/EUV-21 tests re-cited; the three specs `accepted`.
 - red: none: the behaviour came with deliverable 1, these tests passed at once.
 - Code review: no findings
+- not verified: nothing.
+
+## Deliverable 3
+
+- done: `list_files` skips names starting with `.`; `check` returns at once when the files are equal; the error
+  tables say "removed"; ADR 0010 accepted, its consequences name the offline fallback lost, mixed versions and
+  same-size changes.
+- red: OSR-38: a `.DS_Store` beside the records failed offline with "damaged cached copy".
+- High review, not fixed: same-size damage no longer downloaded again and a legacy copy not used when its download
+  fails (decisions 2 and 3, now in the ADR's consequences); lossy non-UTF-8 names (the extract writes only the UTF-8
+  names of zip entries); the double listing of an OSV snapshot (a `stat` per file, small beside parsing it); the test
+  helpers copied across crates (separate test crates); the replaced-copy branch under the exclusive lock (the check
+  replaces a read there, as in the shared branch, which the tests cover).
+- Follow-up: `specs/osv-reading.md` now exceeds `spec_max_*` (40 requirements, 25 kB): issue to split it.- Code review: 1 finding, not fixed: a manifest holding a hidden name could only come from a build of deliverable 1,
+  never released; the same `list_files` writes and checks the manifest.
 - not verified: nothing.

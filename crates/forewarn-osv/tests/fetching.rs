@@ -1303,3 +1303,37 @@ fn a_snapshot_whose_freshness_names_no_files_is_read_offline() {
     assert_eq!(snapshots[0].freshness.downloaded_at, at(1_000));
     assert_eq!(server.requests().len(), 1);
 }
+
+// spec: OSR-41
+#[test]
+fn a_snapshot_whose_freshness_names_no_files_is_downloaded_again_under_older_than() {
+    let cache = TempDir::new().expect("a cache");
+    let server = cached_crates_io(cache.path());
+    forget_the_files_of_crates_io(cache.path());
+
+    let snapshots = archives(
+        cache.path(),
+        &server,
+        Refresh::OlderThan(Duration::from_secs(24 * 3_600)),
+    )
+    .fetch(&["crates.io"], || at(2_000))
+    .expect("the archive is fetched again");
+
+    assert_eq!(server.requests().len(), 2);
+    assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
+}
+
+// spec: OSR-38
+#[test]
+fn a_hidden_file_left_in_a_snapshot_is_not_damage() {
+    let cache = TempDir::new().expect("a cache");
+    let server = cached_crates_io(cache.path());
+    fs::write(cache.path().join("crates.io/.DS_Store"), "Bud1").expect("a hidden file");
+
+    let read = archives(cache.path(), &server, Refresh::Offline)
+        .fetch(&["crates.io"], || at(2_000))
+        .expect("the snapshot is read");
+
+    assert_eq!(ids(&read[0]), ["RUSTSEC-2020-0071"]);
+    assert_eq!(server.requests().len(), 1);
+}

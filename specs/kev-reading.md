@@ -75,7 +75,7 @@ so that a vendor can tell which of its vulnerabilities are actively exploited, a
   | another fetch still handles the catalog once the wait of KEV-13 is over | cache locked by another run, with the time waited |
   | the server cannot be reached, or answers with a status other than 200 | cannot download, with the URL and the reason or the status |
   | the downloaded catalog cannot be read (KEV-16) | the error of KEV-16 |
-  | the policy is `offline` and the files of the copy differ from those its download stored (KEV-20) | damaged cached copy, naming the first file that differs and whether it is missing, added or of another size |
+  | the policy is `offline` and the files of the copy differ from those its download stored (KEV-20) | damaged cached copy, naming the first file that differs and whether it was removed, added or has another size |
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
 
 - **KEV-16** (deterministic) Reading a refused catalog must fail with the error of this table, the first cause that

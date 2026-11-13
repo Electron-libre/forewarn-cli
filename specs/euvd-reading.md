@@ -71,7 +71,7 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   | a page repeats an earlier one (EUV-11) | page repeated, with its number |
   | the third attempt changed too (EUV-10) | list changed while paged, with the number of attempts |
   | the downloaded list cannot be read (EUV-16) | the error of EUV-16 |
-  | the policy is `offline` and the files of the copy differ from those its download stored (EUV-22) | damaged cached copy, naming the first file that differs and whether it is missing, added or of another size |
+  | the policy is `offline` and the files of the copy differ from those its download stored (EUV-22) | damaged cached copy, naming the first file that differs and whether it was removed, added or has another size |
   | the cache directory cannot be read or written | cannot use the cache, with the system's reason |
 
 - **EUV-16** (deterministic) Reading a refused file must fail with the error of this table, the first cause that
