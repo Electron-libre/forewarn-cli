@@ -92,8 +92,9 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   table of EUV-16.
 - **EUV-20** (deterministic) A download must fail with "cannot download" (EUV-15), naming the page it was at, once it
   has paged for the time the caller gives, 30 minutes unless it gives another, shorter than the wait of EUV-5.
-- **EUV-25** (deterministic) Each entry of a record must carry the record's `id` (`EUVD-2026-62586`), as the file
-  writes it, as the id of the list's record naming its CVE (EXF-10).
+- **EUV-25** (deterministic) Each entry of a record must carry the record's `id` (`EUVD-2026-62586`), the spaces
+  around it removed, as the id of the list's record naming its CVE (EXF-10), and no record id when that leaves it
+  empty.
 
 ## Scenarios
 
@@ -114,6 +115,8 @@ under a refresh policy, so that a European vendor watches the list it is expecte
 - (EUV-1) Given a record with no `exploitedSince`, or a `null` one, when the file is read, then its entries have no date.
 - (EUV-25) Given the file of EUV-H1, when it is read, then `CVE-2026-20320` carries the record id `EUVD-2026-62586` and
   `CVE-2021-44228` the record id `EUVD-2021-0001`.
+- (EUV-25) Given a record whose `id` is ` EUVD-2026-1 `, and one whose `id` is blank, when the file is read, then the
+  entries of the first carry the record id `EUVD-2026-1` and those of the second none.
 - (EUV-5) Given a run downloading the list into a cache, when a second run fetches it under `if-missing`, then the
   second waits, then reads the copy the first stored, without a request.
 - (EUV-6) Given a copy downloaded 2 hours ago, when it is fetched under `older-than 1h`, then the list is downloaded

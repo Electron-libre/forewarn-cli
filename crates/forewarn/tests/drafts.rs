@@ -380,3 +380,40 @@ fn the_path_of_a_draft_is_printed_with_its_control_characters_escaped() {
     let printed = format!("{}/a\\nb/{DRAFT}\n", path(parent.path()));
     assert!(run.stdout.contains(&printed), "{}", run.stdout);
 }
+
+// spec: EWD-8
+#[test]
+fn the_draft_names_the_euvd_id_of_the_euvd_record_naming_its_cve() {
+    let records = log4j_records();
+    let lists = TempDir::new().expect("a temporary directory");
+    let euvd = lists.path().join("euvd.json");
+    let list = json!({"items": [{
+        "id": "EUVD-2021-0001",
+        "aliases": "CVE-2021-44228\n",
+        "exploitedSince": "Dec 10, 2021, 12:00:00 AM",
+    }]});
+    fs::write(&euvd, list.to_string()).expect("the list is written");
+    let out = TempDir::new().expect("a temporary directory");
+    let args = [
+        "match",
+        "--osv",
+        path(records.path()),
+        "--no-kev",
+        "--euvd",
+        path(&euvd),
+        "--aware-since",
+        "2026-11-13T09:30:00Z",
+        "--drafts",
+        path(out.path()),
+        "-",
+    ];
+
+    let run = run(&args, Some(&shop()));
+
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let draft = fs::read_to_string(out.path().join(DRAFT)).expect("the draft is written");
+    assert!(
+        draft.contains("- **v20. EUVD ID**: EUVD\\-2021\\-0001\n"),
+        "{draft}"
+    );
+}

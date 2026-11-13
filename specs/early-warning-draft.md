@@ -124,7 +124,8 @@ document a person copies into the ENISA Single Reporting Platform form.
   `EUVD-2021-1234`, the EUVD id of their draft is `EUVD-2021-1234`.
 - (EWD-8) Given a match aliased to `EUVD-2021-9999` whose CVE an EUVD list names in the record `EUVD-2021-0001`, when
   it is drafted, then its EUVD id is `EUVD-2021-0001`; given an evidence whose record id does not start with `EUVD-`,
-  the EUVD id falls back on the aliases.
+  the EUVD id falls back on the aliases. Given `forewarn match --euvd` reading that list, when it writes the draft,
+  then `v20. EUVD ID` gives `EUVD-2021-0001`.
 - (EWD-5) Given a match that CISA KEV and EUVD both name, when it is drafted, then its draft carries both evidences, in
   the order of flagging.
 - (EWD-3) Given an SBOM listing `log4j-core` `2.14.1` twice, both matched to `CVE-2021-44228`, when the early
