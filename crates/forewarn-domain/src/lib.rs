@@ -1,10 +1,12 @@
 //! The domain of `forewarn`: SBOM components, completeness rules, vulnerability matching, the flagging of actively
-//! exploited vulnerabilities and CRA reporting deadlines. It performs no I/O and depends on no adapter.
+//! exploited vulnerabilities, CRA reporting deadlines and the draft of the early warning. It performs no I/O and
+//! depends on no adapter.
 
 pub mod completeness;
 mod cve;
 pub mod date;
 pub mod deadlines;
+pub mod early_warning;
 pub mod exploited;
 pub mod matching;
 mod purl;

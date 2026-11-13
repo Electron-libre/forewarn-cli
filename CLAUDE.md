@@ -14,7 +14,10 @@ date it gives as evidence (`specs/exploited-flagging.md`), and computes the CRA 
 vulnerability, 24 h and 72 h from the moment of awareness and 14 days from the moment a corrective measure is
 available, on a UTC moment of its own, and, at a given moment, the time left before each or how long it is overdue
 (`specs/reporting-deadlines.md`, ADR
-[0011](docs/adr/0011-compute-the-reporting-deadlines-on-utc-seconds-of-the-domain.md)); the exploited-list adapter reads the CISA KEV catalog, from a file or
+[0011](docs/adr/0011-compute-the-reporting-deadlines-on-utc-seconds-of-the-domain.md)), and drafts the early warning of
+each CVE of the exploited matches: the product, its manufacturer, the components, the CVE, the evidence and the
+deadlines filled, the other fields the ENISA SRP glossary 1.6 requires listed to complete (`specs/early-warning-draft.md`,
+ADR [0012](docs/adr/0012-align-the-early-warning-draft-on-the-enisa-srp-glossary.md)); the exploited-list adapter reads the CISA KEV catalog, from a file or
 fetched into a cache under the refresh policy and the lock of the OSV archives (crate `forewarn-cache`), into such a
 list, with the catalog's version and release date (`specs/kev-reading.md`, ADR
 [0008](docs/adr/0008-exploited-lists-crate-and-a-shared-cache-crate.md)), and reads the exploited records of EUVD, from a

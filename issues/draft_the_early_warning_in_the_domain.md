@@ -49,3 +49,38 @@ Draft the CRA early warning
 * Deterministic, no LLM: a field the tool cannot derive exactly stays to be completed, it is not written as prose.
 * The format of the draft belongs to an adapter (`write_the_early_warning_in_an_adapter`): no field name of the SRP
   form in the domain beyond what the type needs.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+A domain module `early_warning` turns a flagged report, the SBOM's product, the moment of awareness and an optional
+measure moment into one `EarlyWarning` per CVE of the exploited matches, listing their components, with the required fields of the ENISA SRP glossary 1.6 it
+cannot fill listed as to complete. Out of scope: any format, the CLI. No contact field (the glossary has none).
+
+## Plan
+1. [x] Draft the early warning: module `forewarn-domain::early_warning` (`EarlyWarning`, `ToComplete`,
+   `draft_early_warnings`), spec `early-warning-draft` and ADR 0012; verified by
+   `crates/forewarn-domain/tests/early_warning.rs` (~600 lines); makes true EWD-1 to EWD-11. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 8e41c409dbc758dfed70763a8fc82e55f0d74fe9
+- One draft per CVE and product, listing the affected components, not one per match (answer 1 a).
+- Title and summary always to complete, never composed (answer 2 a).
+- Manufacturer taken from the SBOM though the SRP fills its own, for the vendor to compare (answer 3 a).
+- Source measured at step 1: ENISA CRA SRP Glossary v1.6 (21 October 2026) and SRP FAQ (15 October 2026, no API at
+  the initial release), recorded in ADR 0012.
+
+## Deliverable 1
+- done: module `forewarn_domain::early_warning` (`EarlyWarning`, `AffectedComponent`, `ToComplete`,
+  `draft_early_warnings`), one draft per exploited CVE; spec `early-warning-draft` accepted; ADR 0012; `CLAUDE.md`
+  status line.
+- checks: project-check (fmt, clippy, tests, specs) pass; docs updated.
+- red: EWD-1, EWD-2, EWD-3, EWD-4, EWD-5, EWD-6, EWD-7, EWD-8, EWD-9, EWD-10, EWD-11, EWD-H1, EWD-H2: unresolved
+  import `forewarn_domain::early_warning`.
+- Code review: 1 findings: deadlines refused with no exploited match (fixed: computed only when a draft is given,
+  EWD-11 narrowed, test added).
+- not verified: none.
+- decisions needed: none.
