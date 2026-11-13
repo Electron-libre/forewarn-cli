@@ -167,9 +167,9 @@ impl Cache {
         } else {
             Mode::Shared
         };
-        // Whether the source failed to read the copy under the shared lock: a copy damaged outside forewarn is then
-        // read once more under the exclusive lock, then downloaded again (one download at most per fetch).
-        let mut damaged = false;
+        // The freshness of a copy the source failed to read under the shared lock (damaged outside forewarn): the
+        // fetch then downloads it under the exclusive lock, one download at most.
+        let mut damaged = None;
         loop {
             self.wait_for(&mut lock, mode, deadline)?;
             if mode == Mode::Exclusive && left_aside() {
@@ -186,10 +186,12 @@ impl Cache {
                     Err(error) if self.refresh == Refresh::Offline => {
                         return Err(Error::Source(error));
                     }
-                    Err(_) => damaged = true,
+                    Err(_) => damaged = Some(freshness),
                 },
-                // Another run may have replaced the damaged copy while this one waited for the exclusive lock.
-                (Some(freshness), Mode::Exclusive) if damaged => {
+                // The copy found damaged, unchanged since.
+                (Some(freshness), Mode::Exclusive) if damaged.as_ref() == Some(&freshness) => break,
+                // Another run replaced the damaged copy while this one waited for the exclusive lock.
+                (Some(freshness), Mode::Exclusive) if damaged.is_some() => {
                     if let Ok(value) = (source.read)(&directory) {
                         return Ok(Fetched { value, freshness });
                     }

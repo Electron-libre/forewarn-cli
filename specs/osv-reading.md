@@ -98,7 +98,7 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   | `always` | always |
 
 - **OSR-37** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a snapshot whose
-  records cannot be read (a file removed, truncated or damaged outside forewarn) must download the archive again, at
+  records cannot be read (a record file truncated or damaged outside forewarn) must download the archive again, at
   most once per fetch, and return what that download returns; a fetch under `offline` fails with the error of reading
   the snapshot (OSR-18).
 - **OSR-14** (deterministic) A download must request, with a `GET` and no body, the URL `<base>/<ecosystem>/all.zip`,
@@ -267,6 +267,8 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 
 ## Non-goals
 
+- Detecting a record file removed from a snapshot outside forewarn: the snapshot reads the files it holds
+  (`issues/check_the_integrity_of_a_cached_copy.md`).
 - Querying the OSV API by default: it sends the packages of the inventory out of the CI (ADR 0006); the caller opts
   in.
 - Caching the answers of the API, or reading them offline: a query depends on the moment it runs.

@@ -50,6 +50,9 @@ fails; `offline` keeps failing with the read error. Out of scope: detecting a da
    exclusive lock, which reads once more then downloads, one download at most; verified by tests in the OSV, KEV and
    EUVD fetching suites (truncated or removed copy under `if-missing` downloads once, `offline` fails with no request,
    a 503 after a damaged copy fails after one request); makes true OSR-37, KEV-18, EUV-21. (autonomous)
+2. [x] Fixes of the `high` review: skip the second read when the damaged copy is unchanged (same freshness), OSR-37
+   and README no longer promise a removed OSV record file is detected (a non-goal), EUV-21 traced under `offline`;
+   verified by the fetching suites; makes true OSR-37, EUV-21. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -64,3 +67,24 @@ fails; `offline` keeps failing with the read error. Out of scope: detecting a da
 - Code review: no findings
 - checks: project-check green (fmt, clippy, tests, specs); deliverable-size 199 lines.
 - not verified: none. decisions needed: none.
+
+## High review (5362145..e5473d4): 8 findings
+1. Any read error is taken as damage (a record a newer forewarn refuses downloads again each run): kept, the run fails
+   either way; told apart by `issues/check_the_integrity_of_a_cached_copy.md`.
+2. A removed OSV record file is not detected, as OSR-37 and the README said: fixed in the wording, non-goal pointing
+   to the new issue.
+3. The read error is dropped when the download that follows fails: kept, the download error is the one to act on and
+   the scenario of OSR-37 states it.
+4. The damaged copy is read twice: fixed, the exclusive lock reads it again only when its freshness changed.
+5. A permission error is taken as damage: kept, as 1; the new issue tells it apart.
+6. A manifest would check the integrity rather than infer it: `issues/check_the_integrity_of_a_cached_copy.md`.
+7. No test of a copy replaced by another run while this one waited: not fixed, it needs two runs racing on the lock;
+   the branch is the read of OSR-19's waiting run.
+8. EUV-21 untested under `offline`: fixed, a test added.
+
+## Summary of deliverable 2
+- done: the fixes of findings 2, 4, 8 above; follow-up issue `check_the_integrity_of_a_cached_copy`.
+- red: EUV-21: none, the `offline` test passed at once (the branch is shared with KEV-18).
+- Code review: no findings
+- checks: project-check green. not verified: finding 7 (a copy replaced while waiting). decisions needed: none.
+

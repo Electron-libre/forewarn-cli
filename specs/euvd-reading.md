@@ -110,6 +110,7 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   again; under `older-than 3h`, it is read from the cache.
 - (EUV-21) Given a cached list file that was truncated, its freshness intact, when the list is fetched under
   `if-missing`, then it is paged again and its list returned.
+  Under `offline`, it fails with "not JSON" and no request is sent.
 - (EUV-8) Given a server whose `total` is 250 over pages of 100, 100 and 50 records, when the list is fetched, then pages
   0 to 2 are requested and page 3 is not.
 - (EUV-8) Given a server whose `total` is 0 and whose page 0 is empty, when the list is fetched, then the list is empty.
