@@ -37,7 +37,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [share_the_osv_cache_lock_between_readers](issues/share_the_osv_cache_lock_between_readers.md)
   - [match_large_archives_without_the_cross_product](issues/done/match_large_archives_without_the_cross_product.md)
   - [evaluate_ecosystem_ranges_beyond_semver](issues/done/evaluate_ecosystem_ranges_beyond_semver.md)
-  - [evaluate_nuget_and_packagist_ranges](issues/evaluate_nuget_and_packagist_ranges.md)
+  - [evaluate_nuget_and_packagist_ranges](issues/done/evaluate_nuget_and_packagist_ranges.md)
 
 ## Flag actively exploited vulnerabilities (KEV, EUVD)
 

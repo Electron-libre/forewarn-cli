@@ -143,7 +143,7 @@ Packagist are out of scope, left for a follow-up issue; their ranges stay "range
 - done: `update-docs` over the issue (README, CLAUDE.md already current); `high` review fixes: Maven parsed as the
   nested lists of `ComparableVersion` (`1.foo` < `1-foo`, `1-0-1` < `1-1`), an empty RubyGems version read as `0`,
   the ordering of each ecosystem moved into the `ECOSYSTEMS` table, the CLI test component named `django`; VMT-25
-  and VMT-26 restated, a Maven scenario added; follow-up issue `issues/evaluate_nuget_and_packagist_ranges.md`.
+  and VMT-26 restated, a Maven scenario added; follow-up issue `issues/done/evaluate_nuget_and_packagist_ranges.md`.
 
 | check | result |
 |---|---|
