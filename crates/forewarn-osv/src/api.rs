@@ -86,7 +86,7 @@ impl fmt::Display for QueryError {
             // The message of a record read from a file, the id in place of its path.
             Self::Record { id, cause } => write!(
                 f,
-                "OSV record {}",
+                "OSV API record {}",
                 ReadError {
                     path: id.into(),
                     cause: cause.clone(),

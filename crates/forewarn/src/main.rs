@@ -18,6 +18,7 @@ use forewarn_domain::completeness::check;
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
 use forewarn_domain::vulnerability::Vulnerability;
+use forewarn_osv::api::{Api, Package};
 use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
@@ -71,6 +72,13 @@ struct MatchArgs {
     /// [default: `https://osv-vulnerabilities.storage.googleapis.com`].
     #[arg(long)]
     osv_url: Option<String>,
+    /// Query the OSV API instead of fetching the OSV archives: sends the OSV ecosystem, name and version of each
+    /// component to the OSV API, out of the CI; the answer depends on the moment of the query.
+    #[arg(long, conflicts_with_all = ["osv", "cache", "refresh", "osv_url"])]
+    osv_api: bool,
+    /// The URL of the OSV API queried with `--osv-api` [default: `https://api.osv.dev`].
+    #[arg(long, requires = "osv_api")]
+    osv_api_url: Option<String>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -113,7 +121,7 @@ fn run_check(args: &CheckArgs) -> Result<ExitCode, u8> {
 
 fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
-    let archives = args.osv.is_empty().then(|| archives(args));
+    let archives = (args.osv.is_empty() && !args.osv_api).then(|| archives(args));
     let sbom = read_sbom(&args.sbom)?;
     let mut records = Records::default();
     let mut fetched = Vec::new();
@@ -125,6 +133,14 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
             let count = records.add(snapshot.vulnerabilities);
             fetched.push((snapshot.ecosystem, snapshot.freshness, count));
         }
+    }
+    let mut queried = None;
+    if args.osv_api {
+        let answer = api(args)
+            .query(&packages(&sbom), SystemTime::now)
+            .map_err(|error| no_records(&error))?;
+        let count = records.add(answer.vulnerabilities);
+        queried = Some((answer.freshness, count));
     }
     let mut local = Vec::new();
     for path in &args.osv {
@@ -139,6 +155,10 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
             freshness,
             records: *records,
         })
+        .chain(queried.iter().map(|(freshness, records)| Source::Api {
+            freshness,
+            records: *records,
+        }))
         .chain(local.iter().map(|(path, records)| Source::Local {
             path,
             records: *records,
@@ -170,6 +190,15 @@ fn archives(args: &MatchArgs) -> Archives {
         archives.base_url.clone_from(url);
     }
     archives
+}
+
+/// The OSV API the arguments name (MCH-27).
+fn api(args: &MatchArgs) -> Api {
+    let mut api = Api::default();
+    if let Some(url) = &args.osv_api_url {
+        api.base_url.clone_from(url);
+    }
+    api
 }
 
 /// The refresh policy without `--refresh`: an archive older than a day is downloaded again (MCH-11).
@@ -240,6 +269,19 @@ fn ecosystems(sbom: &Sbom) -> Vec<&'static str> {
         }
     }
     ecosystems
+}
+
+/// The OSV ecosystem, name and version of each component that maps to an ecosystem, in the order of the SBOM (MCH-24).
+fn packages(sbom: &Sbom) -> Vec<Package> {
+    sbom.components
+        .iter()
+        .filter_map(|component| ComponentPackage::of(component).ok())
+        .map(|package| Package {
+            ecosystem: package.ecosystem.to_owned(),
+            name: package.name,
+            version: package.version,
+        })
+        .collect()
 }
 
 /// The vulnerabilities read, each id once (MCH-21).
@@ -329,9 +371,31 @@ fn input_name(path: &Path) -> &Path {
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+    use forewarn_osv::api::OSV_API;
     use forewarn_osv::fetch::OSV_ARCHIVES;
 
-    use super::{Cli, Command, archives};
+    use super::{Cli, Command, api, archives};
+
+    // spec: MCH-27 (internal: a query of the OSV API needs the network)
+    #[test]
+    fn the_api_is_osv_dev_unless_a_url_is_given() {
+        let base_url = |args: &[&str]| {
+            let Command::Match(args) = Cli::parse_from(args).command else {
+                panic!("a match command")
+            };
+            api(&args).base_url
+        };
+        assert_eq!(base_url(&["forewarn", "match", "--osv-api", "-"]), OSV_API);
+        let mirror = [
+            "forewarn",
+            "match",
+            "--osv-api",
+            "--osv-api-url",
+            "http://m",
+            "-",
+        ];
+        assert_eq!(base_url(&mirror), "http://m");
+    }
 
     // spec: MCH-13 (internal: a download from the OSV bucket needs the network)
     #[test]

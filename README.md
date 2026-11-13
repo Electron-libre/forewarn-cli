@@ -30,6 +30,7 @@ minimum), and each component missing a supplier, a license or a hash. The JSON r
 forewarn match sbom.cdx.json                      # fetch the OSV archive of each ecosystem of the SBOM into a cache
 forewarn match --refresh offline sbom.cdx.json    # an air-gapped CI: the cache only, no request
 forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
+forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, sending the packages of the SBOM out
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
@@ -40,8 +41,10 @@ whose ranges are not compared yet), how many are clean, and how fresh the OSV da
 names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from the OSV bucket (`--osv-url` for a
 mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--cache` for another), again once a day
 (`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). Two runs that share a cache on one machine
-wait for each other, at most 40 minutes per ecosystem. It exits with 1 when a component is
-affected, 5 when the OSV records cannot be read or fetched, and otherwise as `check` does.
+wait for each other, at most 40 minutes per ecosystem. `--osv-api` queries the OSV API instead (`--osv-api-url` for
+another): no archive is downloaded, but the OSV ecosystem, name and version of each component leave the CI, and the
+answer depends on the moment of the query, which the report gives; it is never on by default. It exits with 1 when a
+component is affected, 5 when the OSV records cannot be read, fetched or queried, and otherwise as `check` does.
 
 ## License
 

@@ -12,6 +12,7 @@ use forewarn_domain::matching::{
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
+use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
 use time::OffsetDateTime;
@@ -140,16 +141,19 @@ pub enum Source<'a> {
         freshness: &'a Freshness,
         records: usize,
     },
+    /// The OSV API, queried with `--osv-api`, and the number of records it named.
+    Api {
+        freshness: &'a QueryFreshness,
+        records: usize,
+    },
     /// A record file or a directory the user gave with `--osv`, and the number of records it held.
     Local { path: &'a Path, records: usize },
 }
 
-/// The time of a download in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time a damaged
+/// A time (of a download, of a query) in RFC 3339, UTC, to the second (`2026-11-13T09:30:00Z`); `unknown` for a time a damaged
 /// cache could hold that the calendar of `time` cannot write (before 1970 or after the year 9999).
-fn utc(freshness: &Freshness) -> String {
-    freshness
-        .downloaded_at
-        .duration_since(SystemTime::UNIX_EPOCH)
+fn utc(time: SystemTime) -> String {
+    time.duration_since(SystemTime::UNIX_EPOCH)
         .ok()
         .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
         .and_then(|seconds| OffsetDateTime::from_unix_timestamp(seconds).ok())
@@ -181,36 +185,7 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
         text.push_str("OSV records:\n");
     }
     for source in sources {
-        match source {
-            Source::Archive {
-                ecosystem,
-                freshness,
-                records: count,
-            } => {
-                text.push_str("  ");
-                push_escaped(&mut text, ecosystem);
-                let _ = write!(
-                    text,
-                    ": {count} {}, downloaded {} from ",
-                    records(*count),
-                    utc(freshness)
-                );
-                push_escaped(&mut text, &freshness.url);
-                if let Some(last_modified) = &freshness.last_modified {
-                    text.push_str(", Last-Modified ");
-                    push_escaped(&mut text, last_modified);
-                }
-                text.push('\n');
-            }
-            Source::Local {
-                path,
-                records: count,
-            } => {
-                text.push_str("  ");
-                push_escaped(&mut text, &path.to_string_lossy());
-                let _ = writeln!(text, ": {count} {}, local", records(*count));
-            }
-        }
+        push_source(&mut text, source);
     }
     let _ = writeln!(text, "Affected ({}):", matching.matches().len());
     for found in matching.matches() {
@@ -259,6 +234,53 @@ pub fn matching_human(sbom: &Sbom, sources: &[Source], matching: &MatchReport) -
     text
 }
 
+/// Pushes a source of OSV records with its record count and freshness (MCH-4, MCH-22, MCH-26).
+fn push_source(text: &mut String, source: &Source) {
+    match source {
+        Source::Archive {
+            ecosystem,
+            freshness,
+            records: count,
+        } => {
+            text.push_str("  ");
+            push_escaped(text, ecosystem);
+            let _ = write!(
+                text,
+                ": {count} {}, downloaded {} from ",
+                records(*count),
+                utc(freshness.downloaded_at)
+            );
+            push_escaped(text, &freshness.url);
+            if let Some(last_modified) = &freshness.last_modified {
+                text.push_str(", Last-Modified ");
+                push_escaped(text, last_modified);
+            }
+            text.push('\n');
+        }
+        Source::Api {
+            freshness,
+            records: count,
+        } => {
+            let _ = write!(
+                text,
+                "  OSV API: {count} {}, queried {} from ",
+                records(*count),
+                utc(freshness.queried_at)
+            );
+            push_escaped(text, &freshness.url);
+            text.push('\n');
+        }
+        Source::Local {
+            path,
+            records: count,
+        } => {
+            text.push_str("  ");
+            push_escaped(text, &path.to_string_lossy());
+            let _ = writeln!(text, ": {count} {}, local", records(*count));
+        }
+    }
+}
+
 fn push_component_ref(text: &mut String, component: &ComponentRef) {
     push_component(
         text,
@@ -281,8 +303,14 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
                 "kind": "archive",
                 "ecosystem": ecosystem,
                 "url": freshness.url,
-                "downloadedAt": utc(freshness),
+                "downloadedAt": utc(freshness.downloaded_at),
                 "lastModified": freshness.last_modified,
+                "recordCount": records,
+            }),
+            Source::Api { freshness, records } => json!({
+                "kind": "api",
+                "url": freshness.url,
+                "queriedAt": utc(freshness.queried_at),
                 "recordCount": records,
             }),
             Source::Local { path, records } => {

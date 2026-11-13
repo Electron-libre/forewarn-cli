@@ -18,7 +18,8 @@ per ecosystem makes concurrent runs sharing a cache wait for each other (ADR
 (`/v1/querybatch`, then `/v1/vulns/<id>`), an opt-in source that sends the ecosystem, name and version of each
 component out (ADR [0006](docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md)).
 `forewarn match` prints the affected components of an SBOM, apart from those not evaluated, matched against the cached
-OSV archives of the ecosystems it uses, or local records given with `--osv` (`specs/cli-match.md`).
+OSV archives of the ecosystems it uses, local records given with `--osv`, or, with `--osv-api`, the records the
+OSV API names for its components (`specs/cli-match.md`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 

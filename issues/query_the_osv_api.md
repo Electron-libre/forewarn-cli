@@ -48,9 +48,9 @@ and the time of the query as the source. Out of scope: caching the answers, retr
 1. [x] API query: module `forewarn_osv::api` (batches of 1000, pagination, one record request per id, errors,
    freshness), ADR 0006; verified by tests against a loopback HTTP server; makes true OSR-24 to OSR-31, OSR-H6, the
    OSV reading spec `accepted`. (~800 lines)
-2. [ ] CLI: `--osv-api` and `--osv-api-url` on `forewarn match`, the API source in both reports, the help and the docs
+2. [x] CLI: `--osv-api` and `--osv-api-url` on `forewarn match`, the API source in both reports, the help and the docs
    saying what leaves the CI; verified by end-to-end tests of the binary against a loopback server; makes true MCH-24
-   to MCH-28, MCH-H3, the match spec `accepted`. (~400 lines)
+   to MCH-28, MCH-H3, the match spec `accepted`. (~400 lines) (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -66,4 +66,14 @@ and the time of the query as the source. Out of scope: caching the answers, retr
   with `fetch`; ADR 0006 accepted; `specs/osv-reading.md` accepted; CLAUDE.md updated.
 - checks: tests pass (16 new, loopback server), clippy pedantic clean, `check-specs` passes.
 - red: OSR-H6, OSR-24, OSR-25, OSR-26, OSR-27, OSR-28, OSR-29, OSR-30, OSR-31: `unresolved import forewarn_osv::api`.
+- Code review: no findings
+
+## Summary of deliverable 2
+- done: `forewarn match --osv-api` and `--osv-api-url` (conflicting with `--osv`, `--cache`, `--refresh`,
+  `--osv-url`); the API source in the human and JSON reports (`kind: "api"`, `queriedAt`); the help says what the API
+  receives; `push_source` split out of the human report (pedantic `too_many_lines`); README and CLAUDE.md updated;
+  `specs/cli-match.md` accepted. An error on a record of the API names it `OSV API record <id>`.
+- checks: tests pass (8 new end-to-end, 1 internal), clippy pedantic clean, `check-specs` passes.
+- red: MCH-H3, MCH-24, MCH-26, MCH-27, MCH-16, MCH-12, MCH-14, MCH-28: exit code 2, `unexpected argument
+  '--osv-api'` (MCH-10 and MCH-25 passed before the code: their exit codes do not depend on the flag existing).
 - Code review: no findings
