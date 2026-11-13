@@ -1,6 +1,6 @@
 ---
 id: KEV
-status: draft
+status: accepted
 adrs: [0004, 0005, 0007, 0008]
 ---
 

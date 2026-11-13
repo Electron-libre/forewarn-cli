@@ -310,6 +310,7 @@ dependencies = [
 name = "forewarn-exploited"
 version = "0.0.0"
 dependencies = [
+ "forewarn-cache",
  "forewarn-domain",
  "serde",
  "serde_json",

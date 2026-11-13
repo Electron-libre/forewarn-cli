@@ -57,8 +57,8 @@ and `ETag` sent; every `cveID` and `dateAdded` valid.
 2. [x] Move the cache machinery of `forewarn-osv/src/fetch.rs` (refresh policy, freshness, shared/exclusive lock,
    scratch paths, replacement) into a new crate `forewarn-cache`; OSV keeps its API and errors; verified by the OSV
    fetch tests unchanged and green (pure refactor, no new requirement). ~700 lines. (autonomous)
-3. [ ] Fetch the KEV catalog into a cache through `forewarn-cache`; verified by loopback-server and lock tests; makes
-   true KEV-3 to KEV-15, spec `accepted`. ~600 lines.
+3. [x] Fetch the KEV catalog into a cache through `forewarn-cache`; verified by loopback-server and lock tests; makes
+   true KEV-3 to KEV-15, spec `accepted`. ~600 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -103,3 +103,23 @@ red: none (refactor under the existing tests).
 Code review: no findings
 
 not verified: none. decisions needed: none.
+
+## Deliverable 3: fetch the KEV catalog into a cache
+done: `kev::Feed` downloads the catalog (`KEV_CATALOG` by default) into the entry `cisa-kev` of a cache through
+`forewarn-cache`, returns it with the freshness of the download, and its errors (`FetchError`); spec `kev-reading`
+accepted.
+
+| check | result |
+|---|---|
+| tests | 18 new loopback-server and lock tests, all green |
+| lint | clean |
+| specs | `check-specs` clean, every KEV requirement traced |
+| docs | `CLAUDE.md` status and layout |
+| code review | see below |
+
+red: KEV-H2, KEV-H3, KEV-3, KEV-4, KEV-5, KEV-6, KEV-7, KEV-8, KEV-9, KEV-10, KEV-11, KEV-12, KEV-13, KEV-14, KEV-15:
+`not yet implemented` (the stub `Feed::new` and `Feed::fetch` panicked; 17 of 18 failed, the lock holder helper passed).
+
+Code review: no findings
+
+not verified: the real CISA URL is not requested by the tests (measured once by hand at planning). decisions needed: none.
