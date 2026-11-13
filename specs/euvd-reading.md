@@ -1,6 +1,6 @@
 ---
 id: EUV
-status: draft
+status: accepted
 adrs: [0004, 0005, 0007, 0008, 0009]
 ---
 

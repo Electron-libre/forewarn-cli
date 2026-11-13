@@ -50,8 +50,8 @@ error on a matching copy is reported as it is. Out of scope: hashes, edits that 
 1. [x] Manifest in `forewarn-cache` and the OSV snapshots: recorded at download, checked before a read, new error
    `damaged cached copy`, an older freshness downloaded again once; verified by the tests of `crates/forewarn-osv/tests/fetching.rs`
    (the OSR-37 ones moved to the new ids); makes true OSR-38, OSR-39, OSR-40, OSR-41 (ADR 0010 draft committed with it). (autonomous)
-2. [ ] KEV catalog and EUVD list: their fetch errors carry the damage, tests moved off KEV-18/EUV-21; verified by
-   `kev_fetching.rs` and `euvd_fetching.rs`; makes true KEV-19 to KEV-22, EUV-22 to EUV-24; specs set `accepted`.
+2. [x] KEV catalog and EUVD list: their fetch errors carry the damage, tests moved off KEV-18/EUV-21; verified by
+   `kev_fetching.rs` and `euvd_fetching.rs`; makes true KEV-19 to KEV-22, EUV-22 to EUV-24; specs set `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,3 +71,10 @@ error on a matching copy is reported as it is. Out of scope: hashes, edits that 
   deliverable 2.
 - Code review: no findings
 - not verified: the permission test of OSR-40 returns early when run as root.
+
+## Deliverable 2
+
+- done: tests of KEV-19, KEV-21, KEV-22, EUV-23, EUV-24 added, KEV-18/EUV-21 tests re-cited; the three specs `accepted`.
+- red: none: the behaviour came with deliverable 1, these tests passed at once.
+- Code review: no findings
+- not verified: nothing.
