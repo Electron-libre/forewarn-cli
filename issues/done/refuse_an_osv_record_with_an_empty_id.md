@@ -94,7 +94,7 @@ Code review: no findings
 
 The `high` review of the issue, 7 findings:
 1. The domain still groups records by an empty id from another adapter: filed as
-   `issues/group_no_records_by_an_empty_id_in_the_domain.md`.
+   `issues/done/group_no_records_by_an_empty_id_in_the_domain.md`.
 2. An id of Unicode whitespace only (U+00A0) is kept: not fixed, OSR-34 trims ASCII whitespace only and keeps the
    rest as written; no OSV id holds any.
 3. One blank id in an archive fails the whole ecosystem: not fixed, the decision 1 a of this issue (none today).
