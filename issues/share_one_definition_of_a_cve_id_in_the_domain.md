@@ -38,4 +38,4 @@ Flag actively exploited vulnerabilities (KEV, EUVD)
 # Resources
 * `crates/forewarn-domain/src/matching.rs`: `is_cve`, `read_id`, `Named`.
 * `crates/forewarn-domain/src/exploited.rs`: `is_cve`, `ExploitedEntry::new`.
-* `issues/compare_cve_ids_ignoring_case_in_matching.md`: the measure of lower-case CVE ids.
+* `issues/done/compare_cve_ids_ignoring_case_in_matching.md`: the measure of lower-case CVE ids.
