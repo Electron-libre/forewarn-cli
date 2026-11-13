@@ -58,10 +58,15 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 
 ## Compute CRA reporting deadlines
 
-- Goal: from the moment the vendor becomes aware of an actively exploited vulnerability, the domain computes the early
-  warning (24 h), notification (72 h) and final report (14 days) deadlines, covered by BDD scenarios.
+- Goal: the domain computes the early warning (24 h) and notification (72 h) deadlines from the moment the vendor
+  becomes aware of an actively exploited vulnerability, and the final report deadline (14 days) from the moment a
+  corrective or mitigating measure is available (CRA article 14(2)), covered by BDD scenarios.
 - Why: a wrong deadline is the costliest bug of the project; it deserves its own milestone and tests.
-- State: idea
+- State: in issues
+- Issues:
+  - [compute_cra_reporting_deadlines](issues/compute_cra_reporting_deadlines.md)
+  - [cli_print_reporting_deadlines](issues/cli_print_reporting_deadlines.md)
+  - [tell_overdue_reporting_deadlines](issues/tell_overdue_reporting_deadlines.md)
 
 ## Draft the CRA early warning
 
