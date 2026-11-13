@@ -53,7 +53,7 @@ then `version_compare`), in the domain, with no new dependency. Every ecosystem 
    true VMT-27, VMT-23 (NuGet row), VMT-8, VMT-10, MCH-2, MCH-16. (autonomous)
 2. [x] Packagist: Composer's normalization and `version_compare` as a `Scheme`; verified by the Packagist scenarios;
    makes true VMT-28, VMT-23 (Packagist row); the spec set `accepted`. (autonomous)
-3. [ ] Docs (README) and the fixes of the `high` review of the whole issue.
+3. [x] Docs (README) and the fixes of the `high` review of the whole issue. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -98,4 +98,34 @@ then `version_compare`), in the domain, with no new dependency. Every ecosystem 
   `RangeNotEvaluated`.
 - Code review: no findings
 - not verified: Composer's `@dev` flag and `as` aliases are refused as invalid (non-goal), not stripped as Composer does
+- decisions needed: none
+
+## Deliverable 3: docs and the high review
+- done: `ECOSYSTEMS` and `ComponentPackage` hold a `Scheme`, no longer an `Option`; `PhpPart` an enum in the order
+  of `version_compare` (derived `Ord`), no rank numbers; `Packagist::parse` borrows instead of copying; README names
+  an unreadable version among the reasons not evaluated.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`) |
+| docs | README, doc comments of `matching.rs` |
+| code review | high on `b5c85d4..HEAD`: 7 findings; low on this deliverable, see below |
+
+- red: none (refactor and docs, no new behaviour)
+- High review, 7 findings:
+  1. `stable` read in any case, where Composer keeps a non-lowercase `STABLE` as an unknown word: not fixed, VMT-28
+     says "any case" for every stability; too rare to be worth a case-sensitive path.
+  2. A NuGet numeric label over `int32` compared as a number, NuGet compares it as text: not fixed, decision
+     "NuGet: lenient" of the plan.
+  3. NuGet numeric parts over `int32` accepted: not fixed, same decision.
+  4. `Option<Scheme>` now always `Some`: fixed.
+  5. README list of reasons not evaluated incomplete: fixed (an unreadable version named).
+  6. Rank numbers of `version_compare` scattered: fixed (`PhpPart` enum with derived `Ord`).
+  7. Copies in `Packagist::parse` and events parsed again per pair: the copy fixed; parsing the events once per
+     range concerns every ordering, not this issue.
+- VMT-10 and VMT-23 keep the case of an ecosystem VMT-23 does not name: unreachable today, true when VMT-4 grows.
+- Code review: no findings
+- not verified: none
 - decisions needed: none

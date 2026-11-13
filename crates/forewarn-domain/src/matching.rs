@@ -23,25 +23,20 @@ enum NameForm {
 }
 
 /// The package URL types matching knows: type, OSV ecosystem, name form (VMT-4), and the ordering of the versions of
-/// its `ECOSYSTEM` ranges, if matching compares them (VMT-23).
-const ECOSYSTEMS: [(&str, &str, NameForm, Option<Scheme>); 8] = [
-    ("cargo", "crates.io", NameForm::Name, Some(Scheme::Semver)),
-    ("npm", "npm", NameForm::Slash, Some(Scheme::Semver)),
-    ("pypi", "PyPI", NameForm::Name, Some(Scheme::Pep440)),
-    (
-        "maven",
-        "Maven",
-        NameForm::ColonRequired,
-        Some(Scheme::Maven),
-    ),
-    ("golang", "Go", NameForm::Slash, Some(Scheme::Semver)),
-    ("nuget", "NuGet", NameForm::Name, Some(Scheme::NuGet)),
-    ("gem", "RubyGems", NameForm::Name, Some(Scheme::RubyGems)),
+/// its `ECOSYSTEM` ranges (VMT-23).
+const ECOSYSTEMS: [(&str, &str, NameForm, Scheme); 8] = [
+    ("cargo", "crates.io", NameForm::Name, Scheme::Semver),
+    ("npm", "npm", NameForm::Slash, Scheme::Semver),
+    ("pypi", "PyPI", NameForm::Name, Scheme::Pep440),
+    ("maven", "Maven", NameForm::ColonRequired, Scheme::Maven),
+    ("golang", "Go", NameForm::Slash, Scheme::Semver),
+    ("nuget", "NuGet", NameForm::Name, Scheme::NuGet),
+    ("gem", "RubyGems", NameForm::Name, Scheme::RubyGems),
     (
         "composer",
         "Packagist",
         NameForm::SlashRequired,
-        Some(Scheme::Packagist),
+        Scheme::Packagist,
     ),
 ];
 
@@ -61,7 +56,7 @@ pub enum ComponentReason {
 /// Why a pair of a component and a vulnerability naming its package cannot be evaluated (VMT-10).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PairReason {
-    /// A range of the package is ordered in a way matching does not compare yet.
+    /// The only ranges of the package are `GIT` ranges, which matching does not compare.
     RangeNotEvaluated,
     /// The version, or a version of a range's events, is not valid in the ordering the range is compared by.
     InvalidVersion,
@@ -509,8 +504,8 @@ pub struct ComponentPackage {
     pub name: String,
     /// The component's version, else the version of its package URL.
     pub version: String,
-    /// The ordering of the versions of the `ECOSYSTEM` ranges of its ecosystem, if matching compares them.
-    scheme: Option<Scheme>,
+    /// The ordering of the versions of the `ECOSYSTEM` ranges of its ecosystem.
+    scheme: Scheme,
 }
 
 impl ComponentPackage {

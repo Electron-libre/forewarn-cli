@@ -36,10 +36,10 @@ pub(crate) enum Scheme {
 impl Scheme {
     /// The ordering a range of this kind is compared by, for a package whose ecosystem orders its versions by
     /// `ecosystem`, or `None` when matching does not compare it (VMT-9, VMT-23).
-    pub(crate) fn of(kind: RangeKind, ecosystem: Option<Self>) -> Option<Self> {
+    pub(crate) fn of(kind: RangeKind, ecosystem: Self) -> Option<Self> {
         match kind {
             RangeKind::Semver => Some(Self::Semver),
-            RangeKind::Ecosystem => ecosystem,
+            RangeKind::Ecosystem => Some(ecosystem),
             RangeKind::Git => None,
         }
     }
@@ -644,27 +644,20 @@ fn are_nuget_labels(text: &str) -> bool {
 /// `version_compare` (VMT-28).
 pub(crate) struct Packagist;
 
-/// A part of a normalized `Packagist` version: a number, or a word ranked as `version_compare` ranks it.
-#[derive(Debug, PartialEq, Eq)]
+/// A part of a normalized `Packagist` version, in the order of `version_compare`: `dev` < `alpha` < `beta` < `RC` <
+/// a number < `patch`, two numbers compared as numbers.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum PhpPart {
+    Dev,
+    Alpha,
+    Beta,
+    Rc,
     Number(Number),
-    Word(u8),
+    Patch,
 }
 
-/// The rank of `dev`, and of a number among the words of `version_compare`.
-const DEV: u8 = 0;
-const NUMBER: u8 = 4;
 /// `x` in a branch such as `1.x-dev`.
 const BRANCH_X: &str = "9999999";
-
-impl PhpPart {
-    fn rank(&self) -> u8 {
-        match self {
-            Self::Number(_) => NUMBER,
-            Self::Word(rank) => *rank,
-        }
-    }
-}
 
 impl VersionOrder for Packagist {
     /// The parts of the normalized version, in order.
@@ -679,27 +672,26 @@ impl VersionOrder for Packagist {
             Some((main, metadata))
                 if !main.is_empty() && !metadata.is_empty() && !main.contains(',') =>
             {
-                main.to_owned()
+                main
             }
             Some(_) => return None,
-            None => version,
+            None => &version,
         };
-        let version = version.strip_prefix('v').unwrap_or(&version);
+        let version = version.strip_prefix('v').unwrap_or(version);
         classical(version)
             .or_else(|| dated(version))
             .or_else(|| branch(version))
     }
 
     fn compare(a: &Self::Key, b: &Self::Key) -> Ordering {
-        let compare_parts = |a: &PhpPart, b: &PhpPart| match (a, b) {
-            (PhpPart::Number(a), PhpPart::Number(b)) => a.cmp(b),
-            _ => a.rank().cmp(&b.rank()),
-        };
         // A version going on past the other: after it when it goes on with a number, else as its word against one.
-        let going_on = |part: &PhpPart| part.rank().cmp(&NUMBER).then(Ordering::Greater);
+        let going_on = |part: &PhpPart| match part {
+            PhpPart::Number(_) => Ordering::Greater,
+            word => word.cmp(&PhpPart::Number(Number::of("0"))),
+        };
         a.iter()
             .zip(b)
-            .map(|(a, b)| compare_parts(a, b))
+            .map(|(a, b)| a.cmp(b))
             .find(|order| order.is_ne())
             .unwrap_or_else(|| match (a.get(b.len()), b.get(a.len())) {
                 (Some(rest), _) => going_on(rest),
@@ -792,32 +784,32 @@ fn branch(version: &str) -> Option<Vec<PhpPart>> {
             _ => PhpPart::Number(Number::of(BRANCH_X)),
         })
         .collect();
-    parts.push(PhpPart::Word(DEV));
+    parts.push(PhpPart::Dev);
     Some(parts)
 }
 
 /// The modifier after the numbers, whole: an optional `.`, `_` or `-`, an optional stability with its numbers, an
 /// optional `dev` after an optional `.` or `-`.
 fn modifier(text: &str) -> Option<Vec<PhpPart>> {
-    /// The stabilities, in the order Composer tries them, with their rank in `version_compare` (`None`: `stable`).
-    const STABILITIES: [(&str, Option<u8>); 9] = [
+    /// The stabilities, in the order Composer tries them, with the word they normalize to (`None`: `stable`).
+    const STABILITIES: [(&str, Option<PhpPart>); 9] = [
         ("stable", None),
-        ("beta", Some(2)),
-        ("b", Some(2)),
-        ("rc", Some(3)),
-        ("alpha", Some(1)),
-        ("a", Some(1)),
-        ("patch", Some(5)),
-        ("pl", Some(5)),
-        ("p", Some(5)),
+        ("beta", Some(PhpPart::Beta)),
+        ("b", Some(PhpPart::Beta)),
+        ("rc", Some(PhpPart::Rc)),
+        ("alpha", Some(PhpPart::Alpha)),
+        ("a", Some(PhpPart::Alpha)),
+        ("patch", Some(PhpPart::Patch)),
+        ("pl", Some(PhpPart::Patch)),
+        ("p", Some(PhpPart::Patch)),
     ];
     let mut cursor = Cursor::new(text);
     cursor.eat_word(&[".", "_", "-"]);
     let mut parts = Vec::new();
     let mut stable = false;
     if let Some(place) = cursor.eat_word(&STABILITIES.map(|(word, _)| word)) {
-        if let Some(rank) = STABILITIES[place].1 {
-            parts.push(PhpPart::Word(rank));
+        if let Some(word) = &STABILITIES[place].1 {
+            parts.push(word.clone());
         } else {
             stable = true;
         }
@@ -838,7 +830,7 @@ fn modifier(text: &str) -> Option<Vec<PhpPart>> {
     cursor.eat_word(&[".", "-"]);
     if cursor.eat("dev") {
         if !stable {
-            parts.push(PhpPart::Word(DEV));
+            parts.push(PhpPart::Dev);
         }
     } else {
         cursor.at = start;
