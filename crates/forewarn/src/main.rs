@@ -250,7 +250,7 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         }))
         .collect();
     write_report(&match args.format {
-        Format::Human => report::matching_human(&sbom, &sources, &exploited, &matching),
+        Format::Human => report::matching_human(&sbom, &sources, &exploited, &awareness, &matching),
         Format::Json => report::matching_json(&sbom, &sources, &exploited, &awareness, &matching),
     })?;
     if matching.exploited_count() > 0 {
@@ -289,6 +289,7 @@ fn awareness(args: &MatchArgs) -> Awareness {
     });
     Awareness {
         since,
+        given: args.aware_since.is_some(),
         measure_available: args.measure_available,
         deadlines,
     }

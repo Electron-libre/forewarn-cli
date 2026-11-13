@@ -173,6 +173,8 @@ pub enum Origin<'a> {
 pub struct Awareness {
     /// The moment of awareness.
     pub since: Moment,
+    /// Whether it was given with `--aware-since`, else read from the clock.
+    pub given: bool,
     pub measure_available: Option<Moment>,
     pub deadlines: ReportingDeadlines,
 }
@@ -209,6 +211,7 @@ pub fn matching_human(
     sbom: &Sbom,
     sources: &[Source],
     exploited: &[ExploitedSource],
+    awareness: &Awareness,
     matching: &FlaggedReport,
 ) -> String {
     let count = sbom.components.len();
@@ -232,6 +235,9 @@ pub fn matching_human(
     }
     for source in exploited {
         push_exploited_source(&mut text, source);
+    }
+    if matching.exploited_count() > 0 {
+        push_awareness(&mut text, awareness);
     }
     let _ = writeln!(
         text,
@@ -266,6 +272,7 @@ pub fn matching_human(
         text.push('\n');
         if flagged.is_exploited() {
             push_evidence(&mut text, &flagged.evidence);
+            push_deadlines(&mut text, &awareness.deadlines);
         }
     }
     let _ = writeln!(text, "Not evaluated ({}):", matching.not_evaluated().len());
@@ -375,6 +382,41 @@ fn push_evidence(text: &mut String, evidence: &[Evidence]) {
         }
     }
     text.push('\n');
+}
+
+/// Pushes the moments the reporting deadlines are computed from, and where the moment of awareness came from (MXL-18).
+fn push_awareness(text: &mut String, awareness: &Awareness) {
+    let origin = if awareness.given {
+        "--aware-since"
+    } else {
+        "the moment of the run"
+    };
+    let _ = write!(
+        text,
+        "Reporting deadlines (CRA article 14(2)): aware since {} ({origin}), ",
+        awareness.since
+    );
+    match awareness.measure_available {
+        Some(measure) => {
+            let _ = writeln!(text, "corrective measure available since {measure}");
+        }
+        None => text.push_str("no corrective measure given\n"),
+    }
+}
+
+/// Pushes the line of the reporting deadlines of an actively exploited match (MXL-14 to MXL-16).
+fn push_deadlines(text: &mut String, deadlines: &ReportingDeadlines) {
+    let _ = write!(
+        text,
+        "    report by: early warning {}, notification {}, final report ",
+        deadlines.early_warning, deadlines.notification
+    );
+    match deadlines.final_report {
+        Some(final_report) => {
+            let _ = writeln!(text, "{final_report}");
+        }
+        None => text.push_str("14 days after a corrective measure is available\n"),
+    }
 }
 
 fn push_component_ref(text: &mut String, component: &ComponentRef) {

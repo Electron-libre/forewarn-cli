@@ -632,9 +632,16 @@ fn a_ci_job_fetches_the_kev_catalog_into_its_cache_and_sees_the_exploited_match(
     assert!(
         human.stdout.contains(&format!(
             "Exploited lists:\n  CISA KEV: catalog 2026.11.12 released 2026-11-12, 1 entry, downloaded {at} \
-             from {}, Last-Modified {LAST_MODIFIED}\nAffected (1, 1 actively exploited):\n",
+             from {}, Last-Modified {LAST_MODIFIED}\nReporting deadlines",
             mirror.kev_url()
         )),
+        "{}",
+        human.stdout
+    );
+    assert!(
+        human
+            .stdout
+            .contains("\nAffected (1, 1 actively exploited):\n"),
         "{}",
         human.stdout
     );

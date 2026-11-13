@@ -48,9 +48,9 @@ left or overdue. The domain stays clock-free: the CLI parses RFC 3339 (offsets c
    before the SBOM), the clock default, `awareSince`, `measureAvailable` and `deadlines` in the JSON report; verified
    by integration tests in `crates/forewarn/tests/exploited.rs`; makes true MXL-14, MXL-15, MXL-16, MXL-17, MXL-19,
    MXL-20, MXL-21 and the rows of MCH-10 and MCH-16. (autonomous)
-2. [ ] Human report: the moment of awareness (given or from the clock) and the measure, then the deadlines under the
+2. [x] Human report: the moment of awareness (given or from the clock) and the measure, then the deadlines under the
    evidence of each exploited match; verified by integration tests, MXL-H4 among them; makes true MXL-18 and the
-   human side of MXL-14 to MXL-16.
+   human side of MXL-14 to MXL-16. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -66,4 +66,12 @@ left or overdue. The domain stays clock-free: the CLI parses RFC 3339 (offsets c
 - red: MXL-14, MXL-15, MXL-16, MXL-17, MXL-19, MXL-20, MXL-21: `unexpected argument '--aware-since' found`.
 - Code review: no findings
 - checks: project-check green, check-specs clean (both specs `draft` until deliverable 2 traces MXL-18).
+- not verified: none.
+
+## Deliverable 2
+- done: the human report prints the moment of awareness (given or from the clock) and the measure above the matches
+  when one is actively exploited, and a line `report by:` under the evidence of each; both specs `accepted`; README.
+- red: MXL-H4, MXL-14, MXL-15, MXL-16, MXL-17, MXL-18, MXL-21: the report lacks `Reporting deadlines` and `report by:`.
+- Code review: no findings
+- checks: project-check green, check-specs clean.
 - not verified: none.
