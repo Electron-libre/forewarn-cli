@@ -48,9 +48,9 @@ hash set of the components reported rather than a domain move.
    component meeting only the records naming its package, in id order so the groups and VMT-13 order stay the same;
    verified by the existing matching tests and `forewarn match --osv` timed before and after (release build, the
    extracted npm archive, ~3,000 npm components) with identical output; makes true nothing new (VMT-1 to VMT-20 kept). (autonomous)
-2. [ ] Count the clean components (MCH-3) against a hash set of the components matched or not evaluated
+2. [x] Count the clean components (MCH-3) against a hash set of the components matched or not evaluated
    (`ComponentRef` derives `Hash`); verified by the existing `cli-match` tests and the same timing; makes true nothing
-   new (MCH-3 kept).
+   new (MCH-3 kept). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,6 +71,26 @@ done: `match_components` looks the records of each component up in an index by e
 | measure | release build, 231,742 npm records, 3,000 npm components: 32.9 s before, 1.1 s after (1.0 s reading alone); JSON output byte-identical |
 
 red: none (no behaviour change; the VMT tests stay green)
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none
+
+## Deliverable 2
+done: `clean_count` (MCH-3) looks each component up in a hash set of the components matched or not evaluated;
+`ComponentRef` derives `Hash`.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clean |
+| specs | unchanged, `check-specs` passes |
+| docs | n/a: the doc comment of `clean_count` still holds; no document describes the count's method |
+| measure | same run as deliverable 1: 1.09 s, JSON output byte-identical to the one before the issue (the count was a few ms of it at 3,000 components and 4,292 matches) |
+
+red: none (no behaviour change; the MCH tests stay green)
 
 Code review: no findings
 

@@ -1,6 +1,7 @@
 //! The report formats of `forewarn check` and `forewarn match`: adapters from the domain's results to text or JSON
 //! (`specs/cli-check.md`, `specs/cli-match.md`).
 
+use std::collections::HashSet;
 use std::fmt::Write;
 use std::path::Path;
 
@@ -327,16 +328,15 @@ pub fn matching_json(sbom: &Sbom, sources: &[Source], matching: &MatchReport) ->
 
 /// The components neither affected nor named by a component or pair not evaluated (MCH-3).
 fn clean_count(sbom: &Sbom, matching: &MatchReport) -> usize {
+    let reported: HashSet<&ComponentRef> = matching
+        .matches()
+        .iter()
+        .map(|found| &found.component)
+        .chain(matching.not_evaluated().iter().map(|gap| &gap.component))
+        .collect();
     sbom.components
         .iter()
-        .map(ComponentRef::from)
-        .filter(|component| {
-            !matching.matches().iter().any(|m| m.component == *component)
-                && !matching
-                    .not_evaluated()
-                    .iter()
-                    .any(|gap| gap.component == *component)
-        })
+        .filter(|component| !reported.contains(&ComponentRef::from(*component)))
         .count()
 }
 

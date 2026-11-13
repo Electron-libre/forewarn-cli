@@ -73,7 +73,7 @@ pub enum Reason {
 }
 
 /// A component as the report names it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ComponentRef {
     pub name: String,
     pub version: Option<String>,
