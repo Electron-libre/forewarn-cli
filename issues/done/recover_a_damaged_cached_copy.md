@@ -70,14 +70,14 @@ fails; `offline` keeps failing with the read error. Out of scope: detecting a da
 
 ## High review (5362145..e5473d4): 8 findings
 1. Any read error is taken as damage (a record a newer forewarn refuses downloads again each run): kept, the run fails
-   either way; told apart by `issues/check_the_integrity_of_a_cached_copy.md`.
+   either way; told apart by `issues/done/check_the_integrity_of_a_cached_copy.md`.
 2. A removed OSV record file is not detected, as OSR-37 and the README said: fixed in the wording, non-goal pointing
    to the new issue.
 3. The read error is dropped when the download that follows fails: kept, the download error is the one to act on and
    the scenario of OSR-37 states it.
 4. The damaged copy is read twice: fixed, the exclusive lock reads it again only when its freshness changed.
 5. A permission error is taken as damage: kept, as 1; the new issue tells it apart.
-6. A manifest would check the integrity rather than infer it: `issues/check_the_integrity_of_a_cached_copy.md`.
+6. A manifest would check the integrity rather than infer it: `issues/done/check_the_integrity_of_a_cached_copy.md`.
 7. No test of a copy replaced by another run while this one waited: not fixed, it needs two runs racing on the lock;
    the branch is the read of OSR-19's waiting run.
 8. EUV-21 untested under `offline`: fixed, a test added.

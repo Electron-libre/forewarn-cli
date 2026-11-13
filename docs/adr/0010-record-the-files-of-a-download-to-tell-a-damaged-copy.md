@@ -9,7 +9,7 @@
 (`issues/done/recover_a_damaged_cached_copy.md`). That heuristic misses a record file removed from an OSV snapshot: the
 snapshot reads the files left, and `forewarn match` silently misses their vulnerabilities. It also takes for damage
 what is not: a record a newer forewarn refuses (every run downloads the archive again and still fails), or an I/O error
-such as a permission refused or too many open files (`issues/check_the_integrity_of_a_cached_copy.md`).
+such as a permission refused or too many open files (`issues/done/check_the_integrity_of_a_cached_copy.md`).
 
 ## Decision
 

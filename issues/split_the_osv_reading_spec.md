@@ -9,7 +9,7 @@ why: 'a warning of check-specs, no behaviour at stake: the spec stays correct, o
 does. Split it into specs of one capability each, so that each reads at a glance, with every cited id still resolving.
 
 # Findings
-* Crossed by `issues/check_the_integrity_of_a_cached_copy.md` (2026-11-13), which added OSR-38 to OSR-41: 40 live
+* Crossed by `issues/done/check_the_integrity_of_a_cached_copy.md` (2026-11-13), which added OSR-38 to OSR-41: 40 live
   requirements and 25,134 bytes, against 37 and 23,020 before it.
 * The spec holds three capabilities: reading OSV records (OSR-1 to OSR-12, OSR-34 to OSR-36), fetching the archives
   into the cache (OSR-13 to OSR-23, OSR-32, OSR-33, OSR-38 to OSR-41) and querying the OSV API (OSR-26 to OSR-31).
