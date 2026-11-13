@@ -12,7 +12,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Why: a vendor should not write the report from scratch under pressure.
 - State: in issues
 - Issues:
-  - [read_the_product_of_the_sbom](issues/read_the_product_of_the_sbom.md)
+  - [read_the_product_of_the_sbom](issues/done/read_the_product_of_the_sbom.md)
   - [draft_the_early_warning_in_the_domain](issues/draft_the_early_warning_in_the_domain.md)
   - [write_the_early_warning_in_an_adapter](issues/write_the_early_warning_in_an_adapter.md)
   - [cli_draft_early_warnings](issues/cli_draft_early_warnings.md)
