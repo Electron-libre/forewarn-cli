@@ -143,7 +143,7 @@ red: none (review fixes; the entry-name test passes only with the new check).
 High review of `570bbdf..HEAD`: 8 findings.
 1. Unchecked entry name in `forewarn-cache`: fixed.
 2. A damaged cached copy is never downloaded again: outside the requirements, filed as
-   `issues/recover_a_damaged_cached_copy.md`.
+   `issues/done/recover_a_damaged_cached_copy.md`.
 3. Cache messages repeated in each adapter's error: not fixed; each adapter keeps a flat public error, as OSV's
    `FetchCause` (OSR-18), and its messages are tested per spec.
 4. `Feed` and `Archives` copy the fields of `Cache`: not fixed; `Archives` keeps its public API (ADR 0008), `Feed`

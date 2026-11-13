@@ -12,7 +12,7 @@ then downloads the archive again and still fails) or an I/O error such as a perm
 files. Recording what a download stored and checking it before a read would tell a damaged copy apart.
 
 # Findings
-* Found by the `high` review of `issues/recover_a_damaged_cached_copy.md` (2026-11-13), from the code, not from a run.
+* Found by the `high` review of `issues/done/recover_a_damaged_cached_copy.md` (2026-11-13), from the code, not from a run.
 * `read_directory` lists the `.json` files that exist: deleting `crates.io/RUSTSEC-2020-0071.json` from a cache, its
   `forewarn-freshness` intact, makes an `if-missing` fetch return the other records with no request (non-goal of
   `specs/osv-reading.md`).
