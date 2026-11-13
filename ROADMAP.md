@@ -49,7 +49,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [flag_exploited_vulnerabilities](issues/done/flag_exploited_vulnerabilities.md)
   - [read_cisa_kev_catalog](issues/done/read_cisa_kev_catalog.md)
   - [read_euvd_exploited_list](issues/read_euvd_exploited_list.md)
-  - [cli_flag_exploited_matches](issues/cli_flag_exploited_matches.md)
+  - [cli_flag_exploited_matches](issues/done/cli_flag_exploited_matches.md)
   - [compare_cve_ids_ignoring_case_in_matching](issues/compare_cve_ids_ignoring_case_in_matching.md)
 
 ## Compute CRA reporting deadlines

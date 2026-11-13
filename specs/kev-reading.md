@@ -128,7 +128,7 @@ so that a vendor can tell which of its vulnerabilities are actively exploited, a
 ## Non-goals
 
 - Flagging the matches (`specs/exploited-flagging.md`), choosing the cache directory, printing the freshness or the
-  flag (`issues/cli_flag_exploited_matches.md`).
+  flag (`issues/done/cli_flag_exploited_matches.md`).
 - The EUVD exploited list (`issues/read_euvd_exploited_list.md`).
 - Conditional requests (`If-None-Match`, `If-Modified-Since`): the catalog is a few megabytes.
 - Checking `count` against the entries, or keeping the other members of an entry (vendor, product, ransomware use,
