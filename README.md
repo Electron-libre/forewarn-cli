@@ -44,7 +44,8 @@ names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from th
 mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--cache` for another), again once a day
 (`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). Runs that share a cache on one machine read
 it together; a run that downloads waits for the runs reading, and they for it, at most 40 minutes per ecosystem (runs
-that keep reading can hold a `--refresh always` run back that long). `--osv-api` queries the OSV API instead
+that keep reading can hold a `--refresh always` run back that long). A cached copy that can no longer be read (a file
+removed or truncated outside forewarn) is downloaded again, except under `--refresh offline`, which fails. `--osv-api` queries the OSV API instead
 (`--osv-api-url` for another): no archive is downloaded, but the OSV ecosystem, name and version of each component leave the CI, and the
 answer depends on the moment of the query, which the report gives; it is never on by default.
 

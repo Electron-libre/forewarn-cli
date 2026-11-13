@@ -1092,3 +1092,84 @@ fn lock_file_read_only(path: &Path) -> fs::File {
     file.lock().expect("the lock");
     file
 }
+
+/// Truncates the record file of the cached `crates.io` snapshot, its freshness left intact.
+fn damage_the_crates_io_snapshot(cache: &Path) {
+    fs::write(
+        cache.join("crates.io/RUSTSEC-2020-0071.json"),
+        "{ truncated",
+    )
+    .expect("the record file is damaged");
+}
+
+// spec: OSR-37
+#[test]
+fn a_snapshot_whose_records_cannot_be_read_is_downloaded_again_once() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    damage_the_crates_io_snapshot(cache.path());
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(2_000))
+        .expect("the archive is fetched again");
+
+    assert_eq!(server.requests().len(), 2);
+    assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
+    assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
+    let again = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(3_000))
+        .expect("the new snapshot is read");
+    assert_eq!(again, snapshots);
+    assert_eq!(server.requests().len(), 2);
+}
+
+// spec: OSR-37
+#[test]
+fn a_snapshot_whose_records_cannot_be_read_fails_offline_without_a_request() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    damage_the_crates_io_snapshot(cache.path());
+
+    let error = fetch_error(cache.path(), &server, Refresh::Offline, "crates.io");
+
+    assert!(error.to_string().contains("not JSON"), "{error}");
+    assert!(
+        error.to_string().contains("RUSTSEC-2020-0071.json"),
+        "{error}"
+    );
+    assert_eq!(server.requests().len(), 1);
+}
+
+// spec: OSR-37, OSR-16
+#[test]
+fn a_damaged_snapshot_whose_download_fails_is_requested_once() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/crates.io/all.zip", ok(crates_io_archive()));
+    archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io"], || at(1_000))
+        .expect("the archive is fetched");
+    damage_the_crates_io_snapshot(cache.path());
+    server.route(
+        "/crates.io/all.zip",
+        Response {
+            status: 503,
+            headers: Vec::new(),
+            body: b"unavailable".to_vec(),
+            delay: Duration::ZERO,
+        },
+    );
+
+    let error = fetch_error(cache.path(), &server, Refresh::IfMissing, "crates.io");
+
+    assert!(error.to_string().contains("cannot download"), "{error}");
+    assert_eq!(server.requests().len(), 2);
+}

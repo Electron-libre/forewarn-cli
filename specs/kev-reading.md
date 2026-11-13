@@ -45,6 +45,9 @@ so that a vendor can tell which of its vulnerabilities are actively exploited, a
   | `older-than <age>` | when the cache holds no copy of it, or one downloaded more than `<age>` ago |
   | `always` | always |
 
+- **KEV-18** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a cached catalog that
+  cannot be read (removed, truncated or damaged outside forewarn) must download it again, at most once per fetch, and
+  return what that download returns; a fetch under `offline` fails with the error of reading the copy (KEV-16).
 - **KEV-10** (deterministic) A download must request, with a `GET` and no body, the URL the caller gives,
   `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` unless it gives another.
 - **KEV-11** (deterministic) A fetch that reads the catalog from the cache must return the list and both freshnesses
@@ -103,6 +106,9 @@ so that a vendor can tell which of its vulnerabilities are actively exploited, a
 - (KEV-9) Given a copy downloaded 2 hours ago, when it is fetched under `older-than 1h`, then the catalog is
   downloaded again; under `older-than 3h`, it is read from the cache.
 - (KEV-9) Given a copy in the cache, when it is fetched under `always`, then the catalog is downloaded again.
+- (KEV-18) Given a cached catalog file that was removed, its freshness intact, when the catalog is fetched under
+  `if-missing`, then it is downloaded once and its list returned; truncated, under `offline`, it fails with "not JSON"
+  and no request is sent.
 - (KEV-9, KEV-15) Given an empty cache, when the catalog is fetched under `offline`, then it fails with "not cached"
   and no request is sent.
 - (KEV-12, KEV-15) Given a copy in the cache and a server answering 503, when it is fetched under `always`, then it

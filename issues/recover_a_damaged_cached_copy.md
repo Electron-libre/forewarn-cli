@@ -35,3 +35,32 @@ damaged freshness file already makes it do (OSR-13), or say how to recover.
 # Hints
 * A retry must not loop: one download at most per fetch.
 * Under the shared lock another run may be reading the copy: replacing it needs the exclusive lock (ADR 0007).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+A cached copy whose freshness is valid but whose content the source cannot read is a cache miss: the fetch takes the
+exclusive lock, reads the copy again (another run may have replaced it meanwhile), and downloads it once if it still
+fails; `offline` keeps failing with the read error. Out of scope: detecting a damage before a read (checksums).
+
+## Plan
+1. [x] Retry a failed read of a cached copy in `Cache::fetch`: a read failure under the shared lock switches to the
+   exclusive lock, which reads once more then downloads, one download at most; verified by tests in the OSV, KEV and
+   EUVD fetching suites (truncated or removed copy under `if-missing` downloads once, `offline` fails with no request,
+   a 503 after a damaged copy fails after one request); makes true OSR-37, KEV-18, EUV-21. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 5362145096989d41f59fc90a737cabaa8695590a
+- Answer 1 a: a copy that cannot be read is a cache miss, downloaded again.
+
+## Summary of deliverable 1
+- done: `Cache::fetch` takes a copy the source fails to read as a miss: exclusive lock, one more read, then one
+  download; `offline` returns the read error. OSR-37, KEV-18, EUV-21 added and traced, specs back to `accepted`; README.
+- red: OSR-37, KEV-18, EUV-21: "the archive is fetched again: FetchError { ecosystem: \"crates.io\", cause: Record(ReadError { path: \"RUSTSEC-2020-0071.json\", cause: NotJson(..) }) }"; "the catalog is fetched: Cache(\"No such file or directory (os error 2)\")"; "the list is fetched: List(ReadError { path: \"exploited.json\", cause: NotJson(..) })"
+
+- Code review: no findings
+- checks: project-check green (fmt, clippy, tests, specs); deliverable-size 199 lines.
+- not verified: none. decisions needed: none.

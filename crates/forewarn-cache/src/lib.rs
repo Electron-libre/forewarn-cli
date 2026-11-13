@@ -134,7 +134,8 @@ impl Cache {
 
     /// Returns what the source reads from the entry `name`, downloading it again when the refresh policy says so;
     /// `clock` gives the time the policy compares with and the time recorded for a download, read when its request
-    /// starts.
+    /// starts. A copy the source fails to read (damaged outside forewarn) is downloaded again, once, unless the policy
+    /// is [`Refresh::Offline`].
     ///
     /// # Errors
     ///
@@ -166,6 +167,9 @@ impl Cache {
         } else {
             Mode::Shared
         };
+        // Whether the source failed to read the copy under the shared lock: a copy damaged outside forewarn is then
+        // read once more under the exclusive lock, then downloaded again (one download at most per fetch).
+        let mut damaged = false;
         loop {
             self.wait_for(&mut lock, mode, deadline)?;
             if mode == Mode::Exclusive && left_aside() {
@@ -177,26 +181,33 @@ impl Cache {
                 self.cached(&directory, clock)?
             };
             match (freshness, mode) {
-                (Some(freshness), Mode::Shared) => {
-                    return Ok(Fetched {
-                        value: (source.read)(&directory).map_err(Error::Source)?,
-                        freshness,
-                    });
+                (Some(freshness), Mode::Shared) => match (source.read)(&directory) {
+                    Ok(value) => return Ok(Fetched { value, freshness }),
+                    Err(error) if self.refresh == Refresh::Offline => {
+                        return Err(Error::Source(error));
+                    }
+                    Err(_) => damaged = true,
+                },
+                // Another run may have replaced the damaged copy while this one waited for the exclusive lock.
+                (Some(freshness), Mode::Exclusive) if damaged => {
+                    if let Ok(value) = (source.read)(&directory) {
+                        return Ok(Fetched { value, freshness });
+                    }
+                    break;
                 }
                 (None, Mode::Exclusive) => break,
                 // A download, or putting the copy back, waits for every other run. Another run may have downloaded
                 // while this one waited for the exclusive lock: it then reads the copy under the shared lock, beside
                 // the other readers.
-                (None, Mode::Shared) | (Some(_), Mode::Exclusive) => {
-                    if let Some(file) = &lock {
-                        file.unlock().map_err(|e| cache_error(&e))?;
-                    }
-                    mode = match mode {
-                        Mode::Shared => Mode::Exclusive,
-                        Mode::Exclusive => Mode::Shared,
-                    };
-                }
+                (None, Mode::Shared) | (Some(_), Mode::Exclusive) => {}
             }
+            if let Some(file) = &lock {
+                file.unlock().map_err(|e| cache_error(&e))?;
+            }
+            mode = match mode {
+                Mode::Shared => Mode::Exclusive,
+                Mode::Exclusive => Mode::Shared,
+            };
         }
         let download = Download {
             agent,

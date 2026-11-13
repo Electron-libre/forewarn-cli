@@ -32,6 +32,8 @@ under a refresh policy, so that a European vendor watches the list it is expecte
 
 - **EUV-6** (deterministic) Fetching must download the list only as the refresh policy of the table of KEV-9 says, and
   otherwise read the copy of its cache.
+- **EUV-21** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a cached list that
+  cannot be read must download it again, as KEV-18 says of the catalog.
 - **EUV-7** (deterministic) A download must request its pages with a `GET` and no body of
   `<url>?exploited=true&size=100&page=<n>`, `<n>` from 0 up by one, `<url>` the one the caller gives,
   `https://euvdservices.enisa.europa.eu/api/search` unless it gives another, the `?` an `&` when `<url>` already holds
@@ -106,6 +108,8 @@ under a refresh policy, so that a European vendor watches the list it is expecte
   second waits, then reads the copy the first stored, without a request.
 - (EUV-6) Given a copy downloaded 2 hours ago, when it is fetched under `older-than 1h`, then the list is downloaded
   again; under `older-than 3h`, it is read from the cache.
+- (EUV-21) Given a cached list file that was truncated, its freshness intact, when the list is fetched under
+  `if-missing`, then it is paged again and its list returned.
 - (EUV-8) Given a server whose `total` is 250 over pages of 100, 100 and 50 records, when the list is fetched, then pages
   0 to 2 are requested and page 3 is not.
 - (EUV-8) Given a server whose `total` is 0 and whose page 0 is empty, when the list is fetched, then the list is empty.

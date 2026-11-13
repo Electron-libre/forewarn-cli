@@ -97,6 +97,10 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
   | `older-than <age>` | when its cache holds no snapshot of it, or one downloaded more than `<age>` ago |
   | `always` | always |
 
+- **OSR-37** (deterministic) A fetch that would read, under `if-missing` or `older-than <age>`, a snapshot whose
+  records cannot be read (a file removed, truncated or damaged outside forewarn) must download the archive again, at
+  most once per fetch, and return what that download returns; a fetch under `offline` fails with the error of reading
+  the snapshot (OSR-18).
 - **OSR-14** (deterministic) A download must request, with a `GET` and no body, the URL `<base>/<ecosystem>/all.zip`,
   `<base>` being `https://osv-vulnerabilities.storage.googleapis.com` unless the caller gives another.
 - **OSR-15** (deterministic) A fetch that reads a snapshot from the cache must return the vulnerabilities and the
@@ -200,6 +204,11 @@ the archives OSV publishes per ecosystem or, when the caller opts in, the OSV AP
 - (OSR-13) Given a snapshot in the cache, when it is fetched under `always`, then the archive is downloaded again.
 - (OSR-13) Given a snapshot whose record of freshness is damaged, when it is fetched under `if-missing`, then it is
   taken as no snapshot and the archive is downloaded again.
+- (OSR-37) Given a snapshot of `crates.io` whose record file is truncated, its record of freshness intact, when
+  `crates.io` is fetched under `if-missing`, then the archive is downloaded once and its vulnerabilities returned;
+  under `offline`, it fails with "not JSON" naming the entry and no request is sent.
+- (OSR-37, OSR-16) Given a snapshot whose record file is truncated and a server answering 503, when it is fetched
+  under `if-missing`, then it fails with "cannot download" after one request.
 - (OSR-16) Given a run stopped after setting the former snapshot aside and before putting the new one in place, when
   the ecosystem is fetched again, then the former snapshot is put back first.
 - (OSR-32) Given a run reading the snapshot of `crates.io` from a cache, when a second run fetches `crates.io` into
