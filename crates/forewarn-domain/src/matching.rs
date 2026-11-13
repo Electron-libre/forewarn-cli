@@ -202,11 +202,17 @@ struct Index<'a> {
 }
 
 impl<'a> Index<'a> {
-    /// Indexes vulnerabilities sorted by id.
+    /// Indexes vulnerabilities sorted by id, leaving aside the affected packages of an ecosystem no component maps to
+    /// (VMT-4).
     fn new(vulnerabilities: &[&'a Vulnerability]) -> Self {
         let mut places: HashMap<&str, HashMap<Cow<str>, Vec<usize>>> = HashMap::new();
         for (place, vulnerability) in vulnerabilities.iter().enumerate() {
-            for affected in &vulnerability.affected {
+            let known = vulnerability.affected.iter().filter(|affected| {
+                ECOSYSTEMS
+                    .iter()
+                    .any(|(_, ecosystem, _)| *ecosystem == affected.ecosystem)
+            });
+            for affected in known {
                 let list = places
                     .entry(affected.ecosystem.as_str())
                     .or_default()

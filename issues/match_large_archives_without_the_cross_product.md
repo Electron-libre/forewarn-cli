@@ -51,6 +51,8 @@ hash set of the components reported rather than a domain move.
 2. [x] Count the clean components (MCH-3) against a hash set of the components matched or not evaluated
    (`ComponentRef` derives `Hash`); verified by the existing `cli-match` tests and the same timing; makes true nothing
    new (MCH-3 kept). (autonomous)
+3. [x] Findings of the `high` review: the index leaves aside the ecosystems no component maps to; guard tests for a
+   NuGet name through the index and a package named twice apart in one record; verified by those tests. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -97,3 +99,30 @@ Code review: no findings
 not verified: none
 
 decisions needed: none
+
+## Deliverable 3
+done: findings of the `high` review of `eccecb1..f492134` (no correctness bug). The index skips affected packages
+of ecosystems outside VMT-4; tests guard the NuGet key through `match_components` and a record naming one package
+twice apart (one pair not evaluated, not two).
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes; the apart-twice test fails (2 pairs) when the index stops deduplicating, the NuGet one when its key stops ignoring case |
+| lint | clean |
+| specs | unchanged, `check-specs` passes |
+| docs | doc comment of `Index::new` |
+| measure | 1.1 s, JSON output byte-identical to the one before the issue |
+
+red: none (guard tests, green on the code of deliverable 1; checked red by mutation)
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none
+
+High review findings left as they are:
+- `Outcome::NotNamed` is no longer reached from `match_components`: kept, `outcome` stays correct on any record.
+- Keys recomputed in `is_named_by`, a `ComponentRef` built per component in `clean_count`: allocations of no
+  measurable cost at 3,000 components.
+- Moving the clean count into `MatchReport`: declined at the plan (the count stays in the report adapter).

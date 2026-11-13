@@ -386,6 +386,15 @@ fn matches_a_pypi_name_normalized() {
     assert_eq!(report.matches().len(), 1);
 }
 
+// spec: VMT-6
+#[test]
+fn matches_a_nuget_name_without_regard_to_case() {
+    let mut nuget = vulnerability("GHSA-1", "NuGet", "Newtonsoft.Json", vec![]);
+    nuget.affected[0].versions = vec!["12.0.1".into()];
+    let report = match_components(&[component("pkg:nuget/newtonsoft.json@12.0.1")], &[nuget]);
+    assert_eq!(report.matches().len(), 1);
+}
+
 // spec: VMT-11
 #[test]
 fn does_not_match_a_component_with_a_component_reason() {
@@ -473,6 +482,35 @@ fn reports_a_vulnerability_once_per_component() {
     twice.affected.push(twice.affected[0].clone());
     twice.affected[0].versions = vec!["1.0.0".into()];
     let report = match_components(&[component("pkg:cargo/time@1.0.0")], &[twice]);
+    assert_eq!(report.matches().len(), 1);
+}
+
+// spec: VMT-14
+#[test]
+fn reports_a_pair_once_when_its_package_is_named_apart_twice() {
+    let mut apart = vulnerability(
+        "RUSTSEC-0000-0001",
+        "crates.io",
+        "time",
+        vec![range(RangeKind::Git, &[introduced("abc123")])],
+    );
+    let mut regex = apart.affected[0].clone();
+    regex.name = "regex".into();
+    apart.affected.push(regex);
+    apart.affected.push(apart.affected[0].clone());
+    let report = match_components(&[component("pkg:cargo/time@1.0.0")], &[apart]);
+    assert_eq!(report.matches(), []);
+    assert_eq!(report.not_evaluated().len(), 1);
+}
+
+// spec: VMT-4
+#[test]
+fn ignores_the_affected_packages_of_an_ecosystem_matching_does_not_know() {
+    let mut mixed = semver(&[introduced("0")]);
+    let mut debian = mixed.affected[0].clone();
+    debian.ecosystem = "Debian:12".into();
+    mixed.affected.insert(0, debian);
+    let report = match_components(&[component("pkg:cargo/time@1.0.0")], &[mixed]);
     assert_eq!(report.matches().len(), 1);
 }
 
