@@ -1,7 +1,8 @@
 //! The matching of the components of an SBOM against known vulnerabilities (`specs/vulnerability-matching.md`).
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 use semver::Version;
 
@@ -138,7 +139,8 @@ impl MatchReport {
     }
 }
 
-/// Matches each component against each vulnerability, withdrawn ones aside.
+/// Matches each component against the vulnerabilities naming its package, found through an index by ecosystem and
+/// name rather than by testing every vulnerability, withdrawn ones aside.
 #[must_use]
 pub fn match_components(
     components: &[Component],
@@ -147,6 +149,7 @@ pub fn match_components(
     let mut vulnerabilities: Vec<&Vulnerability> =
         vulnerabilities.iter().filter(|v| !v.withdrawn).collect();
     vulnerabilities.sort_by(|a, b| a.id.cmp(&b.id));
+    let index = Index::new(&vulnerabilities);
     let mut report = MatchReport::default();
     for component in components {
         let package = match ComponentPackage::of(component) {
@@ -160,7 +163,7 @@ pub fn match_components(
             }
         };
         let mut groups: Vec<Group> = Vec::new();
-        for vulnerability in &vulnerabilities {
+        for vulnerability in index.naming(&package).iter().map(|&i| vulnerabilities[i]) {
             match package.outcome(vulnerability) {
                 Outcome::NotNamed => {}
                 outcome => Group::add(&mut groups, vulnerability, outcome),
@@ -189,6 +192,41 @@ pub fn match_components(
         }
     }
     report
+}
+
+/// The vulnerabilities by the ecosystem and the name key of their affected packages, so that a component meets only
+/// the records naming its package.
+struct Index<'a> {
+    /// Per ecosystem, per name key, the places of the vulnerabilities in id order, each once.
+    places: HashMap<&'a str, HashMap<Cow<'a, str>, Vec<usize>>>,
+}
+
+impl<'a> Index<'a> {
+    /// Indexes vulnerabilities sorted by id.
+    fn new(vulnerabilities: &[&'a Vulnerability]) -> Self {
+        let mut places: HashMap<&str, HashMap<Cow<str>, Vec<usize>>> = HashMap::new();
+        for (place, vulnerability) in vulnerabilities.iter().enumerate() {
+            for affected in &vulnerability.affected {
+                let list = places
+                    .entry(affected.ecosystem.as_str())
+                    .or_default()
+                    .entry(name_key(&affected.ecosystem, &affected.name))
+                    .or_default();
+                if list.last() != Some(&place) {
+                    list.push(place);
+                }
+            }
+        }
+        Self { places }
+    }
+
+    /// The places of the vulnerabilities an affected package of which names the package, in id order.
+    fn naming(&self, package: &ComponentPackage) -> &[usize] {
+        self.places
+            .get(package.ecosystem)
+            .and_then(|names| names.get(name_key(package.ecosystem, &package.name).as_ref()))
+            .map_or(&[], Vec::as_slice)
+    }
 }
 
 /// The records naming one component whose ids or aliases overlap (VMT-15): one vulnerability, a match when one of
@@ -408,10 +446,15 @@ impl ComponentPackage {
 /// equal without regard to case under `NuGet` (VMT-6).
 #[must_use]
 pub fn same_name(ecosystem: &str, a: &str, b: &str) -> bool {
+    name_key(ecosystem, a) == name_key(ecosystem, b)
+}
+
+/// The form of a package name two names of an ecosystem are compared in (VMT-6).
+fn name_key<'a>(ecosystem: &str, name: &'a str) -> Cow<'a, str> {
     match ecosystem {
-        "PyPI" => normalize_pypi(a) == normalize_pypi(b),
-        "NuGet" => a.to_lowercase() == b.to_lowercase(),
-        _ => a == b,
+        "PyPI" => Cow::Owned(normalize_pypi(name)),
+        "NuGet" => Cow::Owned(name.to_lowercase()),
+        _ => Cow::Borrowed(name),
     }
 }
 
