@@ -30,3 +30,36 @@ does. Split it into specs of one capability each, so that each reads at a glance
 # Hints
 * `crates/forewarn-osv/tests/fetching.rs` and `crates/forewarn-osv/tests/api.rs` hold most citations; `grep -rn "OSR-"`
   finds the others, the KEV and EUVD specs included.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-13
+
+## Understanding
+Move the fetching of the OSV archives into the cache (OSR-10 to OSR-23, OSR-32, OSR-33, OSR-38 to
+OSR-41, happy paths OSR-H3 to OSR-H5, their edge scenarios and non-goals, ADRs 0004, 0005, 0007, 0010) into
+`specs/osv-fetching.md` (id `OSF`); the OSV API stays in `osv-reading.md` (20 live requirements each). No behaviour
+changes: only citations move.
+
+## Plan
+1. [x] Split the spec: `specs/osv-fetching.md` with OSF-1 to OSF-20 and OSF-H1 to OSF-H3, the moved OSR ids
+   `withdrawn: moved to OSF-n`; the tests of `fetching.rs`, the doc comments of `forewarn-osv` (`fetch.rs`, `lib.rs`),
+   `specs/cli-match.md`, ADR 0008 and CLAUDE.md re-cited; verified by `check-specs` (no bound warning, both specs
+   `accepted`) and `project-check` unchanged; makes true OSF-1 to OSF-20. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 46396dd2dc144fde067d5a1385d2386456435782
+- Mapping: OSR-10→OSF-1, 11→2, 12→3, 19→4, 32→5, 33→6, 20→7, 21→8 (Behaviour), 13→9, 38→10, 39→11, 40→12, 41→13,
+  14→14, 15→15, 16→16, 17→17, 18→18, 22→19, 23→20 (Contract); OSR-H3→OSF-H1, H4→H2, H5→H3. The happy paths cannot be
+  withdrawn, so OSR-H3 to OSR-H5 disappear; OSR-H6 keeps its id (no renumbering of a cited id).
+- The archives move rather than the API: moving the API alone (6 requirements) would leave 34 live requirements,
+  still near the bound.
+
+## Summary of deliverable 1
+- done: `specs/osv-fetching.md` (OSF-1 to OSF-20, OSF-H1 to OSF-H3) holds the fetching of the OSV archives into the
+  cache; `specs/osv-reading.md` keeps 20 live requirements, the moved ones withdrawn as moved; the tests of
+  `fetching.rs`, the doc comments of `fetch.rs` and `lib.rs`, `specs/cli-match.md`, ADR 0008 and CLAUDE.md re-cited.
+- checks: project-check pass (fmt, clippy, tests); check-specs pass, no bound warning; docs: CLAUDE.md.
+- red: none (no test added: the existing tests are only re-cited).
+- Code review: no findings

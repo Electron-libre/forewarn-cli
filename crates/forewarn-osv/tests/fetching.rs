@@ -1,4 +1,4 @@
-//! Fetching the OSV archive of each ecosystem into a cache (`specs/osv-reading.md`), against a loopback HTTP server:
+//! Fetching the OSV archive of each ecosystem into a cache (`specs/osv-fetching.md`), against a loopback HTTP server:
 //! no test needs the network.
 
 use std::collections::HashMap;
@@ -171,7 +171,7 @@ fn fetch_error(cache: &Path, server: &Server, refresh: Refresh, ecosystem: &str)
         .expect_err("the fetch fails")
 }
 
-// spec: OSR-H3, OSR-10, OSR-11, OSR-14
+// spec: OSF-H1, OSF-1, OSF-2, OSF-14
 #[test]
 fn the_archives_of_the_ecosystems_are_downloaded_and_read_with_their_freshness() {
     let cache = TempDir::new().expect("a cache");
@@ -212,7 +212,7 @@ fn the_archives_of_the_ecosystems_are_downloaded_and_read_with_their_freshness()
     assert_eq!(npm.freshness.last_modified, None);
 }
 
-// spec: OSR-14
+// spec: OSF-14
 #[test]
 fn the_default_base_is_the_osv_bucket() {
     let archives = Archives::new(PathBuf::from("cache"), Refresh::IfMissing);
@@ -223,7 +223,7 @@ fn the_default_base_is_the_osv_bucket() {
     );
 }
 
-// spec: OSR-10
+// spec: OSF-1
 #[test]
 fn only_the_records_at_the_top_of_an_archive_are_read() {
     let cache = TempDir::new().expect("a cache");
@@ -248,7 +248,7 @@ fn only_the_records_at_the_top_of_an_archive_are_read() {
     assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
 }
 
-// spec: OSR-15 (internal: the snapshot read back under `if-missing`; OSR-H4 traces it under `offline`)
+// spec: OSF-15 (internal: the snapshot read back under `if-missing`; OSF-H2 traces it under `offline`)
 #[test]
 fn a_cached_snapshot_is_read_back_without_a_request() {
     let cache = TempDir::new().expect("a cache");
@@ -272,7 +272,7 @@ fn a_cached_snapshot_is_read_back_without_a_request() {
     assert_eq!(second, first);
 }
 
-// spec: OSR-13 (internal: the row `always`; the other rows are traced with them)
+// spec: OSF-9 (internal: the row `always`; the other rows are traced with them)
 #[test]
 fn the_policy_always_downloads_again() {
     let cache = TempDir::new().expect("a cache");
@@ -292,7 +292,7 @@ fn the_policy_always_downloads_again() {
     assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
 }
 
-// spec: OSR-16, OSR-18
+// spec: OSF-16, OSF-18
 #[test]
 fn a_failed_download_keeps_the_former_snapshot() {
     let cache = TempDir::new().expect("a cache");
@@ -326,7 +326,7 @@ fn a_failed_download_keeps_the_former_snapshot() {
     assert_eq!(after, before);
 }
 
-// spec: OSR-16, OSR-18
+// spec: OSF-16, OSF-18
 #[test]
 fn an_unreadable_record_fails_naming_its_entry_and_keeps_the_former_snapshot() {
     let cache = TempDir::new().expect("a cache");
@@ -360,7 +360,7 @@ fn an_unreadable_record_fails_naming_its_entry_and_keeps_the_former_snapshot() {
     assert_eq!(after, before);
 }
 
-// spec: OSR-18
+// spec: OSF-18
 #[test]
 fn an_unreachable_server_fails_with_cannot_download() {
     let cache = TempDir::new().expect("a cache");
@@ -382,7 +382,7 @@ fn an_unreachable_server_fails_with_cannot_download() {
     );
 }
 
-// spec: OSR-18
+// spec: OSF-18
 #[test]
 fn a_file_that_is_not_a_zip_archive_is_refused() {
     let cache = TempDir::new().expect("a cache");
@@ -395,7 +395,7 @@ fn a_file_that_is_not_a_zip_archive_is_refused() {
     assert!(error.to_string().contains("not a zip archive"), "{error}");
 }
 
-// spec: OSR-18
+// spec: OSF-18
 #[test]
 fn an_entry_escaping_the_cache_is_refused() {
     let cache = TempDir::new().expect("a cache");
@@ -427,7 +427,7 @@ fn an_entry_escaping_the_cache_is_refused() {
     assert!(!cache.path().join("evil.json").exists());
 }
 
-// spec: OSR-17, OSR-18
+// spec: OSF-17, OSF-18
 #[test]
 fn an_invalid_ecosystem_name_is_refused_before_any_request() {
     let cache = TempDir::new().expect("a cache");
@@ -444,7 +444,7 @@ fn an_invalid_ecosystem_name_is_refused_before_any_request() {
     assert_eq!(server.requests(), Vec::<String>::new());
 }
 
-// spec: OSR-17
+// spec: OSF-17
 #[test]
 fn the_names_osv_uses_are_accepted() {
     let cache = TempDir::new().expect("a cache");
@@ -472,7 +472,7 @@ fn the_names_osv_uses_are_accepted() {
     }
 }
 
-// spec: OSR-18
+// spec: OSF-18
 #[test]
 fn a_cache_that_cannot_be_written_fails_with_cannot_use_the_cache() {
     let dir = TempDir::new().expect("a directory");
@@ -490,7 +490,7 @@ fn a_cache_that_cannot_be_written_fails_with_cannot_use_the_cache() {
     );
 }
 
-// spec: OSR-H4, OSR-12, OSR-15
+// spec: OSF-H2, OSF-3, OSF-15
 #[test]
 fn a_cache_is_read_offline_without_a_request() {
     let cache = TempDir::new().expect("a cache");
@@ -514,7 +514,7 @@ fn a_cache_is_read_offline_without_a_request() {
     assert_eq!(read, filled);
 }
 
-// spec: OSR-12, OSR-13, OSR-18
+// spec: OSF-3, OSF-9, OSF-18
 #[test]
 fn an_ecosystem_not_cached_fails_offline_without_a_request() {
     let cache = TempDir::new().expect("a cache");
@@ -530,7 +530,7 @@ fn an_ecosystem_not_cached_fails_offline_without_a_request() {
     assert_eq!(server.requests(), Vec::<String>::new());
 }
 
-// spec: OSR-13
+// spec: OSF-9
 #[test]
 fn a_snapshot_older_than_the_age_is_downloaded_again() {
     let hour = Duration::from_secs(3_600);
@@ -555,7 +555,7 @@ fn a_snapshot_older_than_the_age_is_downloaded_again() {
     assert_eq!(renewed[0].freshness.downloaded_at, two_hours_later);
 }
 
-// spec: OSR-13
+// spec: OSF-9
 #[test]
 fn an_empty_cache_is_filled_under_older_than() {
     let cache = TempDir::new().expect("a cache");
@@ -574,7 +574,7 @@ fn an_empty_cache_is_filled_under_older_than() {
     assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
 }
 
-// spec: OSR-13
+// spec: OSF-9
 #[test]
 fn a_snapshot_dated_after_now_is_not_downloaded_again() {
     let cache = TempDir::new().expect("a cache");
@@ -596,7 +596,7 @@ fn a_snapshot_dated_after_now_is_not_downloaded_again() {
     assert_eq!(server.requests().len(), 1);
 }
 
-// spec: OSR-13
+// spec: OSF-9
 #[test]
 fn a_snapshot_whose_freshness_cannot_be_read_is_downloaded_again() {
     let cache = TempDir::new().expect("a cache");
@@ -619,7 +619,7 @@ fn a_snapshot_whose_freshness_cannot_be_read_is_downloaded_again() {
     assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
 }
 
-// spec: OSR-16
+// spec: OSF-16
 #[test]
 fn a_snapshot_left_aside_by_a_stopped_run_is_put_back() {
     let cache = TempDir::new().expect("a cache");
@@ -642,7 +642,7 @@ fn a_snapshot_left_aside_by_a_stopped_run_is_put_back() {
     assert_eq!(read, filled);
 }
 
-// spec: OSR-16
+// spec: OSF-16
 #[test]
 fn what_a_stopped_download_left_is_cleared() {
     let cache = TempDir::new().expect("a cache");
@@ -671,7 +671,7 @@ fn what_a_stopped_download_left_is_cleared() {
     assert_eq!(left, [".lock-crates.io", "crates.io"]);
 }
 
-// spec: OSR-11
+// spec: OSF-2
 #[test]
 fn each_download_records_the_time_it_started() {
     let cache = TempDir::new().expect("a cache");
@@ -731,7 +731,7 @@ fn wait_for_requests(server: &Server, count: usize) {
     panic!("{count} requests expected, got {:?}", server.requests());
 }
 
-// spec: OSR-H5, OSR-19
+// spec: OSF-H3, OSF-4
 #[test]
 fn a_second_run_waits_for_the_first_and_reads_its_snapshot() {
     let cache = TempDir::new().expect("a cache");
@@ -758,7 +758,7 @@ fn a_second_run_waits_for_the_first_and_reads_its_snapshot() {
     assert_eq!(second, first);
 }
 
-// spec: OSR-20
+// spec: OSF-7
 #[test]
 fn runs_fetching_different_ecosystems_do_not_wait_for_each_other() {
     let cache = TempDir::new().expect("a cache");
@@ -784,7 +784,7 @@ fn hold_shared_lock(cache: &Path, ecosystem: &str) -> fs::File {
     file
 }
 
-// spec: OSR-32
+// spec: OSF-5
 #[test]
 fn runs_reading_the_same_snapshot_do_not_wait_for_each_other() {
     let cache = TempDir::new().expect("a cache");
@@ -807,7 +807,7 @@ fn runs_reading_the_same_snapshot_do_not_wait_for_each_other() {
     assert_eq!(server.requests().len(), 1);
 }
 
-// spec: OSR-33, OSR-22
+// spec: OSF-6, OSF-19
 #[test]
 fn a_download_waits_for_the_runs_reading_the_snapshot() {
     let cache = TempDir::new().expect("a cache");
@@ -840,7 +840,7 @@ fn a_download_waits_for_the_runs_reading_the_snapshot() {
     assert_eq!(after, before);
 }
 
-// spec: OSR-33
+// spec: OSF-6
 #[test]
 fn putting_back_a_snapshot_waits_for_the_runs_reading() {
     let cache = TempDir::new().expect("a cache");
@@ -871,7 +871,7 @@ fn putting_back_a_snapshot_waits_for_the_runs_reading() {
     assert!(cache.path().join(".former-crates.io").is_dir());
 }
 
-// spec: OSR-19, OSR-13
+// spec: OSF-4, OSF-9
 #[test]
 fn two_runs_finding_the_snapshot_too_old_download_it_once() {
     use std::sync::Arc;
@@ -927,7 +927,7 @@ fn two_runs_finding_the_snapshot_too_old_download_it_once() {
 /// The variable naming the lock file the helper process below locks before it waits to be killed.
 const HOLDER_LOCK: &str = "FOREWARN_TEST_HOLD_LOCK";
 
-/// Not a test of its own: run as a child process by the test of OSR-21, it holds a lock until it is killed.
+/// Not a test of its own: run as a child process by the test of OSF-8, it holds a lock until it is killed.
 #[test]
 fn lock_holder_process() {
     let Some(path) = std::env::var_os(HOLDER_LOCK) else {
@@ -939,7 +939,7 @@ fn lock_holder_process() {
     thread::sleep(Duration::from_secs(600));
 }
 
-// spec: OSR-21
+// spec: OSF-8
 #[test]
 fn a_lock_left_by_a_killed_run_does_not_block() {
     let cache = TempDir::new().expect("a cache");
@@ -982,7 +982,7 @@ fn a_lock_left_by_a_killed_run_does_not_block() {
     assert_eq!(ids(&snapshots[0]), ["RUSTSEC-2020-0071"]);
 }
 
-// spec: OSR-22, OSR-18
+// spec: OSF-19, OSF-18
 #[test]
 fn a_run_waiting_longer_than_its_bound_fails_with_cache_locked() {
     let cache = TempDir::new().expect("a cache");
@@ -1022,7 +1022,7 @@ fn a_run_waiting_longer_than_its_bound_fails_with_cache_locked() {
     assert_eq!(after, before);
 }
 
-// spec: OSR-22
+// spec: OSF-19
 #[test]
 fn the_default_wait_is_40_minutes() {
     let archives = Archives::new(PathBuf::from("cache"), Refresh::IfMissing);
@@ -1030,7 +1030,7 @@ fn the_default_wait_is_40_minutes() {
     assert_eq!(archives.lock_wait, Duration::from_secs(40 * 60));
 }
 
-// spec: OSR-23
+// spec: OSF-20
 #[cfg(unix)]
 #[test]
 fn an_offline_run_reads_a_cache_it_cannot_write_in() {
@@ -1052,7 +1052,7 @@ fn an_offline_run_reads_a_cache_it_cannot_write_in() {
     assert_eq!(read.expect("the snapshot is read"), filled);
 }
 
-// spec: OSR-19
+// spec: OSF-4
 #[cfg(unix)]
 #[test]
 fn a_lock_file_the_run_can_only_read_still_locks() {
@@ -1140,7 +1140,7 @@ fn damages() -> [Damaging; 3] {
     ]
 }
 
-// spec: OSR-38
+// spec: OSF-10
 #[test]
 fn a_snapshot_whose_files_differ_from_its_download_is_downloaded_again_once() {
     for (damage, apply, _) in damages() {
@@ -1163,7 +1163,7 @@ fn a_snapshot_whose_files_differ_from_its_download_is_downloaded_again_once() {
     }
 }
 
-// spec: OSR-39, OSR-18
+// spec: OSF-11, OSF-18
 #[test]
 fn a_snapshot_whose_files_differ_from_its_download_fails_offline_without_a_request() {
     for (damage, apply, file) in damages() {
@@ -1184,7 +1184,7 @@ fn a_snapshot_whose_files_differ_from_its_download_fails_offline_without_a_reque
     }
 }
 
-// spec: OSR-38, OSR-16
+// spec: OSF-10, OSF-16
 #[test]
 fn a_damaged_snapshot_whose_download_fails_is_requested_once() {
     let cache = TempDir::new().expect("a cache");
@@ -1206,7 +1206,7 @@ fn a_damaged_snapshot_whose_download_fails_is_requested_once() {
     assert_eq!(server.requests().len(), 2);
 }
 
-// spec: OSR-40
+// spec: OSF-12
 #[test]
 fn a_snapshot_of_its_download_whose_records_cannot_be_read_fails_without_a_request() {
     let cache = TempDir::new().expect("a cache");
@@ -1230,7 +1230,7 @@ fn a_snapshot_of_its_download_whose_records_cannot_be_read_fails_without_a_reque
     assert_eq!(server.requests().len(), 1);
 }
 
-// spec: OSR-40
+// spec: OSF-12
 #[cfg(unix)]
 #[test]
 fn a_snapshot_of_its_download_that_cannot_be_opened_fails_without_a_request() {
@@ -1269,7 +1269,7 @@ fn forget_the_files_of_crates_io(cache: &Path) {
     fs::write(&path, serde_json::to_vec(&freshness).expect("JSON")).expect("the freshness");
 }
 
-// spec: OSR-41
+// spec: OSF-13
 #[test]
 fn a_snapshot_whose_freshness_names_no_files_is_downloaded_again_once() {
     let cache = TempDir::new().expect("a cache");
@@ -1288,7 +1288,7 @@ fn a_snapshot_whose_freshness_names_no_files_is_downloaded_again_once() {
     assert_eq!(server.requests().len(), 2);
 }
 
-// spec: OSR-41
+// spec: OSF-13
 #[test]
 fn a_snapshot_whose_freshness_names_no_files_is_read_offline() {
     let cache = TempDir::new().expect("a cache");
@@ -1304,7 +1304,7 @@ fn a_snapshot_whose_freshness_names_no_files_is_read_offline() {
     assert_eq!(server.requests().len(), 1);
 }
 
-// spec: OSR-41
+// spec: OSF-13
 #[test]
 fn a_snapshot_whose_freshness_names_no_files_is_downloaded_again_under_older_than() {
     let cache = TempDir::new().expect("a cache");
@@ -1323,7 +1323,7 @@ fn a_snapshot_whose_freshness_names_no_files_is_downloaded_again_under_older_tha
     assert_eq!(snapshots[0].freshness.downloaded_at, at(2_000));
 }
 
-// spec: OSR-38
+// spec: OSF-10
 #[test]
 fn a_hidden_file_left_in_a_snapshot_is_not_damage() {
     let cache = TempDir::new().expect("a cache");

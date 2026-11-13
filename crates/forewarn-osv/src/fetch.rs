@@ -1,5 +1,5 @@
 //! Fetching the OSV archive of each ecosystem, `<base>/<ecosystem>/all.zip`, into a cache directory, and reading the
-//! snapshot it holds (`specs/osv-reading.md`, ADR 0004). A request names only the ecosystem, never a package. The
+//! snapshot it holds (`specs/osv-fetching.md`, ADR 0004). A request names only the ecosystem, never a package. The
 //! refresh policy, the freshness and the lock of each ecosystem are those of `forewarn-cache` (ADR 0008).
 
 use std::fmt;
@@ -26,7 +26,7 @@ pub struct Archives {
     pub base_url: String,
     pub refresh: Refresh,
     /// How long a fetch waits for another fetch of the same ecosystem into this cache, [`DEFAULT_LOCK_WAIT`] by
-    /// default (OSR-22).
+    /// default (OSF-19).
     pub lock_wait: Duration,
 }
 
@@ -38,7 +38,7 @@ pub struct Snapshot {
     pub vulnerabilities: Vec<Vulnerability>,
 }
 
-/// An ecosystem whose records could not be fetched, and why (OSR-18).
+/// An ecosystem whose records could not be fetched, and why (OSF-18).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FetchError {
     pub ecosystem: String,
@@ -48,11 +48,11 @@ pub struct FetchError {
 /// Why the records of an ecosystem could not be fetched.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FetchCause {
-    /// The ecosystem name is not one a cache directory can be named after (OSR-17).
+    /// The ecosystem name is not one a cache directory can be named after (OSF-17).
     InvalidName,
     /// The policy is [`Refresh::Offline`] and the cache holds no snapshot of the ecosystem.
     NotCached,
-    /// Another fetch still handles the ecosystem in this cache once the wait is over (OSR-22).
+    /// Another fetch still handles the ecosystem in this cache once the wait is over (OSF-19).
     Locked { waited: Duration },
     /// The server cannot be reached or does not answer 200.
     Download { url: String, reason: String },
@@ -64,7 +64,7 @@ pub enum FetchCause {
     Record(ReadError),
     /// The cache directory cannot be read or written; the system's reason.
     Cache(String),
-    /// The policy is [`Refresh::Offline`] and the files of the snapshot differ from those its download stored (OSR-39).
+    /// The policy is [`Refresh::Offline`] and the files of the snapshot differ from those its download stored (OSF-11).
     Damaged(Damage),
 }
 

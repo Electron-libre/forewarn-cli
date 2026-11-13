@@ -26,8 +26,8 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   clean: neither affected nor named by a component or pair not evaluated.
 - **MCH-4** (deterministic) `forewarn match <sbom>` must print the freshness of each source of OSV records it used:
   for a fetched ecosystem its name, the UTC time its archive was downloaded, its URL, and its `Last-Modified` when the
-  server sent one (OSR-11); for a local path given with `--osv`, that path.
-- **MCH-5** (deterministic) Without `--osv`, `forewarn match <sbom>` must fetch the OSV archive (OSR-10) of each OSV
+  server sent one (OSF-2); for a local path given with `--osv`, that path.
+- **MCH-5** (deterministic) Without `--osv`, `forewarn match <sbom>` must fetch the OSV archive (OSF-1) of each OSV
   ecosystem a component maps to (VMT-4), each once, in the order of the first component that maps to it, and fetch
   nothing when no component maps to one.
 - **MCH-6** (deterministic) `forewarn match --osv <path> <sbom>` must match against the records of that OSV record file
@@ -60,22 +60,22 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   |---|---|
   | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--osv-url` or `--osv-api`, `--osv-api` with `--osv-url`, `--osv-api-url` without `--osv-api`, `--kev` with `--no-kev` or `--kev-url`, `--no-kev` with `--kev-url`, `--euvd` with `--no-euvd` or `--euvd-url`, `--no-euvd` with `--euvd-url`, `--cache` or `--refresh` when nothing is fetched (`--osv` or `--osv-api`, with `--kev` or `--no-kev`, and with `--euvd` or `--no-euvd`), no SBOM given, no cache directory MCH-12 can find when an OSV archive, the KEV catalog or the EUVD list is fetched) | 2 |
   | the SBOM cannot be read (any error of SBR-7) | 3 |
-  | the OSV records cannot be read (OSR-9), fetched (OSR-18) or queried (OSR-31), the KEV catalog cannot be read (KEV-16) or fetched (KEV-15), or the EUVD list cannot be read (EUV-16) or fetched (EUV-15) | 5 |
+  | the OSV records cannot be read (OSR-9), fetched (OSF-18) or queried (OSR-31), the KEV catalog cannot be read (KEV-16) or fetched (KEV-15), or the EUVD list cannot be read (EUV-16) or fetched (EUV-15) | 5 |
   | the report cannot be written to standard output, a closed pipe aside (MCH-20) | 4 |
   | a match is actively exploited (MXL-1), with or without `--allow-affected` | 6 |
   | a component is affected, without `--allow-affected` | 1 |
   | no component is affected, or one is with `--allow-affected` | 0 |
 
 - **MCH-11** (deterministic) `--refresh` must accept `offline`, `if-missing`, `always`, and an age written as a
-  positive whole number followed by `m`, `h` or `d` (minutes, hours, days), which means `older-than <age>` (OSR-13),
+  positive whole number followed by `m`, `h` or `d` (minutes, hours, days), which means `older-than <age>` (OSF-9),
   and default to `1d`.
 - **MCH-12** (deterministic) The cache directory must be `--cache <dir>` when given, else `$XDG_CACHE_HOME/forewarn/osv`
   when `XDG_CACHE_HOME` is an absolute path, else `$HOME/.cache/forewarn/osv` when `HOME` is set and not empty.
 - **MCH-13** (deterministic) The archives must be downloaded from `--osv-url <url>` when given, else from the OSV
-  bucket of OSR-14.
+  bucket of OSF-14.
 - **MCH-14** (deterministic) An SBOM, OSV records, a KEV catalog or an EUVD list that cannot be read, fetched or
   queried must print nothing on standard output and one line on standard error naming the path of the SBOM (`standard
-  input` for `-`), the file, the ecosystem, the OSV API, `CISA KEV` or `EUVD`, and the error of SBR-7, OSR-9, OSR-18,
+  input` for `-`), the file, the ecosystem, the OSV API, `CISA KEV` or `EUVD`, and the error of SBR-7, OSR-9, OSF-18,
   OSR-31, KEV-15, KEV-16, EUV-15 or EUV-16.
 - **MCH-15** (deterministic) The report, in either format, must be printed on standard output and nothing else on
   standard error.

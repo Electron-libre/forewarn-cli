@@ -1,7 +1,7 @@
 //! The OSV adapter of `forewarn`: reads vulnerability records in the OSV JSON format into the types of the domain
 //! (`specs/osv-reading.md`). The `serde` model of the record stays in this crate (ADR 0003). The module [`fetch`]
-//! downloads the archive of each ecosystem into a cache (ADR 0004); the module [`api`] queries the OSV API, an opt-in
-//! source (ADR 0006).
+//! downloads the archive of each ecosystem into a cache (`specs/osv-fetching.md`, ADR 0004); the module [`api`]
+//! queries the OSV API, an opt-in source (ADR 0006).
 
 pub mod api;
 pub mod fetch;
@@ -91,7 +91,7 @@ fn parse_record(bytes: &[u8]) -> Result<Vulnerability, Cause> {
 }
 
 /// Whether a name can be a path segment of a URL and a file name as it is: not empty, not first `.`, only ASCII
-/// letters, digits, `.`, `-`, `_` and the bytes of `extra` (OSR-17, OSR-31).
+/// letters, digits, `.`, `-`, `_` and the bytes of `extra` (OSF-17, OSR-31).
 fn is_path_segment(name: &str, extra: &[u8]) -> bool {
     !name.is_empty()
         && !name.starts_with('.')
