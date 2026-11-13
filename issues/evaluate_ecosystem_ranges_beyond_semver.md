@@ -11,7 +11,7 @@ evaluated" (VMT-10). An SBOM of those ecosystems then gets no affected verdict a
 when a record names the exact version through a range. The vendor should get a verdict for those components too.
 
 # Findings
-* Raised by the `high` review of `issues/query_the_osv_api.md` (2026-11-13): with `--osv-api`, the OSV API already
+* Raised by the `high` review of `issues/done/query_the_osv_api.md` (2026-11-13): with `--osv-api`, the OSV API already
   returns only the records it considers affecting each version, and the domain still lists them as not evaluated
   for these ecosystems; the same records read from an archive are reported the same way.
 * VMT-10 forbids counting a pair not evaluated as unaffected, so the gap is shown, never hidden: it is a missing
