@@ -12,7 +12,7 @@ cache entries, the exit code 6). Moving that family into a spec of its own leave
 the OSV records, each spec under the bound.
 
 # Findings
-* `cardinal run check-specs` on 2026-11-13, after `issues/read_euvd_exploited_list.md` added MCH-36 to MCH-41:
+* `cardinal run check-specs` on 2026-11-13, after `issues/done/read_euvd_exploited_list.md` added MCH-36 to MCH-41:
   `specs/cli-match.md: outgrows its capability: 41 requirements over 40`.
 * The exploited-list requirements are MCH-29 to MCH-41, plus rows of MCH-10, MCH-14 and MCH-16 (exit codes, error
   lines, `exploitedLists`, `exploitedCount`, `exploited`).
