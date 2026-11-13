@@ -1143,3 +1143,42 @@ fn names_a_record_with_an_empty_id_and_no_cve_by_its_alias() {
     assert_eq!(ids(&report), [("time", "GHSA-X")]);
     assert_eq!(report.matches()[0].aliases, Vec::<String>::new());
 }
+
+// spec: VMT-30, VMT-16, VMT-17
+#[test]
+fn lets_a_record_with_an_empty_id_name_its_group_by_its_first_alias() {
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[
+            time_record("", "GHSA", &["GHSA-X", "AAA-1"], "0"),
+            time_record("RUSTSEC-B", "RUSTSEC", &["GHSA-X"], "0"),
+        ],
+    );
+    assert_eq!(ids(&report), [("time", "AAA-1")]);
+    assert_eq!(report.matches()[0].aliases, ["GHSA-X", "RUSTSEC-B"]);
+}
+
+// spec: VMT-30, VMT-22
+#[test]
+fn lists_a_record_with_an_empty_id_not_affecting_the_component() {
+    let mut mirror = vulnerability(
+        "",
+        "crates.io",
+        "time",
+        vec![range(RangeKind::Semver, &[introduced("0"), fixed("0.5.0")])],
+    );
+    mirror.source = "GHSA".into();
+    mirror.aliases = vec!["RUSTSEC-A".into()];
+    let report = match_components(
+        &[component("pkg:cargo/time@1.0.0")],
+        &[time_record("RUSTSEC-A", "RUSTSEC", &[], "0"), mirror],
+    );
+    assert_eq!(ids(&report), [("time", "RUSTSEC-A")]);
+    assert_eq!(
+        report.matches()[0].records,
+        [
+            record_with("", "GHSA", RecordStatus::DoesNotAffect),
+            record("RUSTSEC-A", "RUSTSEC")
+        ]
+    );
+}

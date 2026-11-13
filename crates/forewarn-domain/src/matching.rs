@@ -99,7 +99,8 @@ impl From<&Component> for ComponentRef {
 pub struct Match {
     pub component: ComponentRef,
     /// The id naming the vulnerability: the CVE its records share, else the first id of its records affecting the
-    /// component or not evaluated (VMT-16).
+    /// component or not evaluated (VMT-16), a record whose id is blank standing for its first other id, else for its
+    /// blank id (VMT-30).
     pub id: String,
     /// Every other id and alias of those records, in byte order, without another CVE nor the id of a record of
     /// another CVE (VMT-17).
@@ -416,23 +417,24 @@ impl<'n> Group<'n> {
         groups
     }
 
-    /// The match of the group: named by its CVE, else its first record id that is not blank, else its first other id,
-    /// else the blank id of its record (VMT-30); its aliases without another CVE nor the
-    /// id of a record of another CVE; its records, those not affecting that overlap it included (VMT-16 to VMT-18,
+    /// The match of the group: named by its CVE, else its first record id, a record whose id is blank standing for
+    /// its first other id, else for its blank id (VMT-30); its aliases without another CVE nor the id of a record of
+    /// another CVE; its records, those not affecting that overlap it included (VMT-16 to VMT-18,
     /// VMT-22).
     fn to_match(&self, component: &Component, named: &[Named]) -> Match {
         let id = self.cve.unwrap_or_else(|| {
-            let records = || self.members.iter().map(|&member| &named[member]);
-            records()
-                .map(|record| record.record.id.as_str())
-                .filter(|id| !is_blank(id))
-                .min()
-                .or_else(|| {
-                    records()
-                        .flat_map(|record| record.ids.iter().map(AsRef::as_ref))
-                        .min()
+            self.members
+                .iter()
+                .map(|&member| {
+                    let record = &named[member];
+                    let id = record.record.id.as_str();
+                    if is_blank(id) {
+                        record.ids.first().map_or(id, AsRef::as_ref)
+                    } else {
+                        id
+                    }
                 })
-                .or_else(|| records().map(|record| record.record.id.as_str()).min())
+                .min()
                 .unwrap_or_default()
         });
         let foreign: BTreeSet<&str> = named

@@ -42,6 +42,9 @@ records with a blank id for copies of one record (VMT-30). Out of scope: the ada
 1. [x] Blank ids in the matching: `Named::new` drops blank ids and aliases, the copy dedup skips blank record ids,
    VMT-16 falls back to the aliases when no member has a non-blank id; verified by tests in
    `crates/forewarn-domain/tests/matching.rs` (the VMT-30 scenarios); makes true VMT-30 (spec back to `accepted`). (autonomous)
+2. [x] Fixes of the `high` review: a record with a blank id stands in VMT-16 for its first other id, also in a group
+   with other records; the doc of `Match.id`; tests of a mixed group and of a blank-id record not affecting;
+   verified by `crates/forewarn-domain/tests/matching.rs`; makes true VMT-30. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -58,3 +61,18 @@ records with a blank id for copies of one record (VMT-30). Out of scope: the ada
 - checks: project-check ok (fmt, clippy, tests, specs), size 90 lines.
 - Code review: no findings
 - not verified: none. decisions needed: none.
+
+## Deliverable 2
+- done: the name of a match without CVE takes, for a member whose id is blank, its first other id (single pass, no
+  fallback chain); VMT-30 reworded to say so, two scenarios added; doc of `Match.id` updated.
+- red: VMT-30, VMT-16, VMT-17: `left: [("time", "RUSTSEC-B")]` against `[("time", "AAA-1")]`.
+- Findings of the `high` review not fixed:
+  - `Records::add` of the CLI drops a second record of id `""`: unreachable, every source of the CLI goes through
+    OSR-36, which refuses such an id.
+  - Pairs not evaluated keep their blank id as given: the decision of VMT-30 (id as given, not a new reason).
+  - A non-blank id newtype on `Vulnerability`: the issue chose the guard in `Named::new`; a larger API change.
+  - `is_blank` duplicated in the OSV adapter: exposing it would add a public domain function for one trim.
+- checks: project-check ok.
+- Code review: no findings
+- not verified: none. decisions needed: none.
+- Status: done.
