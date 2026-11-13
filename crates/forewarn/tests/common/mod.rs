@@ -4,6 +4,7 @@
 #![allow(dead_code, reason = "each test crate uses a part of the helpers")]
 
 use std::io::Write;
+use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
 use serde_json::{Value, json};
@@ -22,7 +23,27 @@ pub fn run(args: &[&str], stdin: Option<&[u8]>) -> Run {
 
 /// Runs the binary with `args`, `stdin` on its standard input, each variable of `env` set, or removed when `None`.
 pub fn run_with(args: &[&str], stdin: Option<&[u8]>, env: &[(&str, Option<&str>)]) -> Run {
+    run_command(
+        Command::new(env!("CARGO_BIN_EXE_forewarn")),
+        args,
+        stdin,
+        env,
+    )
+}
+
+/// Runs the binary with `args` in the working directory `cwd`, `stdin` on its standard input.
+pub fn run_in(cwd: &Path, args: &[&str], stdin: Option<&[u8]>) -> Run {
     let mut command = Command::new(env!("CARGO_BIN_EXE_forewarn"));
+    command.current_dir(cwd);
+    run_command(command, args, stdin, &[])
+}
+
+fn run_command(
+    mut command: Command,
+    args: &[&str],
+    stdin: Option<&[u8]>,
+    env: &[(&str, Option<&str>)],
+) -> Run {
     for (name, value) in env {
         match value {
             Some(value) => command.env(name, value),

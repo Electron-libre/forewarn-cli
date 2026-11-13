@@ -35,6 +35,7 @@ forewarn match --kev kev.json sbom.cdx.json       # a CISA KEV catalog file inst
 forewarn match --euvd euvd.json sbom.cdx.json     # an EUVD exploited list file instead of paging the list
 forewarn match --aware-since 2026-11-13T09:30:00Z sbom.cdx.json  # the CRA reporting deadlines from that moment
 forewarn match --aware-since 2026-11-13T09:30:00Z --now 2026-11-15T10:00:00Z sbom.cdx.json  # the time left at a moment
+forewarn match --aware-since 2026-11-13T09:30:00Z --drafts drafts/ sbom.cdx.json  # a draft early warning per CVE
 ```
 
 `forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
@@ -81,9 +82,18 @@ the time left before it (`23h 30m 0s left`, `due now` at its very second) or how
 30m 0s`), at `--now <instant>` or, by default, the moment of the run; the JSON report leaves that comparison to its
 reader. An instant refused exits with 2.
 
+`--drafts <dir>` writes, in the same run, the draft CRA early warning of each actively exploited CVE into that
+directory, created when missing: one Markdown file per CVE, `<product>-<CVE>.md` (the product name of the SBOM, each
+character other than an ASCII letter, a digit, `.`, `_` or `-` written `_`; `<CVE>.md` when the SBOM names no product),
+which a rerun replaces whole. A draft fills what the SBOM, the match and the moments give (the product, its
+manufacturer, the components, the CVE, the evidence, the deadlines) and marks `**TO COMPLETE**` the fields of the ENISA
+Single Reporting Platform only the vendor knows (the title, the summary, the Member States). The drafts of a CVE no
+longer exploited stay in the directory.
+
 It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
 `--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records, the KEV catalog or the EUVD
-list cannot be read, fetched or queried; and otherwise as `check` does.
+list cannot be read, fetched or queried; 7 when a draft cannot be written, with nothing printed on standard output;
+and otherwise as `check` does.
 
 ## License
 

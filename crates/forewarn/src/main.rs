@@ -1,13 +1,7 @@
 //! The `forewarn` command line: parses the arguments and wires the adapters to the domain (`specs/cli-check.md`,
 //! `specs/cli-match.md`, `specs/cli-match-exploited.md`).
 
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "no command writes a draft before the issue cli_draft_early_warnings"
-    )
-)]
+mod drafts;
 mod early_warning;
 mod report;
 
@@ -25,7 +19,8 @@ use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
 use forewarn_domain::date::{Date, Moment};
 use forewarn_domain::deadlines::{DeadlinePastRange, reporting_deadlines};
-use forewarn_domain::exploited::{ExploitedList, flag_exploited};
+use forewarn_domain::early_warning::draft_early_warnings;
+use forewarn_domain::exploited::{ExploitedList, FlaggedReport, flag_exploited};
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
 use forewarn_domain::vulnerability::Vulnerability;
@@ -138,6 +133,10 @@ struct MatchArgs {
     /// overdue, printed in the human report only [default: the moment of the run].
     #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
     now: Option<GivenMoment>,
+    /// Write the draft CRA early warning of each actively exploited CVE into this directory, created when missing,
+    /// one Markdown file per CVE named `<product>-<CVE>.md`, replaced on a rerun.
+    #[arg(long, value_name = "DIR")]
+    drafts: Option<PathBuf>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     format: Format,
@@ -161,6 +160,7 @@ const UNREADABLE: u8 = 3;
 const UNWRITABLE: u8 = 4;
 const NO_RECORDS: u8 = 5;
 const EXPLOITED: u8 = 6;
+const DRAFT_UNWRITABLE: u8 = 7;
 
 fn main() -> ExitCode {
     let outcome = match Cli::parse().command {
@@ -261,6 +261,10 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
             records: *records,
         }))
         .collect();
+    // The drafts before the report, so that a draft not written leaves standard output empty (MXL-33).
+    if let Some(directory) = &args.drafts {
+        write_drafts(directory, &sbom, &awareness, &matching)?;
+    }
     write_report(&match args.format {
         Format::Human => report::matching_human(&sbom, &sources, &exploited, &awareness, &matching),
         Format::Json => report::matching_json(&sbom, &sources, &exploited, &awareness, &matching),
@@ -269,6 +273,27 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         return Ok(ExitCode::from(EXPLOITED));
     }
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
+}
+
+/// Writes the draft early warning of each actively exploited CVE into `directory` (MXL-27), or prints why one cannot
+/// be written and returns the code 7 (MXL-33).
+fn write_drafts(
+    directory: &Path,
+    sbom: &Sbom,
+    awareness: &Awareness,
+    matching: &FlaggedReport,
+) -> Result<Vec<drafts::Written>, u8> {
+    let drafted = draft_early_warnings(
+        matching,
+        sbom.product.as_ref(),
+        awareness.since,
+        awareness.measure_available,
+    )
+    .expect("the deadlines of the moments given were checked before the SBOM was read");
+    drafts::write(directory, &drafted).map_err(|error| {
+        eprintln!("error: {}", report::escaped(&error.to_string()));
+        DRAFT_UNWRITABLE
+    })
 }
 
 /// The moments the reporting deadlines of the run are computed from, those deadlines and the moment they are checked

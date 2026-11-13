@@ -149,7 +149,7 @@ document a person copies into the ENISA Single Reporting Platform form.
 
 - A JSON form of the written draft: no reader of it was found (ADR 0013); the JSON report of `forewarn match` is the
   machine-readable output.
-- Writing the drafts to files or printing them from a command: `cli_draft_early_warnings` does.
+- Writing the drafts to files: `forewarn match --drafts` does (`specs/cli-match-exploited.md`, MXL-27).
 - The time left before each deadline in the written draft: it depends on when it is read, which the report of
   `forewarn match` gives (MXL-22).
 - Entering the draft into the platform form for the vendor, or the labels of the form's options (the notification

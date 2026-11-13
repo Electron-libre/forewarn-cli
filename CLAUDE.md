@@ -18,8 +18,7 @@ available, on a UTC moment of its own, and, at a given moment, the time left bef
 each CVE of the exploited matches: the product, its manufacturer, the components, the CVE, the evidence and the
 deadlines filled, the other fields the ENISA SRP glossary 1.6 requires listed to complete (`specs/early-warning-draft.md`,
 ADR [0012](docs/adr/0012-align-the-early-warning-draft-on-the-enisa-srp-glossary.md)), which the CLI crate writes as a
-Markdown document, the fields numbered and named as the glossary does, those to complete marked `**TO COMPLETE**`, no
-command printing it yet (ADR [0013](docs/adr/0013-write-the-early-warning-draft-in-markdown-in-the-cli-crate.md)); the exploited-list adapter reads the CISA KEV catalog, from a file or
+Markdown document, the fields numbered and named as the glossary does, those to complete marked `**TO COMPLETE**` (ADR [0013](docs/adr/0013-write-the-early-warning-draft-in-markdown-in-the-cli-crate.md)); the exploited-list adapter reads the CISA KEV catalog, from a file or
 fetched into a cache under the refresh policy and the lock of the OSV archives (crate `forewarn-cache`), into such a
 list, with the catalog's version and release date (`specs/kev-reading.md`, ADR
 [0008](docs/adr/0008-exploited-lists-crate-and-a-shared-cache-crate.md)), and reads the exploited records of EUVD, from a
@@ -40,7 +39,9 @@ OSV API names for its components (`specs/cli-match.md`), each match the CISA KEV
 actively exploited with its evidence (the catalog fetched into the same cache or read with `--kev`, the EUVD list paged
 into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-since` (by default the moment of the
 run) and `--measure-available`, each with the time left before it or how long it is overdue at `--now` (by default the
-moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`).
+moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`); with `--drafts <dir>`, it
+writes the draft early warning of each such CVE into `<dir>/<product>-<CVE>.md` (module `drafts`), exiting with 7 when
+one cannot be written.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
@@ -55,7 +56,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-osv` | OSV adapter: vulnerability records, read, fetched into a cache or queried from the OSV API, into domain types | `feeds` |
 | `forewarn-cache` | the cache of the downloads: refresh policy, freshness and the files of each download (ADR 0010), a file lock per entry (ADR 0008), one `GET` or the download of the source (ADR 0009) | `feeds` |
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read or paged into a cache, into the domain's exploited lists | `feeds` |
-| `forewarn` | the CLI binary: arguments, wiring, the report formats (module `report`) and the written early warning draft (module `early_warning`) | `cli` |
+| `forewarn` | the CLI binary: arguments, wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`
 crates. `publish = false` stays until the first publication is decided (the path dependencies then need a `version`).
