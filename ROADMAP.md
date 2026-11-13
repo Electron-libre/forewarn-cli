@@ -44,7 +44,12 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Goal: the vulnerabilities found are flagged as actively exploited when CISA KEV or the exploited list of EUVD names
   one of their CVE identifiers, with the list and its date as evidence.
 - Why: knowing within 24 hours that a shipped dependency is actively exploited is what CRA article 14 starts from.
-- State: idea
+- State: in issues
+- Issues:
+  - [flag_exploited_vulnerabilities](issues/flag_exploited_vulnerabilities.md)
+  - [read_cisa_kev_catalog](issues/read_cisa_kev_catalog.md)
+  - [read_euvd_exploited_list](issues/read_euvd_exploited_list.md)
+  - [cli_flag_exploited_matches](issues/cli_flag_exploited_matches.md)
 
 ## Compute CRA reporting deadlines
 
