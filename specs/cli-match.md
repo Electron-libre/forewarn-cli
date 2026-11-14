@@ -99,8 +99,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
-- **MCH-18** (deterministic) The human report must print each control character of a value read from the SBOM, the
-  OSV records or an exploited list escaped (`\n`, `\u{1b}`), as CHK-14 does.
+- **MCH-18** (deterministic) The human report must print each control character and each bidirectional or invisible
+  formatting character of a value read from the SBOM, the OSV records or an exploited list escaped (`\n`,
+  `\u{1b}`, `\u{202e}`), as CHK-14 does.
 - **MCH-19** (deterministic) `forewarn` with no subcommand must print its usage naming `match` beside `check`.
 - **MCH-21** (deterministic) A record whose id was already read, from another archive or another `--osv` path, must
   not be matched again, so that a component is reported once per vulnerability id.
@@ -110,8 +111,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   version of each component to the OSV API.
 - **MCH-22** (deterministic) Each source of MCH-4 must be printed with the number of records read from it, so that a
   source holding none is never read as "no vulnerability".
-- **MCH-23** (deterministic) The line of an error on standard error must print each control character of a value read
-  from the SBOM, the OSV records, an archive, an exploited list or the server escaped, as MCH-18 does.
+- **MCH-23** (deterministic) The line of an error on standard error must print each control character and each
+  bidirectional or invisible formatting character of a value read from the SBOM, the OSV records, an archive, an
+  exploited list or the server escaped, as MCH-18 does.
 - **MCH-34** (deterministic) withdrawn: moved to MXL-10 (`specs/cli-match-exploited.md`).
 - **MCH-35** (deterministic) withdrawn: moved to MXL-11 (`specs/cli-match-exploited.md`).
 - **MCH-40** (deterministic) withdrawn: moved to MXL-12 (`specs/cli-match-exploited.md`).
@@ -160,6 +162,8 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   the command exits with 0.
 - (MCH-18) Given a record whose id holds an escape sequence, when the human report prints it, then `\u{1b}` is
   written out.
+- (MCH-18) Given a component whose name holds U+202E, when the human report prints its match, then `\u{202e}` is
+  written out.
 - (MCH-12) Given `XDG_CACHE_HOME=.cache`, a relative path, when the command runs, then the cache is under
   `$HOME/.cache`.
 - (MCH-21) Given the same record in a directory and given again as a file, when the SBOM is matched, then the
@@ -183,11 +187,14 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   names the API and "cannot query the OSV API", and the command exits with 5.
 - (MCH-23) Given a directory holding a file that is not JSON and whose name holds a newline, when it is read, then the
   error stays on one line.
+- (MCH-23) Given a directory holding a file that is not JSON and whose name holds U+202E, when it is read, then the
+  error writes `\u{202e}` out.
 
 ## Non-goals
 
 - The exact layout of the human report beyond what MCH-1 to MCH-4 state: scripts read the JSON report.
 - The completeness check: `forewarn check` prints it; both commands can run in one CI job.
+- Escaping the formatting characters in the JSON report: it escapes what JSON requires, and a program reads it.
 - Failing on a component not evaluated: it is printed, never counted clean, but does not change the exit code.
 - Showing the progress of a download.
 - An environment variable that turns on `--osv-api`: sending the inventory out stays a choice made on the command line.

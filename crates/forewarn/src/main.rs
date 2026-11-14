@@ -3,6 +3,7 @@
 
 mod drafts;
 mod early_warning;
+mod escape;
 mod report;
 
 use std::collections::HashSet;

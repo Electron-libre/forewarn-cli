@@ -27,3 +27,33 @@ and paragraph separators. Such a value can reorder or hide the name or version o
 
 # Resources
 * `crates/forewarn/src/report.rs`, `crates/forewarn/src/early_warning.rs`, `specs/early-warning-draft.md` (EWD-16).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-14
+
+## Understanding
+Escape the bidirectional and invisible formatting characters of EWD-16 in the human reports of `check` and `match`
+and in the error lines of standard error, with one predicate shared with the early warning writer. The JSON reports
+stay as `serde_json` writes them (a non-goal of both specs).
+
+## Plan
+1. [x] Shared escaping: a module `escape` of the CLI crate owns the predicate of the formatting characters, used by
+   `report::push_escaped` (reports and error lines) and `early_warning::push_escaped`; verified by a new test file
+   `crates/forewarn/tests/formatting_characters.rs` driving `check`, `match` and an error through the binary
+   (`tests/matching.rs` is already over the file-size limit); makes true CHK-14, MCH-18, MCH-23. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 62aa4afb0c3a12cf3cdcefe2abe41e8e68623df4
+- JSON reports: not escaped (1 a), a non-goal of CHK and MCH.
+
+## Summary of deliverable 1
+- Code review: no findings
+- done: module `escape` (the predicate of EWD-16) shared by `report` and `early_warning`; the human reports and the
+  error lines escape the formatting characters as `\u{…}`; CHK-14, MCH-18, MCH-23 amended, specs accepted.
+- checks: tests, fmt, clippy, specs pass; docs: CLAUDE.md layout table.
+- red: CHK-14, MCH-18, MCH-23: the report and the error printed U+202E, U+200B, U+2066 and U+FEFF raw
+  (`left: "  evil 1\u{202e}0\u{200b}: …"` written as the characters themselves).
+- file size: `main.rs` grows from 809 to 810 lines (the `mod escape;` line); its split is not this issue's.
+- not verified: the rendering in a real terminal.

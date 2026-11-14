@@ -7,6 +7,8 @@ use std::fmt::Write;
 
 use forewarn_domain::early_warning::{AffectedComponent, EarlyWarning, ToComplete};
 
+use crate::escape;
+
 /// The mark of a field the vendor completes (EWD-13).
 const TO_COMPLETE: &str = "**TO COMPLETE**";
 
@@ -194,25 +196,12 @@ fn push_escaped(text: &mut String, value: &str) {
     for c in trimmed.chars() {
         if c.is_control() {
             c.escape_default().for_each(&mut push);
-        } else if is_formatting(c) {
+        } else if escape::is_formatting(c) {
             c.escape_unicode().for_each(&mut push);
         } else {
             push(c);
         }
     }
-}
-
-/// Whether `c` is a bidirectional, zero-width or separator formatting character, which a viewer draws as nothing or
-/// uses to reorder the text around it (EWD-16).
-fn is_formatting(c: char) -> bool {
-    matches!(
-        c,
-        '\u{061c}'
-            | '\u{200b}'..='\u{200f}'
-            | '\u{2028}'..='\u{202e}'
-            | '\u{2060}'..='\u{2069}'
-            | '\u{feff}'
-    )
 }
 
 #[cfg(test)]
