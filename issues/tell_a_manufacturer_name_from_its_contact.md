@@ -34,3 +34,42 @@ Draft the CRA early warning
 * `crates/forewarn-domain/src/sbom.rs`, `crates/forewarn-cyclonedx/src/lib.rs`,
   `crates/forewarn-domain/src/early_warning.rs`.
 * ADR 0002 (the `cyclonedx-bom` types never leave the adapter), ADR 0012.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-14
+
+## Understanding
+The product's manufacturer and supplier become the organization's `name` only (new SBR-12, SBR-10 withdrawn); an
+organization given only by a contact email or a URL gives none, so the draft reads `not in the SBOM`. Components keep
+the fallback of SBR-5: the completeness check is unchanged. No contact is drafted (the glossary has no field, ADR 0012).
+Measure: none of the `cargo-cyclonedx`, `syft`, `cdxgen` fixtures gives a product manufacturer or supplier at all.
+
+## Plan
+1. [x] Name only: the adapter takes the product's manufacturer and supplier from the first non-blank `name`, the doc
+   comments of `Product` say so, the SBR-10 tests retargeted; verified by `crates/forewarn-cyclonedx/tests/reading.rs`
+   and a `match --drafts` test in `crates/forewarn/tests/drafts.rs` (manufacturer by email only → `not in the SBOM`);
+   makes true SBR-12, EWD-3 (~80 lines). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 9991ae08acd54f772cf78f10e664bf1dc70cf0de
+- Question 1: a, name only for the manufacturer and the supplier of the product, the contact dropped.
+
+## Summary of deliverable 1
+- done: the product's manufacturer and supplier are read from the first non-blank `name` only (SBR-12, SBR-10
+  withdrawn); a draft whose manufacturer has only a contact reads `not in the SBOM`; `sbom-reading` back to `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`check-specs`) |
+| docs | doc comments of `Product` and `product`; README and CLAUDE.md n/a (they do not describe the field) |
+| code review | `low`, no findings |
+
+- red: SBR-12, EWD-3, EWD-14: `left: Some("security@acme.example") right: None`; the draft read
+  `- **4. Manufacturer name**: security\@acme\.example (filled by the platform from your registration: compare)`.
+- Code review: no findings
+- not verified: none
+- decisions needed: none

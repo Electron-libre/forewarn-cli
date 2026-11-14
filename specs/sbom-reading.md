@@ -65,19 +65,22 @@ check and the matching work on the components and a report names the product.
 - **SBR-8** (deterministic) Reading must not refuse nor drop a component whose type or hash algorithm is a value the
   CycloneDX enumerations do not list.
 
-- **SBR-10** (deterministic) The product must carry the fields of this table, an identity being that of an
-  organization in SBR-5, an absent CycloneDX field giving an absent domain field.
+- **SBR-10** (deterministic) withdrawn: replaced by SBR-12, which takes the manufacturer and the supplier of the
+  product by their name only, a contact email or a URL not being a name.
+
+- **SBR-11** (deterministic) Reading must not add `metadata.component` to the components of SBR-1, SBR-2 and SBR-6;
+  a component of `components` that describes the same product stays among them.
+- **SBR-12** (deterministic) The product must carry the fields of this table, a name being the `name` of an
+  organization not made only of white space, an organization without one giving no name, and an absent CycloneDX field
+  giving an absent domain field.
 
   | Domain field | CycloneDX source |
   |---|---|
   | name | `metadata.component.name` |
   | version | `metadata.component.version` |
   | package URL | `metadata.component.purl`, as written |
-  | manufacturer | the first identity of `metadata.component.manufacturer` (1.6), then `metadata.manufacture` (deprecated in 1.6) |
-  | supplier | the first identity of `metadata.supplier`, then `metadata.component.supplier` |
-
-- **SBR-11** (deterministic) Reading must not add `metadata.component` to the components of SBR-1, SBR-2 and SBR-6;
-  a component of `components` that describes the same product stays among them.
+  | manufacturer | the first name of `metadata.component.manufacturer` (1.6), then `metadata.manufacture` (deprecated in 1.6) |
+  | supplier | the first name of `metadata.supplier`, then `metadata.component.supplier` |
 
 ## Scenarios
 
@@ -106,18 +109,21 @@ check and the matching work on the components and a report names the product.
 - (SBR-1) Given a valid 1.6 SBOM with no `components`, when it is read, then it returns an empty list.
 - (SBR-9) Given a valid 1.6 SBOM with no `metadata`, or a `metadata` with no `component`, when it is read, then it
   returns its components and no product.
-- (SBR-10) Given a 1.6 SBOM whose `metadata.manufacturer`, the organization that made the SBOM, is named
+- (SBR-12) Given a 1.6 SBOM whose `metadata.manufacturer`, the organization that made the SBOM, is named
   `SBOM Service` and whose `metadata.component.manufacturer` is named `Acme`, when it is read, then the manufacturer
   of the product is `Acme`; with no `metadata.component.manufacturer`, it has none.
-- (SBR-10) Given a 1.6 SBOM whose `metadata.component.manufacturer` is named `Acme` and whose `metadata.manufacture`
+- (SBR-12) Given a 1.6 SBOM whose `metadata.component.manufacturer` is named `Acme` and whose `metadata.manufacture`
   is named `Other`, when it is read, then the manufacturer of the product is `Acme`.
-- (SBR-10) Given a 1.5 SBOM whose `metadata.manufacture` is named `Acme`, when it is read, then the manufacturer of the
+- (SBR-12) Given a 1.5 SBOM whose `metadata.manufacture` is named `Acme`, when it is read, then the manufacturer of the
   product is `Acme`.
-- (SBR-10) Given a 1.6 SBOM whose `metadata.component.manufacturer` has the name `"  "` and the URL
-  `https://acme.example`, when it is read, then the manufacturer of the product is that URL.
-- (SBR-10) Given an SBOM whose `metadata.supplier` is named `Acme` and whose `metadata.component.supplier` is named
+- (SBR-12) Given a 1.6 SBOM whose `metadata.component.manufacturer` has the name `"  "`, the URL
+  `https://acme.example` and a contact with the email `security@acme.example`, when it is read, then the product has
+  no manufacturer; with a `metadata.manufacture` named `Acme`, its manufacturer is `Acme`.
+- (SBR-12) Given an SBOM whose `metadata.supplier` has only a contact email and whose `metadata.component.supplier` is
+  named `Acme`, when it is read, then the supplier of the product is `Acme`.
+- (SBR-12) Given an SBOM whose `metadata.supplier` is named `Acme` and whose `metadata.component.supplier` is named
   `Other`, when it is read, then the supplier of the product is `Acme`.
-- (SBR-10) Given an SBOM with no `metadata.supplier` and a `metadata.component.supplier` named `Acme`, when it is read,
+- (SBR-12) Given an SBOM with no `metadata.supplier` and a `metadata.component.supplier` named `Acme`, when it is read,
   then the supplier of the product is `Acme`.
 - (SBR-11) Given an SBOM that lists its product only in `metadata.component`, when it is read, then the product is
   not among its components; given one whose `components` also lists it (as `syft` and `cdxgen` do), it stays there
@@ -135,5 +141,7 @@ check and the matching work on the components and a report names the product.
 - The components nested in `metadata.component`.
 - Services, dependencies and VEX statements: later milestones read them.
 - Deciding whether an SBOM without a product, or a product without a manufacturer, is incomplete for the CRA.
+- The contacts and URLs of the manufacturer and the supplier of the product: nothing uses them yet, and a draft early
+  warning has no field for them (ADR 0012). A component keeps its organization's email or URL (SBR-5).
 - Deciding whether a field counts as present for the CRA: the completeness check (`specs/sbom-completeness.md`) does.
 - Reading the file from disk or standard input: the command line does.

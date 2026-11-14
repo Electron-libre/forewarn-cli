@@ -22,7 +22,7 @@ document a person copies into the ENISA Single Reporting Platform form.
   report.
 - **EWD-2** (deterministic) Drafting must give no draft for a match that no list names.
 - **EWD-3** (deterministic) A draft must name the product and its manufacturer as the SBOM describes them
-  (`specs/sbom-reading.md`, SBR-9, SBR-10), and each affected component of its CVE, in the order of the report, with
+  (`specs/sbom-reading.md`, SBR-9, SBR-12), and each affected component of its CVE, in the order of the report, with
   its version, its package URL and the id of its match, as the match names them, a component and id listed twice
   in the report named once.
 - **EWD-4** (deterministic) A draft must carry the moment of awareness given to drafting and the deadlines
@@ -137,6 +137,9 @@ document a person copies into the ENISA Single Reporting Platform form.
 - (EWD-13, EWD-14) Given a draft whose SBOM names no product, when it is written, then `6. Product Name` and `7.
   Product Version` read `**TO COMPLETE**`, the list of the fields to complete names them after the Member States, and
   `4. Manufacturer name` reads `not in the SBOM`.
+- (EWD-3, EWD-14) Given an SBOM whose product manufacturer has no name and only the contact email
+  `security@acme.example`, when `forewarn match --drafts` writes its draft, then `4. Manufacturer name` reads
+  `not in the SBOM` and the draft holds no `security@acme.example`.
 - (EWD-14, EWD-15) Given a draft with an EUVD id and a measure available at `2026-11-15T17:00:00Z`, when it is
   written, then `v20. EUVD ID` gives the id, `v22.` gives `2026-11-15T17:00:00Z` and the final report is due by
   `2026-11-29T17:00:00Z`; with neither, they read `none known` and `none given`.

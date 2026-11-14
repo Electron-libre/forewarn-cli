@@ -364,7 +364,7 @@ fn application(extra: &Value) -> Value {
     component
 }
 
-// spec: SBR-9, SBR-10
+// spec: SBR-9, SBR-12
 #[test]
 fn reads_the_product_the_sbom_describes() {
     let metadata = json!({
@@ -400,7 +400,7 @@ fn reads_no_product_without_a_metadata_component() {
     assert_eq!(product_of("1.6", &metadata), None);
 }
 
-// spec: SBR-10
+// spec: SBR-12
 #[test]
 fn takes_the_manufacturer_of_the_product_not_the_one_of_the_bom() {
     let component = application(&json!({ "manufacturer": { "name": "Acme" } }));
@@ -417,7 +417,7 @@ fn takes_the_manufacturer_of_the_product_not_the_one_of_the_bom() {
     );
 }
 
-// spec: SBR-10
+// spec: SBR-12
 #[test]
 fn takes_the_manufacturer_of_the_product_before_the_deprecated_manufacture() {
     let metadata = json!({
@@ -430,7 +430,7 @@ fn takes_the_manufacturer_of_the_product_before_the_deprecated_manufacture() {
     );
 }
 
-// spec: SBR-10
+// spec: SBR-12
 #[test]
 fn takes_the_deprecated_manufacture_as_the_manufacturer() {
     let metadata =
@@ -441,18 +441,38 @@ fn takes_the_deprecated_manufacture_as_the_manufacturer() {
     );
 }
 
-// spec: SBR-10
+// spec: SBR-12
 #[test]
-fn takes_the_identity_of_a_manufacturer_with_a_blank_name() {
-    let manufacturer = json!({ "name": "  ", "url": ["https://acme.example"] });
-    let metadata = json!({ "component": application(&json!({ "manufacturer": manufacturer })) });
+fn takes_no_manufacturer_from_an_organization_without_a_name() {
+    let manufacturer = json!({
+        "name": "  ",
+        "url": ["https://acme.example"],
+        "contact": [{ "email": "security@acme.example" }],
+    });
+    let component = application(&json!({ "manufacturer": manufacturer }));
+    let alone = json!({ "component": component });
+    let with_manufacture = json!({ "component": component, "manufacture": { "name": "Acme" } });
+    assert_eq!(product_of("1.6", &alone).and_then(|p| p.manufacturer), None);
     assert_eq!(
-        product_of("1.6", &metadata).and_then(|p| p.manufacturer),
-        Some("https://acme.example".into())
+        product_of("1.6", &with_manufacture).and_then(|p| p.manufacturer),
+        Some("Acme".into())
     );
 }
 
-// spec: SBR-10
+// spec: SBR-12
+#[test]
+fn takes_the_supplier_of_the_product_when_that_of_the_metadata_has_no_name() {
+    let metadata = json!({
+        "component": application(&json!({ "supplier": { "name": "Acme" } })),
+        "supplier": { "contact": [{ "email": "security@distribution.example" }] },
+    });
+    assert_eq!(
+        product_of("1.6", &metadata).and_then(|p| p.supplier),
+        Some("Acme".into())
+    );
+}
+
+// spec: SBR-12
 #[test]
 fn takes_the_supplier_of_the_metadata_before_that_of_the_product() {
     let component = application(&json!({ "supplier": { "name": "Other" } }));

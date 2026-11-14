@@ -417,3 +417,21 @@ fn the_draft_names_the_euvd_id_of_the_euvd_record_naming_its_cve() {
         "{draft}"
     );
 }
+
+// spec: EWD-3, EWD-14, SBR-12
+#[test]
+fn a_manufacturer_given_only_by_its_contact_is_not_named_in_the_draft() {
+    let product = json!({"type": "application", "name": "shop", "version": "2.1.0",
+                         "manufacturer": {"contact": [{"email": "security@acme.example"}]}});
+    let out = TempDir::new().expect("a temporary directory");
+
+    let run = matched(&["--drafts", path(out.path())], &sbom(Some(product), true));
+
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let draft = fs::read_to_string(out.path().join(DRAFT)).expect("the draft is written");
+    assert!(
+        draft.contains("- **4. Manufacturer name**: not in the SBOM"),
+        "{draft}"
+    );
+    assert!(!draft.contains("acme.example"), "{draft}");
+}

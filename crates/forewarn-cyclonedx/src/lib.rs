@@ -109,8 +109,9 @@ fn spec_version(text: &str) -> Result<(CdxSpecVersion, SpecVersion), ReadError> 
         .ok_or_else(|| ReadError::UnsupportedSpecVersion(text.to_owned()))
 }
 
-/// The product of `metadata.component` (SBR-10): its own manufacturer, else the deprecated `metadata.manufacture`
-/// (`metadata.manufacturer` made the SBOM, not the product); the supplier of the metadata before that of the component.
+/// The product of `metadata.component` (SBR-12): its own manufacturer, else the deprecated `metadata.manufacture`
+/// (`metadata.manufacturer` made the SBOM, not the product); the supplier of the metadata before that of the component;
+/// each by its name only, a contact email or a URL not being a name.
 fn product(metadata: &Metadata) -> Option<Product> {
     let component = metadata.component.as_ref()?;
     let Component {
@@ -123,16 +124,22 @@ fn product(metadata: &Metadata) -> Option<Product> {
         name,
         version,
         purl,
-        manufacturer: first_identity([&component.manufacturer, &metadata.manufacture]),
-        supplier: first_identity([&metadata.supplier, &component.supplier]),
+        manufacturer: first_name([&component.manufacturer, &metadata.manufacture]),
+        supplier: first_name([&metadata.supplier, &component.supplier]),
     })
 }
 
-/// The first identity of the organizations given, absent ones skipped (SBR-5).
-fn first_identity<'a>(
+/// The first name of the organizations given, absent ones and those without a name skipped (SBR-12).
+fn first_name<'a>(
     entities: impl IntoIterator<Item = &'a Option<OrganizationalEntity>>,
 ) -> Option<String> {
-    entities.into_iter().flatten().find_map(organization)
+    first_filled(
+        entities
+            .into_iter()
+            .flatten()
+            .filter_map(|entity| entity.name.as_ref())
+            .map(ToString::to_string),
+    )
 }
 
 /// Pushes each component, then its nested ones, depth first.
