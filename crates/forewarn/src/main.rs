@@ -302,7 +302,7 @@ fn write_drafts(
     )
     .expect("the deadlines of the moments given were checked before the SBOM was read");
     drafts::write(directory, &drafted).map_err(|error| {
-        eprintln!("error: {}", report::escaped(&error.to_string()));
+        eprintln!("error: {}", escape::escaped(&error.to_string()));
         DRAFT_UNWRITABLE
     })
 }
@@ -657,7 +657,7 @@ impl Records {
 
 /// Prints why the OSV records or the KEV catalog cannot be read or fetched (MCH-14).
 fn no_records(error: &dyn Display) -> u8 {
-    eprintln!("error: {}", report::escaped(&error.to_string()));
+    eprintln!("error: {}", escape::escaped(&error.to_string()));
     NO_RECORDS
 }
 
@@ -681,7 +681,7 @@ fn read_sbom(path: &Path) -> Result<Sbom, u8> {
     };
     sbom.map_err(|error| {
         let error = format!("{}: {error}", input_name(path).display());
-        eprintln!("error: {}", report::escaped(&error));
+        eprintln!("error: {}", escape::escaped(&error));
         UNREADABLE
     })
 }

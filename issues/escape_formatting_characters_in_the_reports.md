@@ -42,11 +42,16 @@ stay as `serde_json` writes them (a non-goal of both specs).
    `report::push_escaped` (reports and error lines) and `early_warning::push_escaped`; verified by a new test file
    `crates/forewarn/tests/formatting_characters.rs` driving `check`, `match` and an error through the binary
    (`tests/matching.rs` is already over the file-size limit); makes true CHK-14, MCH-18, MCH-23. (autonomous)
+2. [x] Fixes of the `high` review: the whole escaping policy (`escape_char`, `push_escaped`, `escaped`) moves to
+   `escape`, used by `report`, `main` and `early_warning`; the tests assert that no injected character prints raw;
+   verified by `tests/formatting_characters.rs`; makes true CHK-14, MCH-18, MCH-23. (autonomous)
 
 ## Decisions
 - Mode: autonomous
 - Base commit: 62aa4afb0c3a12cf3cdcefe2abe41e8e68623df4
 - JSON reports: not escaped (1 a), a non-goal of CHK and MCH.
+- Follow-up: the other invisible characters, the backslash and the joiners go to
+  `issues/widen_the_escaping_of_the_writers.md` (findings 1 to 3 of the `high` review).
 
 ## Summary of deliverable 1
 - Code review: no findings
@@ -57,3 +62,11 @@ stay as `serde_json` writes them (a non-goal of both specs).
   (`left: "  evil 1\u{202e}0\u{200b}: …"` written as the characters themselves).
 - file size: `main.rs` grows from 809 to 810 lines (the `mod escape;` line); its split is not this issue's.
 - not verified: the rendering in a real terminal.
+
+## Summary of deliverable 2
+- Code review: no findings
+- done: findings 4 to 7 of the `high` review fixed (one escaping policy in `escape`, stricter assertions);
+  findings 1 to 3 (other Cf characters, the backslash, the joiners) filed as `issues/widen_the_escaping_of_the_writers.md`.
+- checks: tests, fmt, clippy, specs pass.
+- red: none (a refactor under green tests, assertions added).
+- not verified: nothing beyond deliverable 1.

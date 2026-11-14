@@ -19,7 +19,7 @@ use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
 
 use crate::drafts::Written;
-use crate::escape;
+use crate::escape::push_escaped;
 use time::OffsetDateTime;
 use time::macros::format_description;
 
@@ -84,28 +84,6 @@ fn components(count: usize) -> &'static str {
     } else {
         "components"
     }
-}
-
-/// Pushes a value read from the SBOM or a feed with its control characters escaped (`\n`, `\u{1b}`) and its
-/// bidirectional or invisible formatting characters as their Unicode escape (`\u{202e}`), so that it cannot forge a
-/// line of the report or a terminal sequence, nor reorder or hide the text around it (CHK-14, MCH-18).
-fn push_escaped(text: &mut String, value: &str) {
-    for c in value.chars() {
-        if c.is_control() {
-            text.extend(c.escape_default());
-        } else if escape::is_formatting(c) {
-            text.extend(c.escape_unicode());
-        } else {
-            text.push(c);
-        }
-    }
-}
-
-/// A value escaped as `push_escaped` does, for a line of standard error (MCH-23).
-pub fn escaped(value: &str) -> String {
-    let mut text = String::with_capacity(value.len());
-    push_escaped(&mut text, value);
-    text
 }
 
 /// The JSON report for a machine: one object whose members CHK-10 lists, ending with a newline.

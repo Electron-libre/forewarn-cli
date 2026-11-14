@@ -194,13 +194,7 @@ fn push_escaped(text: &mut String, value: &str) {
         text.push(c);
     };
     for c in trimmed.chars() {
-        if c.is_control() {
-            c.escape_default().for_each(&mut push);
-        } else if escape::is_formatting(c) {
-            c.escape_unicode().for_each(&mut push);
-        } else {
-            push(c);
-        }
+        escape::escape_char(c, &mut push);
     }
 }
 

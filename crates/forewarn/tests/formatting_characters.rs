@@ -23,6 +23,11 @@ fn check_escapes_the_formatting_characters_of_a_component() {
         run.stdout.lines().nth(2),
         Some("  evil 1\\u{202e}0\\u{200b}: missing supplier, license, hash")
     );
+    assert!(
+        !run.stdout.contains(['\u{202e}', '\u{200b}']),
+        "{}",
+        run.stdout
+    );
 }
 
 // spec: MCH-18
@@ -68,7 +73,11 @@ fn match_escapes_the_formatting_characters_of_a_component() {
         "{}",
         run.stdout
     );
-    assert!(!run.stdout.contains('\u{202e}'), "{}", run.stdout);
+    assert!(
+        !run.stdout.contains(['\u{202e}', '\u{2066}']),
+        "{}",
+        run.stdout
+    );
 }
 
 // spec: MCH-23
@@ -94,5 +103,9 @@ fn an_error_escapes_the_formatting_characters_of_a_file_name() {
         "{}",
         run.stderr
     );
-    assert!(!run.stderr.contains('\u{202e}'), "{}", run.stderr);
+    assert!(
+        !run.stderr.contains(['\u{202e}', '\u{feff}']),
+        "{}",
+        run.stderr
+    );
 }
