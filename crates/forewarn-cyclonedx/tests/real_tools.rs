@@ -108,7 +108,7 @@ fn reads_the_product_of_the_sboms_of_cargo_cyclonedx_and_cdxgen() {
 
 // spec: SBR-4, SBR-13
 #[test]
-fn reads_the_sbom_of_cargo_cyclonedx() {
+fn reads_the_sbom_of_cargo_cyclonedx_without_the_target_nested_in_its_product() {
     let sbom = read_fixture("cargo-cyclonedx.cdx.json");
     assert_eq!(sbom.spec_version, SpecVersion::new(1, 6));
     let dependency = |name, version, hash: &str| Component {
@@ -122,17 +122,6 @@ fn reads_the_sbom_of_cargo_cyclonedx() {
         vec![
             dependency("itoa", "1.0.19", ITOA_SHA256),
             dependency("semver", "1.0.28", SEMVER_SHA256),
-            // The binary target `cargo-cyclonedx` nests in the product (SBR-13).
-            Component {
-                name: "rollcall-fixture-sample".into(),
-                version: Some("0.1.0".into()),
-                purl: Some(
-                    "pkg:cargo/rollcall-fixture-sample@0.1.0?download_url=file://.#src/main.rs"
-                        .into()
-                ),
-                licenses: vec!["MIT OR Apache-2.0".into()],
-                ..Component::default()
-            },
         ]
     );
 }

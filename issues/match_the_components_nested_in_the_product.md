@@ -44,6 +44,8 @@ nothing. Contrary to the Findings, `cargo-cyclonedx` nests the binary target of 
 1. [x] Nested product components: a `cdxgen` fixture of a two-module Maven sample, the adapter flattening
    `metadata.component.components` after the top-level ones with a `bom-ref` set; verified by `real_tools.rs` (the
    two modules read) and `reading.rs` (duplicate, depth, no `bom-ref`); makes true SBR-13, SBR-H4. (autonomous)
+2. [x] High review fixes: a blank `bom-ref` identifies nothing; a target of the product nested in it is skipped;
+   verified by `reading.rs` and `real_tools.rs` (`cargo-cyclonedx` complete again); makes true SBR-13 as amended. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -51,6 +53,9 @@ nothing. Contrary to the Findings, `cargo-cyclonedx` nests the binary target of 
 - Q1: a duplicate nested component is skipped, its own nested components still read.
 - Q2 (raised by the `cargo-cyclonedx` fixture): the nested components are read for `check` as for `match`; the binary
   target of `cargo-cyclonedx` now shows in `check`, missing a supplier and a hash.
+- Q3 (raised by the `high` review: Q2 made `forewarn check` exit 1 on every `cargo-cyclonedx` SBOM): a nested
+  component whose package URL, qualifiers and subpath removed, is that of the product is a target of it and skipped,
+  its nested ones still read. The first-party modules sent to OSV become an issue of their own.
 
 ## Deliverable 1
 - done: the adapter reads the components nested in the product after the top-level ones, a `bom-ref` already read
@@ -59,3 +64,12 @@ nothing. Contrary to the Findings, `cargo-cyclonedx` nests the binary target of 
 - checks: project-check ok, deliverable-size 169 lines, specs accepted.
 - Code review: no findings
 - not verified: tools other than `cargo-cyclonedx`, `syft`, `cdxgen`.
+
+## Deliverable 2
+- done: blank `bom-ref`s no longer drop components; the targets of the product (the binary target of
+  `cargo-cyclonedx`) are skipped, so its SBOM is complete again; SBR-13 and README amended.
+- red: SBR-13: `left: ["serde", "b"]` vs `right: ["serde", "a", "b", "c"]` (blank `bom-ref`), then
+  `left: [("rollcall-fixture-sample", [Supplier, Hash])]` vs `right: []` (target read).
+- checks: project-check ok; follow-up issue `keep_first_party_components_out_of_the_osv_match` (high review finding 2).
+- Code review: no findings
+- not verified: a target of the product written by another tool than `cargo-cyclonedx`.

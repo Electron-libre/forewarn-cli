@@ -54,7 +54,8 @@ impl fmt::Display for ReadError {
 impl std::error::Error for ReadError {}
 
 /// Reads a CycloneDX JSON SBOM: its spec version, the product it describes and its components, the nested ones
-/// flattened in document order, then those nested in the product, a `bom-ref` already read skipped.
+/// flattened in document order, then those nested in the product, a `bom-ref` already read and a target of the
+/// product skipped.
 ///
 /// # Errors
 ///
@@ -82,11 +83,15 @@ pub fn read_json(mut reader: impl Read) -> Result<Sbom, ReadError> {
     let mut components = Vec::new();
     let mut read_refs = HashSet::new();
     if let Some(top) = &bom.components {
-        flatten(&top.0, &mut components, &mut read_refs, Duplicates::Keep);
+        flatten(&top.0, &mut components, &mut read_refs, Keep::All);
     }
     let in_product = bom.metadata.as_ref().and_then(|m| m.component.as_ref());
     if let Some(nested) = in_product.and_then(|product| product.components.as_ref()) {
-        flatten(&nested.0, &mut components, &mut read_refs, Duplicates::Skip);
+        let product_purl = in_product
+            .and_then(|product| product.purl.as_ref())
+            .map(ToString::to_string);
+        let keep = Keep::NewAndNotTargetOf(product_purl.as_deref().map(purl_base));
+        flatten(&nested.0, &mut components, &mut read_refs, keep);
     }
     Ok(Sbom {
         spec_version,
@@ -148,32 +153,47 @@ fn first_name<'a>(
     )
 }
 
-/// Whether [`flatten`] skips a component whose `bom-ref` one already read carries.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Duplicates {
+/// The components [`flatten`] keeps, the nested ones of a skipped component still read.
+#[derive(Clone, Copy)]
+enum Keep<'p> {
     /// The top-level components, each kept (SBR-6).
-    Keep,
-    /// The components nested in the product, a duplicate skipped but its nested ones still read (SBR-13).
-    Skip,
+    All,
+    /// The components nested in the product (SBR-13): one whose `bom-ref` one already read carries is skipped, and so
+    /// is a target of the product, whose package URL has this base (see [`purl_base`]).
+    NewAndNotTargetOf(Option<&'p str>),
 }
 
-/// Pushes each component, then its nested ones, depth first, recording the `bom-ref` of each in `read_refs`.
+/// A package URL without its qualifiers (`?`) and subpath (`#`): a target of a product keeps the base of its purl.
+fn purl_base(purl: &str) -> &str {
+    purl.split(['?', '#']).next().unwrap_or(purl)
+}
+
+/// Pushes each component, then its nested ones, depth first, recording the `bom-ref` of each in `read_refs`, a
+/// blank one identifying nothing.
 fn flatten<'a>(
     components: &'a [CdxComponent],
     into: &mut Vec<Component>,
     read_refs: &mut HashSet<&'a str>,
-    duplicates: Duplicates,
+    keep: Keep,
 ) {
     for component in components {
         let fresh = component
             .bom_ref
             .as_deref()
+            .filter(|bom_ref| !bom_ref.trim().is_empty())
             .is_none_or(|bom_ref| read_refs.insert(bom_ref));
-        if fresh || duplicates == Duplicates::Keep {
+        let kept = match keep {
+            Keep::All => true,
+            Keep::NewAndNotTargetOf(product) => {
+                let purl = component.purl.as_ref().map(ToString::to_string);
+                fresh && (product.is_none() || purl.as_deref().map(purl_base) != product)
+            }
+        };
+        if kept {
             into.push(to_domain(component));
         }
         if let Some(nested) = &component.components {
-            flatten(&nested.0, into, read_refs, duplicates);
+            flatten(&nested.0, into, read_refs, keep);
         }
     }
 }

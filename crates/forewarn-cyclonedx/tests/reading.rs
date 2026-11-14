@@ -532,3 +532,35 @@ fn skips_a_component_nested_in_the_product_already_read_but_reads_its_own() {
     );
     assert_eq!(names(&sbom), ["serde", "serde_derive"]);
 }
+
+// spec: SBR-13
+#[test]
+fn reads_each_component_nested_in_the_product_with_a_blank_bom_ref() {
+    let sbom = with_nested_product(
+        &json!([{ "type": "library", "name": "serde", "bom-ref": "" }]),
+        &json!([
+            { "type": "library", "name": "a", "bom-ref": "" },
+            { "type": "library", "name": "b", "bom-ref": "  " },
+            { "type": "library", "name": "c", "bom-ref": "  " }
+        ]),
+    );
+    assert_eq!(names(&sbom), ["serde", "a", "b", "c"]);
+}
+
+// spec: SBR-13
+#[test]
+fn skips_a_target_of_the_product_nested_in_it_but_reads_its_own() {
+    let mut document = bom("1.6", &json!([]));
+    document["metadata"] = json!({ "component": application(&json!({
+        "purl": "pkg:cargo/shop@2.1.0?download_url=file://.",
+        "components": [
+            { "type": "application", "name": "shop", "purl": "pkg:cargo/shop@2.1.0#src/main.rs", "components": [
+                { "type": "library", "name": "inside" }
+            ] },
+            { "type": "library", "name": "shop-core", "purl": "pkg:cargo/shop-core@2.1.0" },
+            { "type": "library", "name": "other shop", "purl": "pkg:cargo/shop@2.0.0" }
+        ]
+    })) });
+    let sbom = read(&document).expect("readable");
+    assert_eq!(names(&sbom), ["inside", "shop-core", "other shop"]);
+}

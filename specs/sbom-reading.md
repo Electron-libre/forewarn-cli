@@ -84,7 +84,9 @@ check and the matching work on the components and a report names the product.
 
 - **SBR-13** (deterministic) The components nested in the product (`metadata.component.components`, at any depth)
   must be returned in the same flat list, after those of SBR-6, in document order, each parent before its children;
-  one whose `bom-ref` is that of a component already returned being skipped, its own nested components still read.
+  skipped, its own nested components still read: one whose `bom-ref`, not empty nor only whitespace, is that of a
+  component already returned, and a target of the product, whose package URL is that of the product once the
+  qualifiers (`?`) and the subpath (`#`) of both are removed.
 
 ## Scenarios
 
@@ -137,9 +139,11 @@ check and the matching work on the components and a report names the product.
   returned.
 - (SBR-13) Given an SBOM whose product nests a component that nests another, when it is read, then both are returned
   after the top-level components, the parent first.
-- (SBR-13) Given an SBOM `cargo-cyclonedx` generated, which nests the binary target of the product under it, when it
-  is read, then that target is among the components, after the dependencies.
-- (SBR-13) Given an SBOM whose product nests a component with no `bom-ref`, when it is read, then it is returned.
+- (SBR-13) Given an SBOM `cargo-cyclonedx` generated, which nests the binary target of the product under it
+  (`pkg:cargo/app@0.1.0?download_url=file://.#src/main.rs` under `pkg:cargo/app@0.1.0?download_url=file://.`), when it
+  is read, then that target is not among the components, and the SBOM is complete when its dependencies are.
+- (SBR-13) Given an SBOM whose product nests a component with no `bom-ref`, or two whose `bom-ref` is `""` or
+  `"  "`, when it is read, then each is returned.
 - (SBR-11) Given an SBOM that lists its product only in `metadata.component`, when it is read, then the product is
   not among its components; given one whose `components` also lists it (as `syft` and `cdxgen` do), it stays there
   once.
