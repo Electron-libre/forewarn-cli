@@ -58,8 +58,14 @@ fn reports_the_gaps_of_the_sbom_of_cdxgen() {
 
 // spec: SBC-2, SBC-3, SBC-4
 #[test]
-fn the_sbom_of_cargo_cyclonedx_is_complete_through_its_authors_and_expressions() {
+fn the_dependencies_of_cargo_cyclonedx_are_complete_through_their_authors_and_expressions() {
     let report = check_fixture("cargo-cyclonedx.cdx.json");
-    assert_eq!(gaps(&report), []);
-    assert!(report.is_complete());
+    // Only the binary target nested in the product lacks a supplier and a hash (SBR-13).
+    assert_eq!(
+        gaps(&report),
+        [(
+            "rollcall-fixture-sample",
+            &[Field::Supplier, Field::Hash][..]
+        )]
+    );
 }

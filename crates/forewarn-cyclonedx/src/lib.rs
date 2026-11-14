@@ -1,5 +1,6 @@
 //! The CycloneDX adapter of `forewarn`: reads an SBOM produced by an existing tool into the types of the domain.
 
+use std::collections::HashSet;
 use std::fmt;
 use std::io::Read;
 
@@ -53,7 +54,7 @@ impl fmt::Display for ReadError {
 impl std::error::Error for ReadError {}
 
 /// Reads a CycloneDX JSON SBOM: its spec version, the product it describes and its components, the nested ones
-/// flattened in document order.
+/// flattened in document order, then those nested in the product, a `bom-ref` already read skipped.
 ///
 /// # Errors
 ///
@@ -79,8 +80,13 @@ pub fn read_json(mut reader: impl Read) -> Result<Sbom, ReadError> {
     let bom = Bom::parse_json_value_with_version(document, cdx_version)
         .map_err(|e| ReadError::Invalid(e.to_string()))?;
     let mut components = Vec::new();
+    let mut read_refs = HashSet::new();
     if let Some(top) = &bom.components {
-        flatten(&top.0, &mut components);
+        flatten(&top.0, &mut components, &mut read_refs, Duplicates::Keep);
+    }
+    let in_product = bom.metadata.as_ref().and_then(|m| m.component.as_ref());
+    if let Some(nested) = in_product.and_then(|product| product.components.as_ref()) {
+        flatten(&nested.0, &mut components, &mut read_refs, Duplicates::Skip);
     }
     Ok(Sbom {
         spec_version,
@@ -142,12 +148,32 @@ fn first_name<'a>(
     )
 }
 
-/// Pushes each component, then its nested ones, depth first.
-fn flatten(components: &[CdxComponent], into: &mut Vec<Component>) {
+/// Whether [`flatten`] skips a component whose `bom-ref` one already read carries.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Duplicates {
+    /// The top-level components, each kept (SBR-6).
+    Keep,
+    /// The components nested in the product, a duplicate skipped but its nested ones still read (SBR-13).
+    Skip,
+}
+
+/// Pushes each component, then its nested ones, depth first, recording the `bom-ref` of each in `read_refs`.
+fn flatten<'a>(
+    components: &'a [CdxComponent],
+    into: &mut Vec<Component>,
+    read_refs: &mut HashSet<&'a str>,
+    duplicates: Duplicates,
+) {
     for component in components {
-        into.push(to_domain(component));
+        let fresh = component
+            .bom_ref
+            .as_deref()
+            .is_none_or(|bom_ref| read_refs.insert(bom_ref));
+        if fresh || duplicates == Duplicates::Keep {
+            into.push(to_domain(component));
+        }
         if let Some(nested) = &component.components {
-            flatten(&nested.0, into);
+            flatten(&nested.0, into, read_refs, duplicates);
         }
     }
 }

@@ -14,7 +14,8 @@ syft scan . -o cyclonedx-json | forewarn check --allow-incomplete -   # report g
 ```
 
 `forewarn check` prints the CycloneDX spec version of the SBOM, flagged when it is below 1.6 (the BSI TR-03183-2
-minimum), and each component missing a supplier, a license or a hash. The JSON report holds `specVersion`,
+minimum), and each component missing a supplier, a license or a hash, those the SBOM nests under its product included
+(`cargo-cyclonedx` nests the binary target there, `cdxgen` the modules of a Maven project). The JSON report holds `specVersion`,
 `belowBsiMinimum`, `componentCount`, `complete` and `incomplete` (each component's `name`, `version`, `purl` and
 `missing` fields); the text report's layout may change, scripts read the JSON one. It exits with:
 

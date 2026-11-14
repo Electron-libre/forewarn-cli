@@ -106,7 +106,7 @@ fn reads_the_product_of_the_sboms_of_cargo_cyclonedx_and_cdxgen() {
     }
 }
 
-// spec: SBR-4
+// spec: SBR-4, SBR-13
 #[test]
 fn reads_the_sbom_of_cargo_cyclonedx() {
     let sbom = read_fixture("cargo-cyclonedx.cdx.json");
@@ -122,6 +122,17 @@ fn reads_the_sbom_of_cargo_cyclonedx() {
         vec![
             dependency("itoa", "1.0.19", ITOA_SHA256),
             dependency("semver", "1.0.28", SEMVER_SHA256),
+            // The binary target `cargo-cyclonedx` nests in the product (SBR-13).
+            Component {
+                name: "rollcall-fixture-sample".into(),
+                version: Some("0.1.0".into()),
+                purl: Some(
+                    "pkg:cargo/rollcall-fixture-sample@0.1.0?download_url=file://.#src/main.rs"
+                        .into()
+                ),
+                licenses: vec!["MIT OR Apache-2.0".into()],
+                ..Component::default()
+            },
         ]
     );
 }
@@ -144,5 +155,39 @@ fn reads_the_sbom_of_cdxgen() {
                 ..crate_component("semver", "1.0.28")
             },
         ]
+    );
+}
+
+fn maven_component(group: &str, name: &str, version: &str) -> Component {
+    Component {
+        name: name.into(),
+        version: Some(version.into()),
+        purl: Some(format!("pkg:maven/{group}/{name}@{version}?type=jar")),
+        ..Component::default()
+    }
+}
+
+// spec: SBR-4, SBR-H4
+#[test]
+fn reads_the_modules_cdxgen_nests_in_the_product_of_a_maven_project() {
+    let sbom = read_fixture("cdxgen-maven.cdx.json");
+    let apache = |c: Component| Component {
+        licenses: vec!["Apache-2.0".into()],
+        ..c
+    };
+    assert_eq!(
+        sbom.components,
+        vec![
+            apache(maven_component("commons-io", "commons-io", "2.7")),
+            apache(maven_component("commons-io", "commons-io", "2.6")),
+            maven_component("org.example.forewarn", "mod-b", "1.0"),
+            maven_component("org.example.forewarn", "mod-a", "1.0"),
+        ]
+    );
+    assert_eq!(
+        sbom.product.map(|p| p.purl),
+        Some(Some(
+            "pkg:maven/org.example.forewarn/parent@1.0?type=pom".into()
+        ))
     );
 }

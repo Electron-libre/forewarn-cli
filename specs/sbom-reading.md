@@ -82,6 +82,10 @@ check and the matching work on the components and a report names the product.
   | manufacturer | the first name of `metadata.component.manufacturer` (1.6), then `metadata.manufacture` (deprecated in 1.6) |
   | supplier | the first name of `metadata.supplier`, then `metadata.component.supplier` |
 
+- **SBR-13** (deterministic) The components nested in the product (`metadata.component.components`, at any depth)
+  must be returned in the same flat list, after those of SBR-6, in document order, each parent before its children;
+  one whose `bom-ref` is that of a component already returned being skipped, its own nested components still read.
+
 ## Scenarios
 
 - **SBR-H1** (happy; SBR-1, SBR-4, SBR-5) Given an SBOM a vendor generated with `syft` in CycloneDX 1.6, when
@@ -92,6 +96,9 @@ check and the matching work on the components and a report names the product.
 - **SBR-H3** (happy; SBR-9, SBR-4) Given an SBOM a vendor generated with `syft` for their product
   `rollcall-fixture-sample` 0.1.0, when `forewarn` reads it, then it gets the product `rollcall-fixture-sample` at
   version 0.1.0, with no manufacturer nor supplier since `syft` writes none.
+- **SBR-H4** (happy; SBR-13, SBR-4) Given an SBOM a vendor generated with `cdxgen` for their Maven project of two
+  modules, which `cdxgen` nests under the product, when `forewarn` reads it, then it gets the two modules after the
+  libraries they depend on, so that they are checked and matched like them.
 - (SBR-7) Given a CycloneDX 1.2 JSON file, when it is read, then it fails with "unsupported spec version" quoting `1.2`.
 - (SBR-7) Given a JSON file with `bomFormat` `CycloneDX` and no `specVersion`, when it is read, then it fails with
   "missing spec version".
@@ -125,6 +132,14 @@ check and the matching work on the components and a report names the product.
   `Other`, when it is read, then the supplier of the product is `Acme`.
 - (SBR-12) Given an SBOM with no `metadata.supplier` and a `metadata.component.supplier` named `Acme`, when it is read,
   then the supplier of the product is `Acme`.
+- (SBR-13) Given an SBOM whose product nests a component whose `bom-ref` a top-level component carries, when it is
+  read, then that component is returned once, at the top level; a component nested in the skipped one is still
+  returned.
+- (SBR-13) Given an SBOM whose product nests a component that nests another, when it is read, then both are returned
+  after the top-level components, the parent first.
+- (SBR-13) Given an SBOM `cargo-cyclonedx` generated, which nests the binary target of the product under it, when it
+  is read, then that target is among the components, after the dependencies.
+- (SBR-13) Given an SBOM whose product nests a component with no `bom-ref`, when it is read, then it is returned.
 - (SBR-11) Given an SBOM that lists its product only in `metadata.component`, when it is read, then the product is
   not among its components; given one whose `components` also lists it (as `syft` and `cdxgen` do), it stays there
   once.
@@ -138,7 +153,8 @@ check and the matching work on the components and a report names the product.
 - The licenses, hashes and authors of the product, and the other fields of `metadata` (authors, tools, lifecycles):
   nothing uses them yet.
 - The organization that made the SBOM (`metadata.manufacturer` in 1.6): it is not the manufacturer of the product.
-- The components nested in `metadata.component`.
+- Skipping a duplicate by anything but its `bom-ref` (its package URL, its name and version): two entries with
+  different `bom-ref`s are two components.
 - Services, dependencies and VEX statements: later milestones read them.
 - Deciding whether an SBOM without a product, or a product without a manufacturer, is incomplete for the CRA.
 - The contacts and URLs of the manufacturer and the supplier of the product: nothing uses them yet, and a draft early

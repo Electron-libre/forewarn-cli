@@ -495,3 +495,40 @@ fn adds_no_component_for_the_product() {
     assert_eq!(sbom.components, vec![named("serde")]);
     assert_eq!(sbom.product.map(|p| p.name), Some("shop".into()));
 }
+
+/// An SBOM listing `top` whose product nests `nested`.
+fn with_nested_product(top: &Value, nested: &Value) -> Sbom {
+    let mut document = bom("1.6", top);
+    document["metadata"] = json!({ "component": application(&json!({ "components": nested })) });
+    read(&document).expect("readable")
+}
+
+// spec: SBR-13
+#[test]
+fn reads_the_components_nested_in_the_product_after_the_top_level_ones() {
+    let sbom = with_nested_product(
+        &json!([{ "type": "library", "name": "serde", "bom-ref": "serde" }]),
+        &json!([
+            { "type": "library", "name": "a", "bom-ref": "a", "components": [
+                { "type": "library", "name": "a1", "bom-ref": "a1" }
+            ] },
+            { "type": "library", "name": "b" }
+        ]),
+    );
+    assert_eq!(names(&sbom), ["serde", "a", "a1", "b"]);
+}
+
+// spec: SBR-13
+#[test]
+fn skips_a_component_nested_in_the_product_already_read_but_reads_its_own() {
+    let sbom = with_nested_product(
+        &json!([{ "type": "library", "name": "serde", "bom-ref": "serde" }]),
+        &json!([
+            { "type": "library", "name": "serde again", "bom-ref": "serde", "components": [
+                { "type": "library", "name": "serde_derive", "bom-ref": "serde_derive" },
+                { "type": "library", "name": "serde twice", "bom-ref": "serde" }
+            ] }
+        ]),
+    );
+    assert_eq!(names(&sbom), ["serde", "serde_derive"]);
+}
