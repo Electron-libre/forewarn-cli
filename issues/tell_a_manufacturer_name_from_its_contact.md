@@ -51,6 +51,10 @@ Measure: none of the `cargo-cyclonedx`, `syft`, `cdxgen` fixtures gives a produc
    and a `match --drafts` test in `crates/forewarn/tests/drafts.rs` (manufacturer by email only → `not in the SBOM`);
    makes true SBR-12, EWD-3 (~80 lines). (autonomous)
 
+2. [x] Review fixes of the `high` review: the draft test asserts no `acme` at all (the escaped email held no
+   `acme.example`), the doc comments of `Product` say the `name` as written; verified by `cardinal run project-check`.
+   (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 9991ae08acd54f772cf78f10e664bf1dc70cf0de
@@ -71,5 +75,25 @@ Measure: none of the `cargo-cyclonedx`, `syft`, `cdxgen` fixtures gives a produc
 - red: SBR-12, EWD-3, EWD-14: `left: Some("security@acme.example") right: None`; the draft read
   `- **4. Manufacturer name**: security\@acme\.example (filled by the platform from your registration: compare)`.
 - Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Summary of deliverable 2
+- done: fixes of the `high` review of the issue (5 findings).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | doc comments of `Product` |
+| code review | `low`, no findings |
+
+- red: none (a test made stricter, no new behaviour).
+- Code review: no findings
+- `high` review, 5 findings: (1) negative assertion unable to fail on the escaped email: fixed; (2) name not trimmed:
+  not fixed, as before this issue and like the product name and version (EWD-10 reads a blank one as absent);
+  (3) doc comment promising "never an email": reworded; (4) `Product::supplier` read by nothing: kept, decision 1 a;
+  (5) a blank-named manufacturer now gives way to `metadata.manufacture`: intended, SBR-12 scenario.
 - not verified: none
 - decisions needed: none

@@ -22,9 +22,9 @@ pub struct Product {
     pub version: Option<String>,
     /// The package URL, as written in the SBOM.
     pub purl: Option<String>,
-    /// The name of the manufacturer organisation, never a contact email or a URL.
+    /// The `name` of the manufacturer organisation, as written; its contacts and URLs are not read.
     pub manufacturer: Option<String>,
-    /// The name of the supplier organisation, never a contact email or a URL.
+    /// The `name` of the supplier organisation, as written; its contacts and URLs are not read.
     pub supplier: Option<String>,
 }
 

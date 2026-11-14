@@ -433,5 +433,5 @@ fn a_manufacturer_given_only_by_its_contact_is_not_named_in_the_draft() {
         draft.contains("- **4. Manufacturer name**: not in the SBOM"),
         "{draft}"
     );
-    assert!(!draft.contains("acme.example"), "{draft}");
+    assert!(!draft.contains("acme"), "{draft}");
 }
