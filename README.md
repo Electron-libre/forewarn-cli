@@ -35,10 +35,12 @@ deadlines are deterministic), or a leak (only ecosystem names leave your CI by d
 ## Quick start
 
 ```sh
-# Linux x86_64; the other platforms, the checksums and pinning a version: docs/user-guide.md#install
-curl -fsSL https://github.com/Electron-libre/forewarn-cli/releases/latest/download/forewarn-x86_64-unknown-linux-musl.tar.gz \
-  | tar -xz --strip-components=1 forewarn-x86_64-unknown-linux-musl/forewarn
-sudo install forewarn /usr/local/bin/
+# Linux x86_64; the other platforms and pinning a version: docs/user-guide.md#install
+base=https://github.com/Electron-libre/forewarn-cli/releases/latest/download
+curl -fsSL -O "$base/forewarn-x86_64-unknown-linux-musl.tar.gz" -O "$base/SHA256SUMS"
+sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf forewarn-x86_64-unknown-linux-musl.tar.gz
+sudo install forewarn-x86_64-unknown-linux-musl/forewarn /usr/local/bin/
 
 syft scan . -o cyclonedx-json > sbom.cdx.json
 forewarn check sbom.cdx.json                  # is the SBOM complete?

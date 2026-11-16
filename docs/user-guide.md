@@ -19,9 +19,9 @@
 
 ## Install
 
-Each release on [GitHub](https://github.com/Electron-libre/forewarn-cli/releases) holds a binary per platform, in
-`forewarn-<target>.tar.gz`, the CycloneDX SBOM of each binary, `forewarn-<target>.cdx.json`, and a `SHA256SUMS`
-file over them:
+From 0.3.0, each release on [GitHub](https://github.com/Electron-libre/forewarn-cli/releases) holds a binary per
+platform, in `forewarn-<target>.tar.gz`, the CycloneDX SBOM of each binary, `forewarn-<target>.cdx.json`, and a
+`SHA256SUMS` file over them:
 
 | Target | Platform |
 |---|---|

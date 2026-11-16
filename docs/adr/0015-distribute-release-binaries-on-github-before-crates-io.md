@@ -42,7 +42,9 @@ target when cross-built. The tests run on Linux and macOS only: Windows waits fo
   built by this workflow from another.
 - **The tag must name the workspace version**: the workflow refuses a tag `v<x>` when `[workspace.package] version`
   is not `<x>`, so `forewarn --version` matches the archive.
-- **Built, not published, on a pull request** that changes the workflow, so a change of it is tried before a tag.
+- **A release version only**: the tags `v<X.Y.Z>`, as `just set-version` writes no pre-release.
+- **Built, not published, on a pull request** that changes the workflow, a manifest, `Cargo.lock` or the notices, so
+  a change of the workflow or a dependency under a license not accepted fails before a tag.
 
 ## Consequences
 
