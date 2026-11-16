@@ -12,7 +12,7 @@ directory; a CI job that publishes the directory as an artifact then ships an ea
 no longer affects the product. A rerun should leave in the directory only what it stands by, or say what is stale.
 
 # Findings
-* Found by the `high` review of `issues/read_vex_verdicts.md`: with a `not_affected` verdict added, the second run
+* Found by the `high` review of `issues/done/read_vex_verdicts.md`: with a `not_affected` verdict added, the second run
   exits with 0, lists no draft, and the file of the first run is still there.
 * `crates/forewarn/src/drafts.rs` names a file `<product>-<CVE>.md` and replaces it atomically (MXL-34); it lists no
   file of the directory.

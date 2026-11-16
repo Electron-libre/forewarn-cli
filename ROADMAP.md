@@ -16,7 +16,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [set_the_version_of_the_binary_on_release](issues/set_the_version_of_the_binary_on_release.md)
   - [run_the_project_check_in_ci](issues/run_the_project_check_in_ci.md)
   - [distribute_the_binary](issues/distribute_the_binary.md)
-  - [read_vex_verdicts](issues/read_vex_verdicts.md)
+  - [read_vex_verdicts](issues/done/read_vex_verdicts.md)
   - [remove_stale_draft_early_warnings](issues/remove_stale_draft_early_warnings.md)
 
 ## Upload from CI
