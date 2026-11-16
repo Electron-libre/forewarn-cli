@@ -1,6 +1,6 @@
 ---
 id: SBC
-status: accepted
+status: draft
 adrs: [0001]
 ---
 
@@ -21,6 +21,8 @@ TR-03183-2 and is kept as data so that it can grow.
 - **SBC-2** (deterministic) Checking must not report a component that has every checked field.
 - **SBC-3** (deterministic) Checking must tell whether the SBOM is complete: no component reported, an SBOM with no
   component included.
+- **SBC-8** (deterministic) Checking must leave the file components (SBR-15) out of the checked components and return
+  them apart as not checked, so that a manifest a tool read neither makes the SBOM incomplete nor counts as checked.
 
 ### Contract
 
@@ -40,6 +42,8 @@ TR-03183-2 and is kept as data so that it can grow.
   when it has one, and its missing fields in the order supplier, license, hash.
 - **SBC-7** (deterministic) The reported components must keep the order of the SBOM, a component appearing twice
   being reported twice.
+- **SBC-9** (deterministic) A component not checked must carry its name, its version when it has one and its package
+  URL when it has one, the components not checked keeping the order of the SBOM.
 
 ## Scenarios
 
@@ -48,6 +52,9 @@ TR-03183-2 and is kept as data so that it can grow.
   supplier and license missing, and those with no hash also with hash missing.
 - **SBC-H2** (happy; SBC-2, SBC-3) Given an SBOM whose every component has a supplier, a license and a SHA-256 hash,
   when `forewarn` checks it, then no component is reported and the SBOM is complete.
+- **SBC-H3** (happy; SBC-8, SBC-9) Given an SBOM a vendor generated with `syft`, which lists the `/Cargo.lock` it read
+  as a file component with hashes and no supplier nor license, when `forewarn` checks it, then `/Cargo.lock` is not
+  reported incomplete but returned as not checked, and the libraries are checked as before.
 - (SBC-4) Given a component whose only creator is an `author`, when it is checked, then its supplier is present.
 - (SBC-4) Given a component whose only license is the expression `MIT OR Apache-2.0`, when it is checked, then its
   license is present.
@@ -57,6 +64,8 @@ TR-03183-2 and is kept as data so that it can grow.
 - (SBC-4, SBC-5) Given a component whose only hash has the algorithm `sha-256`, when it is checked, then its hash is
   present; with the algorithm `CRC32`, or with an empty value, its hash is missing.
 - (SBC-3) Given an SBOM with no component, when it is checked, then nothing is reported and it is complete.
+- (SBC-3, SBC-8) Given an SBOM whose only components are files, when it is checked, then nothing is reported
+  incomplete, it is complete, and every file is returned as not checked.
 
 ## Non-goals
 
@@ -65,5 +74,8 @@ TR-03183-2 and is kept as data so that it can grow.
 - Requiring a SHA-512 hash, as BSI TR-03183-2 does for the executable: any listed algorithm counts.
 - Checking that a hash value is well formed for its algorithm (hexadecimal, length).
 - Judging whether a license is valid SPDX, or whether a supplier name is real.
+- Checking a file component for a hash alone, or judging whether a file is shipped with the product: BSI TR-03183-2
+  (3.2.1) lets an SBOM list any other file as a component, and nothing in the SBOM tells a manifest a tool read from a
+  file the product ships.
 - Checking the SBOM's own metadata (`metadata.component`, `metadata.supplier`, timestamp).
 - Rendering the report for a human or a CI job: the `forewarn check` command does (`specs/cli-check.md`).

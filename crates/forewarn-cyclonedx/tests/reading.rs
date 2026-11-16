@@ -111,6 +111,7 @@ fn maps_the_fields_of_a_component() {
                     value: "aa".repeat(32),
                 }],
                 first_party: false,
+                file: false,
             },
             Component {
                 licenses: vec!["MIT OR Apache-2.0".into()],
@@ -225,6 +226,38 @@ fn keeps_a_component_of_an_unknown_type_or_hash_algorithm() {
             }],
             ..named("odd")
         }]
+    );
+}
+
+// spec: SBR-15
+#[test]
+fn tells_a_file_component_by_its_type() {
+    let document = bom(
+        "1.6",
+        &json!([
+            { "type": "file", "name": "/pom.xml" },
+            { "type": "library", "name": "lib" },
+            { "type": "File", "name": "odd" },
+            { "type": "application", "name": "app", "components": [
+                { "type": "file", "name": "nested.txt" }
+            ] }
+        ]),
+    );
+    let sbom = read(&document).expect("readable");
+    let files: Vec<(&str, bool)> = sbom
+        .components
+        .iter()
+        .map(|c| (c.name.as_str(), c.file))
+        .collect();
+    assert_eq!(
+        files,
+        [
+            ("/pom.xml", true),
+            ("lib", false),
+            ("odd", false),
+            ("app", false),
+            ("nested.txt", true)
+        ]
     );
 }
 

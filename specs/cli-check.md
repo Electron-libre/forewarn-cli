@@ -1,6 +1,6 @@
 ---
 id: CHK
-status: accepted
+status: draft
 adrs: [0001]
 ---
 
@@ -26,6 +26,9 @@ job can act on.
   generator can be piped into it.
 - **CHK-5** (deterministic) `forewarn check --format json <sbom>` must print the same result as one JSON document, for
   a machine to read.
+- **CHK-15** (deterministic) `forewarn check <sbom>` must print each component not checked (SBC-8), with its name,
+  its version and package URL when it has them, under a heading of its own, apart from the incomplete components
+  and from the count of CHK-3.
 - **CHK-6** (deterministic) `forewarn check --allow-incomplete <sbom>` must exit with the code of a complete SBOM when
   the SBOM is incomplete, the report printed unchanged, so that a CI job can report gaps without failing.
 
@@ -51,9 +54,10 @@ job can act on.
   |---|---|
   | `specVersion` | the spec version, a string (`"1.6"`) |
   | `belowBsiMinimum` | `true` when the spec version is below 1.6, else `false` |
-  | `componentCount` | the number of components checked, nested ones included |
+  | `componentCount` | the number of components checked, nested ones included, those not checked (SBC-8) left out |
   | `complete` | `true` when no component is incomplete, else `false` |
   | `incomplete` | an array, in SBOM order, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `missing` (an array of `"supplier"`, `"license"`, `"hash"`, in that order) |
+  | `notChecked` | an array, in SBOM order, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `reason` (`"file"`) |
 
 - **CHK-11** (deterministic) `--format` must accept `human`, the default, and `json`.
 - **CHK-12** (deterministic) `forewarn` with no subcommand must print its usage, naming `check`, and exit with code 2.
@@ -71,6 +75,9 @@ job can act on.
   components lack a supplier and a license, when they run `forewarn check sbom.json`, then they see `CycloneDX 1.6`
   with no flag, each component with its missing fields, the count of incomplete components, and the command exits
   with 1.
+- **CHK-H4** (happy; CHK-15, CHK-3, CHK-7) Given an SBOM a vendor generated with `syft`, which lists the manifest
+  `/Cargo.lock` it read as a file component, when they run `forewarn check sbom.json`, then `/Cargo.lock` is listed
+  under a heading of the components not checked, not among the incomplete ones nor in their count.
 - **CHK-H2** (happy; CHK-4, CHK-5, CHK-10, CHK-6) Given a CI job that pipes an SBOM generator into
   `forewarn check --format json --allow-incomplete -`, when the SBOM is incomplete, then the job reads a JSON report
   listing the incomplete components and the command exits with 0.
@@ -98,6 +105,11 @@ job can act on.
 - (CHK-7, CHK-11) Given `--format xml`, when the command runs, then it exits with 2 before reading the SBOM.
 - (CHK-3, CHK-10) Given a valid SBOM with no component, when it is checked, then it is complete with 0 components and
   the command exits with 0.
+- (CHK-3, CHK-7, CHK-15) Given an SBOM whose packages are complete and which also lists a file component with no
+  supplier, when it is checked, then the report says it is complete, lists the file as not checked, and the command
+  exits with 0.
+- (CHK-10, CHK-15) Given an SBOM with no file component, when it is checked, then the human report has no heading of
+  the components not checked and the JSON report gives `notChecked` as an empty array.
 - (CHK-2, CHK-10) Given an incomplete component with no version and no package URL, when it is checked, then the
   human report shows its name alone and the JSON report gives `null` for both.
 

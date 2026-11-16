@@ -1,6 +1,6 @@
 ---
 id: SBR
-status: accepted
+status: draft
 adrs: [0001, 0002]
 ---
 
@@ -92,6 +92,9 @@ check and the matching work on the components and a report names the product.
   package URL specification, its qualifiers and subpath ignored), and one returned from the components nested in the
   product (SBR-13) whose package URL has the type and the namespace of the product's, two without a namespace having
   the same; every other component, and each one when the product has no valid package URL, is not first-party.
+- **SBR-15** (deterministic) Each component read must say whether it is a file, a component of CycloneDX type `file`
+  (a manifest or lock file a tool read, such as `/Cargo.lock`), the type compared as written; a component of any other
+  type, or of a type the enumeration does not list, is not a file.
 
 ## Scenarios
 
@@ -166,6 +169,8 @@ check and the matching work on the components and a report names the product.
   `pkg:npm/@acme/app@1.0`, when it is read, then that component is first-party.
 - (SBR-14) Given an SBOM whose product nests a component whose `bom-ref` a top-level component carries, when it is
   read, then that component, returned at the top level, is not first-party.
+- (SBR-15, SBR-4) Given the SBOM `syft` generated for a Cargo package, when it is read, then `/Cargo.lock` is a file
+  and the libraries are not; the product, of type `file` in `metadata.component`, is still not among the components.
 - (SBR-11) Given an SBOM that lists its product only in `metadata.component`, when it is read, then the product is
   not among its components; given one whose `components` also lists it (as `syft` and `cdxgen` do), it stays there
   once.

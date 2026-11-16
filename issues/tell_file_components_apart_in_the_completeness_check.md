@@ -45,3 +45,44 @@ Proof-of-concept demo
 # Hints
 * The SBOM of the demo also has the product as a `library` component (`pkg:maven/com.example/shop-backend@1.4.0`)
   and its `metadata.component` of type `file`: do not drop the product with the file components.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+`forewarn check` stops judging the file components (CycloneDX type `file`, the manifests `syft` read) and lists them
+apart as not checked, out of the counts and of the exit code; the product (`metadata.component`, even of type `file`)
+is untouched. Out of scope: `forewarn match`, whose `Not evaluated (no package URL)` stays as it is.
+Measure: of the four fixtures only `syft` emits `file` (`/Cargo.lock`, and its `metadata.component`); `cdxgen` and
+`cargo-cyclonedx` emit `application` and `library`. BSI TR-03183-2 2.1.0, 3.2.1: executables, archives and logical
+components MUST be components, "any other file MAY be represented as a component"; 5.2.2 asks its fields of each
+component listed, with no rule per type.
+
+## Plan
+1. [x] Read the component type: `Component::file` set from CycloneDX type `file` in the adapter; verified by
+   `crates/forewarn-cyclonedx/tests` (syft fixture, a `file` and an unknown type); makes true SBR-15. (autonomous)
+2. [ ] Leave the files out of the check and report them apart: `CompletenessReport::not_checked`, the human heading
+   `Not checked, file components (n):`, the JSON `notChecked` and `componentCount` without them; verified by
+   `crates/forewarn/tests/check.rs` (syft fixture, files only, complete packages plus a file) and domain tests;
+   makes true SBC-8, SBC-9, CHK-15, CHK-10 (amended row).
+
+## Decisions
+- Mode: autonomous
+- Base commit: dde0527ad3b8152f22639ec20800641655698054
+- File components in `check`: listed apart, out of the counts and of the exit code (answer 1 a).
+- `forewarn match` unchanged (answer 2 a).
+- `crates/forewarn/src/main.rs` (810 lines, over the limit) is not touched: `check(&sbom.components)` keeps its
+  signature.
+
+## Deliverable 1
+- done: `Component::file` read from CycloneDX type `file` (the type as written: `File` is not a file); the spec drafts
+  of the three capabilities committed with it.
+- checks: tests pass, clippy clean, `check-specs` clean, docs n/a (the read field shows to no user before
+  deliverable 2), code review below.
+- red: SBR-15: `left: [("/pom.xml", false), …, ("nested.txt", false)]` against `right: [("/pom.xml", true), …, ("nested.txt", true)]`.
+- Code review: 1 findings
+  - The doc of `Component::file` said the completeness check leaves it out, which only deliverable 2 does: reworded
+    to state what the field is.
+- not verified: none.
+- decisions needed: none.

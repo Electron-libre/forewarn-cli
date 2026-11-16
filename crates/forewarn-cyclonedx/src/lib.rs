@@ -5,7 +5,7 @@ use std::fmt;
 use std::io::Read;
 
 use cyclonedx_bom::models::bom::{Bom, SpecVersion as CdxSpecVersion};
-use cyclonedx_bom::models::component::Component as CdxComponent;
+use cyclonedx_bom::models::component::{Classification, Component as CdxComponent};
 use cyclonedx_bom::models::license::{LicenseChoice, LicenseIdentifier};
 use cyclonedx_bom::models::metadata::Metadata;
 use cyclonedx_bom::models::organization::{OrganizationalContact, OrganizationalEntity};
@@ -204,7 +204,7 @@ fn flatten<'a>(
     }
 }
 
-/// The component of the domain, `first_party` or not (SBR-14).
+/// The component of the domain, `first_party` or not (SBR-14), a file when of type `file` (SBR-15).
 fn to_domain(component: &CdxComponent, first_party: bool) -> Component {
     Component {
         name: component.name.to_string(),
@@ -241,6 +241,7 @@ fn to_domain(component: &CdxComponent, first_party: bool) -> Component {
             })
             .collect(),
         first_party,
+        file: component.component_type == Classification::File,
     }
 }
 

@@ -79,6 +79,9 @@ pub struct Component {
     /// Whether the component is the vendor's own code, part of the product rather than a dependency
     /// (`specs/sbom-reading.md`, SBR-14): matching keeps it out.
     pub first_party: bool,
+    /// Whether the component is a file, of CycloneDX type `file`: a manifest or a lock file a tool read
+    /// (`specs/sbom-reading.md`, SBR-15).
+    pub file: bool,
 }
 
 /// A hash of a component.

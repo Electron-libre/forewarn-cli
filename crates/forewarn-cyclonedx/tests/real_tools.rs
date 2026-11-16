@@ -33,7 +33,7 @@ fn crate_component(name: &str, version: &str) -> Component {
     }
 }
 
-// spec: SBR-4, SBR-H1
+// spec: SBR-4, SBR-H1, SBR-15
 #[test]
 fn reads_the_sbom_of_syft() {
     let sbom = read_fixture("syft.cdx.json");
@@ -58,6 +58,7 @@ fn reads_the_sbom_of_syft() {
                     },
                     sha256("00ac93a831c7f41ee43ecfc2d95fa9127c372e34f4861fac4adb0517cba3b883"),
                 ],
+                file: true,
                 ..Component::default()
             },
         ]
