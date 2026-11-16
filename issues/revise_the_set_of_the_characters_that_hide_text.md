@@ -33,4 +33,4 @@ set should match what hides text, so that legitimate names read as written and b
 # Resources
 * `crates/forewarn/src/escape.rs` (`hides_text` and its test against the extracts).
 * `crates/forewarn/data/ucd-16.0.0`.
-* `issues/check_the_escape_table_against_the_ucd.md`, `issues/done/widen_the_escaping_of_the_writers.md`.
+* `issues/done/check_the_escape_table_against_the_ucd.md`, `issues/done/widen_the_escaping_of_the_writers.md`.

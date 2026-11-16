@@ -61,7 +61,7 @@ range table transcribed from the UCD in `escape.rs`, its Unicode version cited, 
 - 1 a: a range table of Cf ∪ Default_Ignorable_Code_Point (Unicode 16.0) in `escape.rs`, no dependency.
 - 2 a: U+200C and U+200D stay escaped.
 - High review 1 a: Display, quoted, in the errors of the adapters; 2 a: the backslash of a Windows path is escaped
-  like any other, no exception; 3: follow-up `issues/check_the_escape_table_against_the_ucd.md`; 4: fixed.
+  like any other, no exception; 3: follow-up `issues/done/check_the_escape_table_against_the_ucd.md`; 4: fixed.
 
 ## Deliverable 1
 - done: `escape.rs` escapes Cf ∪ U+2028/U+2029 ∪ Default_Ignorable_Code_Point (Unicode 16.0) and, in the reports and
