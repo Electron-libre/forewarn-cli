@@ -23,7 +23,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 
 - Goal: a 20-second demo shows the whole run (SBOM, matching, exploited flag, draft early warning) on a real project.
 - Why: completes the proof of concept and shows what the tool does without reading the docs.
-- State: idea
+- State: in issues
 - Issues:
   - [choose_a_distinct_product_name](issues/done/choose_a_distinct_product_name.md)
   - [tell_each_record_status_apart_in_the_match_report](issues/tell_each_record_status_apart_in_the_match_report.md)
