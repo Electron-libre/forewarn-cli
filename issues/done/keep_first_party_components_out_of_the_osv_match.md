@@ -72,7 +72,7 @@ its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx
 - After the `high` review (validated by the user, `ok`): a component nested in the product is first-party only when
   its purl has the type and namespace of the product's, so that a bundled third-party library is still matched; no
   first-party component when the product has no valid purl. Finding 6 (`clean_count` by `ComponentRef`) filed as
-  `issues/count_each_component_once_in_the_clean_count.md`.
+  `issues/done/count_each_component_once_in_the_clean_count.md`.
 - New CLI tests go in `crates/forewarn/tests/first_party.rs`: `tests/matching.rs` is over the file size limit.
 - Code review: 1 findings: `first_party` not read by matching yet; it is deliverable 2 of this plan, not fixed here.
 
