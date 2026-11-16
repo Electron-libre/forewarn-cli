@@ -56,6 +56,10 @@ that cannot be read exits with 3.
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`. The workflow
 `.github/workflows/check.yml` runs that command on every push to `main` and every pull request, builds on the toolchain
 of `rust-version` (read from `Cargo.toml`) and runs the tests on macOS.
+`cardinal run release <version>` writes the `CHANGELOG.md` section, then runs the `release_version_command` of
+`.claude/cardinal.toml`, `just set-version <version>`, which writes `[workspace.package] version` and `Cargo.lock`:
+`forewarn --version` prints it, and `crates/forewarn/tests/release_version.rs` checks it is the newest section of the
+changelog.
 
 ## Layout
 

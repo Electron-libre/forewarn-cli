@@ -36,7 +36,7 @@ check_command = "cargo fmt --all --check && cargo clippy -q --all-targets -- -D 
 # format_files = ["*.ts", "*.tsx"]
 # The release tool (`cardinal run release`): the command that writes the new version into the project's manifests, run from
 # the root with the version as last argument, and the files whose change makes a commit breaking (a major version).
-# release_version_command = "npm version --no-git-tag-version"
+release_version_command = "just set-version"
 # release_breaking_files = []
 # The size limit `deliverable-size` checks, in changed lines (issue-workflow): of a deliverable, and of a whole issue.
 # deliverable_size_limit = 1000
