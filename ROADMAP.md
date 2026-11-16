@@ -13,7 +13,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   a clone, and a way out of a false positive.
 - State: in issues
 - Issues:
-  - [set_the_version_of_the_binary_on_release](issues/set_the_version_of_the_binary_on_release.md)
+  - [set_the_version_of_the_binary_on_release](issues/done/set_the_version_of_the_binary_on_release.md)
   - [run_the_project_check_in_ci](issues/done/run_the_project_check_in_ci.md)
   - [distribute_the_binary](issues/distribute_the_binary.md)
   - [read_vex_verdicts](issues/done/read_vex_verdicts.md)
