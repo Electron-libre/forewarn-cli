@@ -51,12 +51,17 @@ range table transcribed from the UCD in `escape.rs`, its Unicode version cited, 
 1. [x] Widen and make reversible: `escape.rs` escapes the Cf ∪ Default_Ignorable set and the backslash (the draft
    keeps its own backslash before the ASCII punctuation); verified by `tests/formatting_characters.rs` and the unit
    tests of `early_warning.rs`; makes true CHK-14, MCH-18, MCH-23, EWD-16 as amended. (autonomous)
+2. [x] Fixes of the `high` review: the adapters quote the values of their errors with `"{}"` instead of `{:?}`, so
+   that `escaped` alone escapes them (MCH-23); the backslash of a component traced in `match` (MCH-18); verified by
+   `tests/formatting_characters.rs`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
 - Base commit: 4cf2acaba61db670cffeffc1059ce9d0c74a01e1
 - 1 a: a range table of Cf ∪ Default_Ignorable_Code_Point (Unicode 16.0) in `escape.rs`, no dependency.
 - 2 a: U+200C and U+200D stay escaped.
+- High review 1 a: Display, quoted, in the errors of the adapters; 2 a: the backslash of a Windows path is escaped
+  like any other, no exception; 3: follow-up `issues/check_the_escape_table_against_the_ucd.md`; 4: fixed.
 
 ## Deliverable 1
 - done: `escape.rs` escapes Cf ∪ U+2028/U+2029 ∪ Default_Ignorable_Code_Point (Unicode 16.0) and, in the reports and
@@ -66,3 +71,14 @@ range table transcribed from the UCD in `escape.rs`, its Unicode version cited, 
 - Code review: no findings
 - not verified: the table against the UCD files themselves (transcribed, no network check); decisions needed: none.
 - Docs: n/a (README and CLAUDE.md do not list the escaped characters; the specs carry them).
+
+## Deliverable 2
+- done: the errors of the adapters (cyclonedx, osv, osv api and fetch, kev, cache) quote their value with Display;
+  `match` traces a backslash in a component's name.
+- red: MCH-23: `unsupported spec version "1.6\\u{202e}"`, the value escaped twice (Debug, then `escaped`).
+- Code review: 3 findings, not fixed: each says an adapter error now prints a value of a feed raw (fetch.rs:86,
+  api.rs:84/191/215, kev.rs:66/69/73, cyclonedx lib.rs:47, osv lib.rs:46). Decision 1 a of the high review: the writer
+  escapes, once; every error line of the CLI goes through `escaped` (main.rs:305, 660, 684), which the MCH-23 tests
+  prove. A future consumer of the adapters (the hosted service) escapes what it writes, as the CLI does.
+- not verified: none; decisions needed: none.
+- Docs: n/a (the specs say "quoting it", still true).

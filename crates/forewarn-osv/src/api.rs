@@ -81,7 +81,7 @@ impl fmt::Display for QueryError {
             Self::InvalidAnswer(reason) => write!(f, "invalid OSV API answer: {reason}"),
             Self::InvalidId(id) => write!(
                 f,
-                "invalid record id {id:?} in an OSV API answer: only ASCII letters, digits, `.`, `-`, `_` and `:`, not first `.`"
+                "invalid record id \"{id}\" in an OSV API answer: only ASCII letters, digits, `.`, `-`, `_` and `:`, not first `.`"
             ),
             // The message of a record read from a file, the id in place of its path.
             Self::Record { id, cause } => write!(
@@ -188,7 +188,7 @@ impl Api {
                         let key = (query.package.ecosystem, query.package.name, query.version);
                         if !tokens.insert((key, token.clone())) {
                             return Err(QueryError::InvalidAnswer(format!(
-                                "the next_page_token {token:?} was already given for a query"
+                                "the next_page_token \"{token}\" was already given for a query"
                             )));
                         }
                         next.push(Query {
@@ -212,7 +212,7 @@ impl Api {
                 match parse_record(&bytes) {
                     Ok(record) if record.id == id => Ok(record),
                     Ok(record) => Err(QueryError::Record {
-                        cause: Cause::Invalid(format!("the record holds the id {:?}", record.id)),
+                        cause: Cause::Invalid(format!("the record holds the id \"{}\"", record.id)),
                         id,
                     }),
                     Err(cause) => Err(QueryError::Record { id, cause }),

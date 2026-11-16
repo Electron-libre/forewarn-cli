@@ -43,7 +43,7 @@ impl fmt::Display for ReadError {
             Cause::NotJson(reason) => write!(f, "not JSON: {reason}"),
             Cause::UnsupportedSchemaVersion(version) => write!(
                 f,
-                "unsupported schema version {version:?}: only OSV schema 1.x is read"
+                "unsupported schema version \"{version}\": only OSV schema 1.x is read"
             ),
             Cause::Invalid(reason) => write!(f, "invalid OSV record: {reason}"),
         }

@@ -153,7 +153,7 @@ fn check_escapes_the_backslash_so_that_a_literal_escape_differs_from_a_real_one(
 
 // spec: MCH-18
 #[test]
-fn match_escapes_the_backslash_of_a_component() {
+fn match_escapes_the_backslash_of_a_component_and_of_a_record() {
     let osv = TempDir::new().expect("a temporary directory");
     let record = json!({
         "id": "EVIL\\n-1",
@@ -171,7 +171,7 @@ fn match_escapes_the_backslash_of_a_component() {
         "1.6",
         &json!([{
             "type": "library",
-            "name": "time",
+            "name": "ti\\me",
             "version": "0.1.43",
             "purl": "pkg:cargo/time@0.1.43",
         }]),
@@ -190,7 +190,7 @@ fn match_escapes_the_backslash_of_a_component() {
     assert_eq!(run.code, 1, "{}", run.stderr);
     assert!(
         run.stdout
-            .contains("  time 0.1.43 (pkg:cargo/time@0.1.43): EVIL\\\\n-1"),
+            .contains("  ti\\\\me 0.1.43 (pkg:cargo/time@0.1.43): EVIL\\\\n-1"),
         "{}",
         run.stdout
     );
@@ -215,4 +215,16 @@ fn an_error_escapes_the_backslash_of_a_file_name() {
     );
     assert_eq!(run.code, 5, "{}", run.stderr);
     assert!(run.stderr.contains("a\\\\nb.json"), "{}", run.stderr);
+}
+
+// spec: MCH-23
+#[test]
+fn an_error_escapes_a_value_of_the_sbom_once() {
+    let input = bom("1.6\u{202e}", &json!([]));
+    let run = run(
+        &["match", "--no-euvd", "--no-kev", "--osv", ".", "-"],
+        Some(&input),
+    );
+    assert_ne!(run.code, 0, "{}", run.stderr);
+    assert!(run.stderr.contains("\"1.6\\u{202e}\""), "{}", run.stderr);
 }

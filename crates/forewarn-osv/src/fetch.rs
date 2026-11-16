@@ -70,11 +70,11 @@ pub enum FetchCause {
 
 impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}: ", self.ecosystem)?;
+        write!(f, "\"{}\": ", self.ecosystem)?;
         match &self.cause {
             FetchCause::InvalidName => write!(
                 f,
-                "invalid ecosystem name {:?}: only ASCII letters, digits, `.`, `-` and `_`, not first `.`",
+                "invalid ecosystem name \"{}\": only ASCII letters, digits, `.`, `-` and `_`, not first `.`",
                 self.ecosystem
             ),
             FetchCause::NotCached => write!(f, "not cached, and the refresh policy is offline"),
@@ -83,7 +83,7 @@ impl fmt::Display for FetchError {
             }
             FetchCause::Download { url, reason } => write!(f, "cannot download {url}: {reason}"),
             FetchCause::NotZip(reason) => write!(f, "not a zip archive: {reason}"),
-            FetchCause::UnsafeEntry(name) => write!(f, "unsafe archive entry {name:?}"),
+            FetchCause::UnsafeEntry(name) => write!(f, "unsafe archive entry \"{name}\""),
             FetchCause::Record(error) => write!(f, "{error}"),
             FetchCause::Cache(reason) => write!(f, "cannot use the cache: {reason}"),
             FetchCause::Damaged(damage) => write!(f, "{damage}"),

@@ -44,7 +44,7 @@ impl fmt::Display for ReadError {
                 let (first, last) = (READ_VERSIONS[0].1, READ_VERSIONS[READ_VERSIONS.len() - 1].1);
                 write!(
                     f,
-                    "unsupported spec version {version:?}: {first} to {last} are read"
+                    "unsupported spec version \"{version}\": {first} to {last} are read"
                 )
             }
             Self::Invalid(reason) => write!(f, "invalid SBOM: {reason}"),

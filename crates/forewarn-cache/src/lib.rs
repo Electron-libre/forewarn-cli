@@ -88,7 +88,7 @@ pub struct Damage {
 
 impl fmt::Display for Damage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "damaged cached copy: {:?} ", self.file)?;
+        write!(f, "damaged cached copy: \"{}\" ", self.file)?;
         match self.change {
             Change::Removed => write!(f, "was removed"),
             Change::Added => write!(f, "was added"),
@@ -201,7 +201,7 @@ impl Cache {
         clock: &impl Fn() -> SystemTime,
     ) -> Result<Fetched<T>, Error<E>> {
         if !is_entry_name(name) {
-            return Err(Error::Cache(format!("invalid entry name {name:?}")));
+            return Err(Error::Cache(format!("invalid entry name \"{name}\"")));
         }
         // One bound for both locks of the fetch; a bound too large to add to now waits without one.
         let deadline = Instant::now().checked_add(self.lock_wait);
