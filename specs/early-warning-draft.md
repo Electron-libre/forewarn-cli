@@ -87,9 +87,11 @@ document a person copies into the ENISA Single Reporting Platform form.
   character preceded by a backslash, each control character written as its escape (`\n`, `\u{1b}`), each character
   that hides or reorders text as its Unicode escape (`\u{202e}`) and each leading space as `&#32;`, so that it reads
   as its text and forges no line, list item, code block, emphasis, link or HTML. The characters that hide or reorder
-  text are those of the general category Cf, the separators U+2028 and U+2029, and the Default_Ignorable_Code_Point
-  characters of Unicode 16.0: the joiners U+200C and U+200D, the Hangul fillers, the variation selectors and the tag
-  characters among them.
+  text are, in Unicode 16.0, the Default_Ignorable_Code_Point characters (the bidi controls, the joiners U+200C and
+  U+200D, the Hangul fillers, the variation selectors and the tag characters among them), the separators U+2028 and
+  U+2029, the White_Space characters other than the space U+0020 (U+00A0, U+2000 to U+200A, U+3000 among them) and
+  U+2800 BRAILLE PATTERN BLANK; the format characters a viewer draws (the Prepended_Concatenation_Mark characters such
+  as U+0600 and U+06DD, U+FFF9 to U+FFFB, U+13430 to U+1343F) are not among them.
 
 ## Scenarios
 
@@ -155,6 +157,10 @@ document a person copies into the ENISA Single Reporting Platform form.
   its name opens on four `&#32;` and its version shows `\u{202e}` and `\u{200b}`, escaped.
 - (EWD-16) Given a component whose version holds the tag character U+E0041 and the Hangul filler U+3164, when the draft
   is written, then its version shows `\u{e0041}` and `\u{3164}`, escaped.
+- (EWD-16) Given a component whose name holds U+3000 IDEOGRAPHIC SPACE and U+2800 BRAILLE PATTERN BLANK, when the draft
+  is written, then its name shows `\u{3000}` and `\u{2800}`, escaped.
+- (EWD-16) Given a component named U+0600 ARABIC NUMBER SIGN (a format character drawn) then `123`, when the draft is
+  written, then its name reads as written, U+0600 not escaped.
 - (EWD-13) Given a draft whose product has no name but whose fields to complete leave it out, when it is written, then
   `6. Product Name` reads `not given`, the field marked only as the list of the fields to complete says.
 

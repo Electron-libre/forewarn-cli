@@ -34,3 +34,32 @@ set should match what hides text, so that legitimate names read as written and b
 * `crates/forewarn/src/escape.rs` (`hides_text` and its test against the extracts).
 * `crates/forewarn/data/ucd-16.0.0`.
 * `issues/done/check_the_escape_table_against_the_ucd.md`, `issues/done/widen_the_escaping_of_the_writers.md`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+`hides_text` becomes Default_Ignorable_Code_Point, U+2028 and U+2029, the White_Space characters other than U+0020,
+and U+2800: the visible format characters (Prepended_Concatenation_Mark, U+FFF9..U+FFFB, U+13430..U+1343F) pass, the
+blank ones are escaped. Out of scope: the leading-space rule, the control characters (already escaped).
+
+## Plan
+1. [ ] Revise the set: vendor the `White_Space` section of `PropList.txt` into `crates/forewarn/data/ucd-16.0.0`
+   (verbatim, its total checked), drop the `General_Category=Format` extract the test no longer reads, rewrite the
+   table of `hides_text` and its exhaustive test (Default_Ignorable_Code_Point + White_Space − U+0020 + U+2028,
+   U+2029, U+2800, the control characters left to `is_control`), move U+0600 and U+FFF9 to the samples that pass and
+   add U+3000, U+2800, U+00A0 to those escaped, plus a draft test of the two new EWD-16 scenarios; verified by
+   `cargo test`; makes true EWD-16 (spec back to `accepted`). ~150 lines.
+
+## Decisions
+- Mode: autonomous
+- 1 a: every White_Space character but U+0020, the UCD section verbatim (U+00A0 and U+1680 escaped).
+- Base commit: 10fb431c7c9171f2c3545ad5cb8c9bbac114d3e9
+
+## Deliverable 1
+- done: `hides_text` is Default_Ignorable_Code_Point, U+2028, U+2029, White_Space but U+0020, and U+2800; the
+  `White_Space` extract of `PropList.txt` replaces the `General_Category=Format` one; the extract parser checks the
+  property of each line; two draft tests for the new EWD-16 scenarios; EWD-16 amended, spec `accepted` again.
+- red: EWD-16: `hides_text disagrees with Unicode 16.0 on ["U+00A0", "U+0600", …, "U+2800", "U+3000", "U+FFF9", …]`
+  and `left: "\u{a0}" right: "\\u{a0}"`.

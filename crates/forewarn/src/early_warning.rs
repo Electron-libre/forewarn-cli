@@ -390,6 +390,27 @@ mod tests {
         );
     }
 
+    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    #[test]
+    fn a_value_hides_no_blank_behind_a_space_other_than_the_ascii_one() {
+        let mut draft = log4shell();
+        draft.components[0].component.name = "log\u{3000}4j\u{2800}".to_owned();
+        let text = markdown(&draft);
+        assert!(
+            text.contains("\n  - log\\\\u\\{3000\\}4j\\\\u\\{2800\\} 2\\.14\\.1, "),
+            "{text}"
+        );
+    }
+
+    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    #[test]
+    fn a_format_character_a_viewer_draws_reads_as_written() {
+        let mut draft = log4shell();
+        draft.components[0].component.name = "\u{600}123".to_owned();
+        let text = markdown(&draft);
+        assert!(text.contains("\n  - \u{600}123 2\\.14\\.1, "), "{text}");
+    }
+
     // spec: EWD-13 (internal: no command writes a draft before cli_draft_early_warnings)
     #[test]
     fn the_fields_marked_are_those_the_draft_lists_to_complete() {
