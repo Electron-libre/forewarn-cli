@@ -110,6 +110,7 @@ fn maps_the_fields_of_a_component() {
                     algorithm: "SHA-256".into(),
                     value: "aa".repeat(32),
                 }],
+                first_party: false,
             },
             Component {
                 licenses: vec!["MIT OR Apache-2.0".into()],
@@ -563,4 +564,49 @@ fn skips_a_target_of_the_product_nested_in_it_but_reads_its_own() {
     })) });
     let sbom = read(&document).expect("readable");
     assert_eq!(names(&sbom), ["inside", "shop-core", "other shop"]);
+}
+
+/// The names of the first-party components of `sbom`.
+fn first_party(sbom: &Sbom) -> Vec<&str> {
+    sbom.components
+        .iter()
+        .filter(|c| c.first_party)
+        .map(|c| c.name.as_str())
+        .collect()
+}
+
+// spec: SBR-14
+#[test]
+fn flags_first_party_a_component_with_the_package_url_of_the_product() {
+    let mut document = bom(
+        "1.6",
+        &json!([
+            { "type": "library", "name": "app jar", "purl": "pkg:maven/acme/app@1.0?type=jar" },
+            { "type": "library", "name": "app 2", "purl": "pkg:maven/acme/app@2.0" },
+            { "type": "library", "name": "lib", "purl": "pkg:maven/acme/lib@1.0" },
+            { "type": "library", "name": "no purl" }
+        ]),
+    );
+    document["metadata"] = json!({ "component": application(&json!({
+        "purl": "pkg:maven/acme/app@1.0?type=pom"
+    })) });
+    let sbom = read(&document).expect("readable");
+    assert_eq!(first_party(&sbom), ["app jar"]);
+}
+
+// spec: SBR-14
+#[test]
+fn flags_first_party_the_components_nested_in_the_product_only() {
+    let sbom = with_nested_product(
+        &json!([
+            { "type": "library", "name": "serde", "bom-ref": "serde" },
+            { "type": "library", "name": "no purl" }
+        ]),
+        &json!([
+            { "type": "library", "name": "serde again", "bom-ref": "serde" },
+            { "type": "library", "name": "a", "components": [{ "type": "library", "name": "a1" }] }
+        ]),
+    );
+    assert_eq!(names(&sbom), ["serde", "no purl", "a", "a1"]);
+    assert_eq!(first_party(&sbom), ["a", "a1"]);
 }

@@ -1,6 +1,6 @@
 ---
 id: MCH
-status: accepted
+status: draft
 adrs: [0001, 0004, 0006]
 ---
 
@@ -96,7 +96,7 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   | `measureAvailable` | the moment of `--measure-available` as `awareSince`, or `null` without it or when no match is actively exploited |
   | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated), `exploited` (an array of objects `{"list", "cve", "dateAdded"}`, in the order of EXF-5, `dateAdded` a date `YYYY-MM-DD` or `null`, empty when no list names the match), `deadlines` (an object `{"earlyWarning", "notification", "finalReport"}` of MXL-14, MXL-15 and MXL-16, each as `awareSince`, `finalReport` `null` without `--measure-available`, or `null` when no list names the match) |
   | `drafts` | an array of objects `{"cve", "path"}` of the draft files written (MXL-28), in the order of EWD-1, `path` the path written, empty without `--drafts` or when no match is actively exploited |
-  | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
+  | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"first-party"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
 - **MCH-18** (deterministic) The human report must print each control character and each bidirectional or invisible
@@ -114,6 +114,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - **MCH-23** (deterministic) The line of an error on standard error must print each control character and each
   bidirectional or invisible formatting character of a value read from the SBOM, the OSV records, an archive, an
   exploited list or the server escaped, as MCH-18 does.
+- **MCH-42** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only
+  first-party components (SBR-14) map to, nor, with `--osv-api`, send the ecosystem, name or version of a first-party
+  component to the OSV API; each is printed not evaluated, first-party (VMT-10, VMT-11).
 - **MCH-34** (deterministic) withdrawn: moved to MXL-10 (`specs/cli-match-exploited.md`).
 - **MCH-35** (deterministic) withdrawn: moved to MXL-11 (`specs/cli-match-exploited.md`).
 - **MCH-40** (deterministic) withdrawn: moved to MXL-12 (`specs/cli-match-exploited.md`).
@@ -136,6 +139,12 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   the vendor runs `forewarn match --osv-api --no-kev --osv-api-url <mirror> sbom.json` on an SBOM of crates, then one
   `querybatch` request names the crates, `time` 0.1.43 is listed with `RUSTSEC-2020-0071`, the report gives the API
   with the time of the query, and the command exits with 1.
+- **MCH-H4** (happy; MCH-42, MCH-2, MCH-24) Given the SBOM `cdxgen` generated for a Maven project whose module
+  `mod-a` 1.0 shares its name with a published package that an OSV API mirror names as vulnerable, when the vendor
+  runs `forewarn match --osv-api --no-kev --no-euvd --osv-api-url <mirror> sbom.json`, then the `querybatch` request names
+  the libraries but neither module, both modules are printed not evaluated, first-party, and the command exits with 0.
+- (MCH-42) Given the same SBOM and a directory of OSV records naming `mod-a` 1.0, when it is matched with `--osv`,
+  then `mod-a` is not affected and is printed not evaluated, first-party.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.
 - (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no OSV archive
@@ -196,6 +205,8 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - The completeness check: `forewarn check` prints it; both commands can run in one CI job.
 - Escaping the formatting characters in the JSON report: it escapes what JSON requires, and a program reads it.
 - Failing on a component not evaluated: it is printed, never counted clean, but does not change the exit code.
+- Matching first-party components anyway, or a flag listing the package URLs of the vendor's own code: a vendor
+  learns the vulnerabilities of its own packages from its own process, not from the SBOM of its product.
 - Showing the progress of a download.
 - An environment variable that turns on `--osv-api`: sending the inventory out stays a choice made on the command line.
 - Severity and draft early warnings: later milestones; the reporting deadlines are those of MXL-14.

@@ -38,3 +38,33 @@ at least out of the OSV API queries.
 
 # Hints
 * A first-party component still belongs in the completeness check: the CRA asks a supplier and a hash of it too.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+The adapter flags a component first-party when the SBOM nests it in the product or its package URL (without
+qualifiers nor subpath) is the product's; matching then reports it not evaluated, `first-party`, so it is never
+matched, its ecosystem never fetched for it alone, and never sent to the OSV API. It stays in the completeness check.
+Measured: `cdxgen` Maven nests the modules under the product; `cdxgen` Cargo lists the product at the top level with
+its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx` lists only deps at the top level.
+
+## Plan
+1. [ ] Read the first-party flag: `Component::first_party` in the domain, set by the CycloneDX adapter (nested in the
+   product, or the product's purl base); verified by `crates/forewarn-cyclonedx/tests/reading.rs` and
+   `real_tools.rs` (cdxgen Maven and Cargo fixtures); makes true SBR-14, SBR-H5.
+2. [ ] Keep first-party components out of the match: `ComponentReason::FirstParty` first in `ComponentPackage::of`
+   (so `ecosystems`/`packages` of `main.rs` skip them with no change there), `"first-party"` in both reports;
+   verified by a domain test and a new `crates/forewarn/tests/first_party.rs` (the `--osv-api` mirror sees no module,
+   `--osv` records naming `mod-a` give no match); makes true VMT-10, MCH-16, MCH-42, MCH-H4.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 9408faaed69c99e1c321dadf30d6b389b91c9854
+- First-party rule: nested in the product, or the product's purl base; no `download_url=file:` rule (a path
+  dependency may be a vendored copy of a published crate).
+- First-party components are kept out of the whole match, reported not evaluated `first-party`.
+- No flag to match them anyway (non-goal of MCH).
+- New CLI tests go in `crates/forewarn/tests/first_party.rs`: `tests/matching.rs` is over the file size limit.
+- Code review: 1 findings: `first_party` not read by matching yet; it is deliverable 2 of this plan, not fixed here.

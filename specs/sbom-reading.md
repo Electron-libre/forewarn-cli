@@ -1,6 +1,6 @@
 ---
 id: SBR
-status: accepted
+status: draft
 adrs: [0001, 0002]
 ---
 
@@ -87,6 +87,9 @@ check and the matching work on the components and a report names the product.
   skipped, its own nested components still read: one whose `bom-ref`, not empty nor only whitespace, is that of a
   component already returned, and a target of the product, whose package URL is that of the product once the
   qualifiers (`?`) and the subpath (`#`) of both are removed.
+- **SBR-14** (deterministic) Each component read must say whether it is first-party, the vendor's own code: one
+  returned from the components nested in the product (SBR-13), and one whose package URL, its qualifiers (`?`) and
+  subpath (`#`) removed, is that of the product with them removed; every other component is not first-party.
 
 ## Scenarios
 
@@ -101,6 +104,8 @@ check and the matching work on the components and a report names the product.
 - **SBR-H4** (happy; SBR-13, SBR-4) Given an SBOM a vendor generated with `cdxgen` for their Maven project of two
   modules, which `cdxgen` nests under the product, when `forewarn` reads it, then it gets the two modules after the
   libraries they depend on, so that they are checked and matched like them.
+- **SBR-H5** (happy; SBR-14, SBR-4) Given the SBOM `cdxgen` generated for a Maven project of two modules, when
+  `forewarn` reads it, then the two modules are first-party and the libraries they depend on are not.
 - (SBR-7) Given a CycloneDX 1.2 JSON file, when it is read, then it fails with "unsupported spec version" quoting `1.2`.
 - (SBR-7) Given a JSON file with `bomFormat` `CycloneDX` and no `specVersion`, when it is read, then it fails with
   "missing spec version".
@@ -144,6 +149,16 @@ check and the matching work on the components and a report names the product.
   is read, then that target is not among the components, and the SBOM is complete when its dependencies are.
 - (SBR-13) Given an SBOM whose product nests a component with no `bom-ref`, or two whose `bom-ref` is `""` or
   `"  "`, when it is read, then each is returned.
+- (SBR-14) Given the SBOM `cdxgen` generated for a Cargo package, which also lists the product among its components
+  (`pkg:cargo/rollcall-fixture-sample@0.1.0`), when it is read, then that component is first-party and its
+  dependencies are not.
+- (SBR-14) Given an SBOM whose product has the package URL `pkg:maven/acme/app@1.0?type=pom` and a top-level component
+  `pkg:maven/acme/app@1.0?type=jar`, when it is read, then that component is first-party; `pkg:maven/acme/app@2.0` and
+  `pkg:maven/acme/lib@1.0` are not.
+- (SBR-14) Given an SBOM whose product has no package URL, when it is read, then only the components nested in it are
+  first-party.
+- (SBR-14) Given an SBOM whose product nests a component whose `bom-ref` a top-level component carries, when it is
+  read, then that component, returned at the top level, is not first-party.
 - (SBR-11) Given an SBOM that lists its product only in `metadata.component`, when it is read, then the product is
   not among its components; given one whose `components` also lists it (as `syft` and `cdxgen` do), it stays there
   once.
@@ -164,4 +179,7 @@ check and the matching work on the components and a report names the product.
 - The contacts and URLs of the manufacturer and the supplier of the product: nothing uses them yet, and a draft early
   warning has no field for them (ADR 0012). A component keeps its organization's email or URL (SBR-5).
 - Deciding whether a field counts as present for the CRA: the completeness check (`specs/sbom-completeness.md`) does.
+- Telling first-party code by a `file://` download URL (`cargo-cyclonedx` writes one for a path dependency, which may
+  be a vendored copy of a published package), the group of the product, the `scope` or a property of a tool
+  (`cdx:cargo:sourceKind`): only the place in the SBOM and the package URL of the product are read.
 - Reading the file from disk or standard input: the command line does.

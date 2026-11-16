@@ -126,7 +126,7 @@ fn reads_the_sbom_of_cargo_cyclonedx_without_the_target_nested_in_its_product() 
     );
 }
 
-// spec: SBR-4
+// spec: SBR-4, SBR-14
 #[test]
 fn reads_the_sbom_of_cdxgen() {
     let sbom = read_fixture("cdxgen.cdx.json");
@@ -138,7 +138,10 @@ fn reads_the_sbom_of_cdxgen() {
                 hashes: vec![sha256(ITOA_SHA256)],
                 ..crate_component("itoa", "1.0.19")
             },
-            crate_component("rollcall-fixture-sample", "0.1.0"),
+            Component {
+                first_party: true,
+                ..crate_component("rollcall-fixture-sample", "0.1.0")
+            },
             Component {
                 hashes: vec![sha256(SEMVER_SHA256)],
                 ..crate_component("semver", "1.0.28")
@@ -156,10 +159,14 @@ fn maven_component(group: &str, name: &str, version: &str) -> Component {
     }
 }
 
-// spec: SBR-4, SBR-H4
+// spec: SBR-4, SBR-H4, SBR-14, SBR-H5
 #[test]
 fn reads_the_modules_cdxgen_nests_in_the_product_of_a_maven_project() {
     let sbom = read_fixture("cdxgen-maven.cdx.json");
+    let first_party = |c: Component| Component {
+        first_party: true,
+        ..c
+    };
     let apache = |c: Component| Component {
         licenses: vec!["Apache-2.0".into()],
         ..c
@@ -169,8 +176,8 @@ fn reads_the_modules_cdxgen_nests_in_the_product_of_a_maven_project() {
         vec![
             apache(maven_component("commons-io", "commons-io", "2.7")),
             apache(maven_component("commons-io", "commons-io", "2.6")),
-            maven_component("org.example.forewarn", "mod-b", "1.0"),
-            maven_component("org.example.forewarn", "mod-a", "1.0"),
+            first_party(maven_component("org.example.forewarn", "mod-b", "1.0")),
+            first_party(maven_component("org.example.forewarn", "mod-a", "1.0")),
         ]
     );
     assert_eq!(

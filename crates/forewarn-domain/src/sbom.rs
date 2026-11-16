@@ -76,6 +76,9 @@ pub struct Component {
     /// Each license: an SPDX identifier, a license name, or an SPDX expression.
     pub licenses: Vec<String>,
     pub hashes: Vec<Hash>,
+    /// Whether the component is the vendor's own code, part of the product rather than a dependency
+    /// (`specs/sbom-reading.md`, SBR-14): matching keeps it out.
+    pub first_party: bool,
 }
 
 /// A hash of a component.
