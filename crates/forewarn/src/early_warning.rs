@@ -257,7 +257,7 @@ mod tests {
             .unwrap_or_else(|| panic!("no field {label} in\n{text}"))
     }
 
-    // spec: EWD-H3, EWD-12, EWD-13, EWD-14, EWD-15 (internal: the whole text compared to the byte; tests/drafts.rs checks the written file field by field)
+    // spec: EWD-H3, EWD-12, EWD-13, EWD-14, EWD-15 (internal: the whole text compared to the byte, on a draft built in memory)
     #[test]
     fn the_draft_gives_the_deadlines_the_evidence_then_the_fields_of_the_glossary() {
         assert_eq!(
@@ -319,7 +319,7 @@ mod tests {
         ));
     }
 
-    // spec: EWD-14, EWD-15 (internal: the writer alone; tests/drafts.rs drives the EUVD id and the measure through the binary)
+    // spec: EWD-14, EWD-15 (internal: the writer alone, on a draft built in memory)
     #[test]
     fn a_draft_gives_its_euvd_id_and_the_measure_when_known() {
         let mut draft = log4shell();
@@ -350,7 +350,7 @@ mod tests {
         ));
     }
 
-    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
+    // spec: EWD-16 (internal: a sample per class of character, on a draft built in memory)
     #[test]
     fn a_value_of_the_sbom_forges_no_markdown() {
         let mut draft = log4shell();
@@ -365,7 +365,7 @@ mod tests {
         assert!(!text.lines().any(|line| line.starts_with("# Title")));
     }
 
-    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
+    // spec: EWD-16 (internal: a sample per class of character, on a draft built in memory)
     #[test]
     fn a_value_hides_no_text_and_opens_no_code_block() {
         let mut draft = log4shell();
@@ -378,7 +378,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
+    // spec: EWD-16 (internal: a sample per class of character, on a draft built in memory)
     #[test]
     fn a_value_hides_no_text_behind_a_tag_character_or_a_filler() {
         let mut draft = log4shell();
@@ -390,7 +390,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
+    // spec: EWD-16 (internal: a sample per class of character, on a draft built in memory)
     #[test]
     fn a_value_hides_no_blank_behind_a_space_other_than_the_ascii_one() {
         let mut draft = log4shell();
@@ -402,7 +402,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
+    // spec: EWD-16 (internal: a sample per class of character, on a draft built in memory)
     #[test]
     fn a_format_character_a_viewer_draws_reads_as_written() {
         let mut draft = log4shell();
@@ -411,7 +411,7 @@ mod tests {
         assert!(text.contains("\n  - \u{600}123 2\\.14\\.1, "), "{text}");
     }
 
-    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
+    // spec: EWD-16 (internal: a sample per class of character, on a draft built in memory)
     #[test]
     fn a_character_named_blank_is_escaped() {
         let mut draft = log4shell();
@@ -423,7 +423,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
+    // spec: EWD-16 (internal: a sample per class of character, on a draft built in memory)
     #[test]
     fn a_character_a_font_draws_reads_as_written_though_lists_name_it_invisible() {
         let mut draft = log4shell();

@@ -43,6 +43,9 @@ and no production code change.
    `a|b` U+202E `log4j` U+13441 `-core` and finds each escaped; the internal tests keep their samples (one per class
    of character, drafts the domain does not build, the exact whole text) with a reason saying so; verified by
    `cargo test` and `check-specs`; makes true EWD-16 (traced through the binary). (autonomous)
+2. [x] Fixes of the `high` review: the binary test also drives a newline and `#` and checks no raw `a|b` is
+   left; the internal reasons say only what is true; the module doc of `tests/drafts.rs` names the draft spec;
+   verified by `cargo test` and `check-specs`; makes true EWD-16. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -54,6 +57,14 @@ and no production code change.
   --drafts` and finds it escaped in the written file; the 12 internal tests of `early_warning.rs` give a true reason.
 - red: EWD-16: the test passed at once (the behaviour exists); with `push_escaped` bypassed it failed at
   `drafts.rs:451` (the escaped name missing from the draft).
+- Code review: no findings (low).
+- not verified: none.
+- decisions needed: none.
+
+## Summary of deliverable 2
+- done: the `high` review's findings on the test and the reasons fixed; the ambiguity of an escape and its literal
+  text (outside EWD-16 as written) became `issues/tell_an_escape_from_its_literal_text_in_a_draft.md`.
+- red: none (stronger assertions of a passing test, comments).
 - Code review: no findings (low).
 - not verified: none.
 - decisions needed: none.
