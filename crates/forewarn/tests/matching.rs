@@ -89,7 +89,7 @@ fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1
              OSV records:\n  {}: 4 records, local\n\
              Exploited lists:\n  CISA KEV: catalog 2026.11.10 released 2026-11-10, 2 entries, local {}\n\
              Affected (1, 0 actively exploited):\n  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 \
-             (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), records RUSTSEC-2020-0071 from RUSTSEC\n\
+             (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), affected per RUSTSEC-2020-0071 from RUSTSEC\n\
              Not evaluated (1):\n  bare 1.0: no package URL\n\
              Clean: 1 of 3 components\n",
             osv.display(),
@@ -542,7 +542,7 @@ fn escapes_the_control_characters_of_the_sbom_and_the_records() {
     assert!(
         run.stdout.contains(
             "  time 0.1.43 (pkg:cargo/time@0.1.43): EVIL-1\\u{1b}[2J (CVE\\nfake), \
-             records EVIL-1\\u{1b}[2J from EVIL\n"
+             affected per EVIL-1\\u{1b}[2J from EVIL\n"
         ),
         "{}",
         run.stdout
@@ -581,7 +581,7 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
     assert!(
         human.stdout.contains(
             "Affected (1, 0 actively exploited):\n  time 0.1.43 (pkg:cargo/time@0.1.43): \
-             CVE-2020-26235 (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), records GHSA-wcg3-cvx6-7396 from GHSA, \
+             CVE-2020-26235 (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), affected per GHSA-wcg3-cvx6-7396 from GHSA, \
              RUSTSEC-2020-0071 from RUSTSEC\n"
         ),
         "{}",
@@ -620,7 +620,7 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
 
 // spec: MCH-1, MCH-16
 #[test]
-fn marks_the_records_that_do_not_affect_the_component_or_were_not_evaluated() {
+fn groups_the_records_of_a_match_under_their_status() {
     let mirror = |id: &str, ranges: Value| {
         json!({
             "id": id,
@@ -655,8 +655,8 @@ fn marks_the_records_that_do_not_affect_the_component_or_were_not_evaluated() {
     );
     assert!(
         human.stdout.contains(
-            "records GHSA-fixed from GHSA (does not affect), GHSA-git from GHSA (not evaluated), \
-             RUSTSEC-2020-0071 from RUSTSEC\n"
+            "affected per RUSTSEC-2020-0071 from RUSTSEC; not affected per GHSA-fixed from GHSA; \
+             not evaluated per GHSA-git from GHSA\n"
         ),
         "{}",
         human.stdout

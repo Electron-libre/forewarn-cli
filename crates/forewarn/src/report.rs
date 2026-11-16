@@ -6,7 +6,9 @@ use std::path::Path;
 
 use forewarn_domain::completeness::{CompletenessReport, Field};
 use forewarn_domain::exploited::{Evidence, FlaggedMatch, FlaggedReport};
-use forewarn_domain::matching::{ComponentReason, ComponentRef, PairReason, Reason, RecordStatus};
+use forewarn_domain::matching::{
+    ComponentReason, ComponentRef, PairReason, Reason, RecordRef, RecordStatus,
+};
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
@@ -258,20 +260,7 @@ pub fn matching_human(report: &MatchReport) -> String {
             push_escaped(&mut text, &found.aliases.join(", "));
             text.push(')');
         }
-        text.push_str(", records ");
-        for (i, record) in found.records.iter().enumerate() {
-            if i > 0 {
-                text.push_str(", ");
-            }
-            push_escaped(&mut text, &record.id);
-            text.push_str(" from ");
-            push_escaped(&mut text, &record.source);
-            match record.status {
-                RecordStatus::Affects => {}
-                RecordStatus::DoesNotAffect => text.push_str(" (does not affect)"),
-                RecordStatus::NotEvaluated => text.push_str(" (not evaluated)"),
-            }
-        }
+        push_records_by_status(&mut text, &found.records);
         text.push('\n');
         if flagged.is_exploited() {
             push_evidence(&mut text, &flagged.evidence);
@@ -377,6 +366,37 @@ fn push_download(text: &mut String, freshness: &Freshness) {
     if let Some(last_modified) = &freshness.last_modified {
         text.push_str(", Last-Modified ");
         push_escaped(text, last_modified);
+    }
+}
+
+/// Pushes the records of a match grouped under the status each gives, in the order affected, not affected, not
+/// evaluated, each group left out when empty (MCH-1).
+fn push_records_by_status(text: &mut String, records: &[RecordRef]) {
+    let groups = [
+        (RecordStatus::Affects, "affected per "),
+        (RecordStatus::DoesNotAffect, "not affected per "),
+        (RecordStatus::NotEvaluated, "not evaluated per "),
+    ];
+    let mut separator = ", ";
+    for (status, label) in groups {
+        let mut grouped = records
+            .iter()
+            .filter(|record| record.status == status)
+            .peekable();
+        if grouped.peek().is_none() {
+            continue;
+        }
+        text.push_str(separator);
+        text.push_str(label);
+        for (i, record) in grouped.enumerate() {
+            if i > 0 {
+                text.push_str(", ");
+            }
+            push_escaped(text, &record.id);
+            text.push_str(" from ");
+            push_escaped(text, &record.source);
+        }
+        separator = "; ";
     }
 }
 

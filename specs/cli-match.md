@@ -18,8 +18,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 
 - **MCH-1** (deterministic) `forewarn match <sbom>` must print each match of the matching
   (`specs/vulnerability-matching.md`): the component's name, its version and package URL when it has them, and the
-  vulnerability's id, aliases, and the id, source and status of each of its records (VMT-18), the status shown for a
-  record that does not affect the component or could not be evaluated.
+  vulnerability's id, aliases, and the id and source of each of its records (VMT-18) under the status the record
+  gives, `affected per`, then `not affected per`, then `not evaluated per`, each group omitted when empty and the
+  groups separated by `; `, so that a reader tells a record that does not affect the component from the whole match.
 - **MCH-2** (deterministic) `forewarn match <sbom>` must print each component or pair not evaluated (VMT-3) with its
   reason, under a heading of its own, apart from the matches and from the count of clean components.
 - **MCH-3** (deterministic) `forewarn match <sbom>` must print how many components were matched and how many are
@@ -189,8 +190,10 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - (MCH-1, MCH-16) Given a directory holding `RUSTSEC-2020-0071` and its `GHSA` mirror, both affecting `time` 0.1.43,
   when the SBOM is matched, then `time` is listed once as `CVE-2020-26235`, with both records and their sources.
 - (MCH-1, MCH-16) Given a directory holding `RUSTSEC-2020-0071` affecting `time` 0.1.43 and its `GHSA` mirror fixed at
-  0.1.40, when the SBOM is matched, then the human report marks the mirror as not affecting `time` and the JSON report
-  gives it `"affects": false`.
+  0.1.40, when the SBOM is matched, then the human report prints `affected per RUSTSEC-2020-0071 from RUSTSEC;
+  not affected per GHSA-… from GHSA` and the JSON report gives the mirror `"affects": false`.
+- (MCH-1) Given records of one vulnerability that affect a component, do not affect it and could not be evaluated,
+  when the human report prints the match, then the three groups appear in that order, each record under its own.
 - (MCH-24) Given a component `pkg:golang/github.com/x/y@v1.2.3`, when it is matched with `--osv-api`, then the
   `querybatch` request names the `Go` package `github.com/x/y` at version `1.2.3`.
 - (MCH-24) Given an SBOM whose components have no package URL, when it is matched with `--osv-api`, then the API is
