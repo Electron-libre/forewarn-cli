@@ -89,10 +89,12 @@ document a person copies into the ENISA Single Reporting Platform form.
   as its text and forges no line, list item, code block, emphasis, link or HTML. The characters that hide or reorder
   text are, in Unicode 16.0, the Default_Ignorable_Code_Point characters (the bidi controls, the joiners U+200C and
   U+200D, the Hangul fillers, the variation selectors and the tag characters among them), the White_Space characters
-  other than the space U+0020 (U+00A0, U+2000 to U+200A, U+2028, U+2029, U+3000 among them), U+2800 BRAILLE PATTERN
-  BLANK, the interlinear annotation characters U+FFF9 to U+FFFB and the Egyptian hieroglyph format controls U+13430
-  to U+1343F; the Prepended_Concatenation_Mark characters, format characters a viewer draws (U+0600, U+06DD), are not
-  among them.
+  other than the space U+0020 (U+00A0, U+2000 to U+200A, U+2028, U+2029, U+3000 among them), the characters whose
+  name ends in `BLANK` (U+2800 BRAILLE PATTERN BLANK, U+13441 EGYPTIAN HIEROGLYPH FULL BLANK, U+13442 EGYPTIAN
+  HIEROGLYPH HALF BLANK), the interlinear annotation characters U+FFF9 to U+FFFB and the Egyptian hieroglyph format
+  controls U+13430 to U+1343F; the Prepended_Concatenation_Mark characters, format characters a viewer draws (U+0600,
+  U+06DD), are not among them, nor the characters a font draws with ink that lists of invisible characters name
+  (U+1D159 MUSICAL SYMBOL NULL NOTEHEAD, U+16FE4 KHITAN SMALL SCRIPT FILLER).
 
 ## Scenarios
 
@@ -160,6 +162,10 @@ document a person copies into the ENISA Single Reporting Platform form.
   is written, then its version shows `\u{e0041}` and `\u{3164}`, escaped.
 - (EWD-16) Given a component whose name holds U+3000 IDEOGRAPHIC SPACE and U+2800 BRAILLE PATTERN BLANK, when the draft
   is written, then its name shows `\u{3000}` and `\u{2800}`, escaped.
+- (EWD-16) Given a component named `log4j` U+13441 EGYPTIAN HIEROGLYPH FULL BLANK `-core`, when the draft is written,
+  then its name shows `\u{13441}`, escaped.
+- (EWD-16) Given a component named `log4j` U+1D159 MUSICAL SYMBOL NULL NOTEHEAD `-core`, when the draft is written,
+  then its name reads as written, U+1D159 not escaped.
 - (EWD-16) Given a component named U+0600 ARABIC NUMBER SIGN (a format character drawn) then `123`, when the draft is
   written, then its name reads as written, U+0600 not escaped.
 - (EWD-13) Given a draft whose product has no name but whose fields to complete leave it out, when it is written, then

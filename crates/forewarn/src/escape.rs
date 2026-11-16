@@ -34,13 +34,15 @@ pub fn escaped(value: &str) -> String {
 }
 
 /// Whether `c` hides or reorders text (EWD-16): a `Default_Ignorable_Code_Point`, a `White_Space` character other than
-/// the space U+0020 (the separators U+2028 and U+2029 among them), U+2800 BRAILLE PATTERN BLANK, the interlinear
-/// annotation characters U+FFF9 to U+FFFB or the Egyptian hieroglyph format controls U+13430 to U+1343F, as Unicode
-/// 16.0 lists them (`DerivedCoreProperties.txt`, `PropList.txt`). A viewer draws them as nothing or as a blank, or uses
-/// them to reorder, stack or annotate the text around them (the "Trojan Source" trick, the tag characters of "ASCII
-/// smuggling", the Hangul fillers); the `Prepended_Concatenation_Mark` characters it draws (U+0600, U+06DD) pass. The
-/// control characters among `White_Space` are escaped before it is asked. A test compares it, for every scalar value,
-/// with the verbatim extracts of those files in `data/ucd-16.0.0` (Unicode License v3).
+/// the space U+0020 (the separators U+2028 and U+2029 among them), a character whose name ends in `BLANK` (U+2800,
+/// U+13441, U+13442), the interlinear annotation characters U+FFF9 to U+FFFB or the Egyptian hieroglyph format controls
+/// U+13430 to U+1343F, as Unicode 16.0 lists them (`DerivedCoreProperties.txt`, `PropList.txt`, `UnicodeData.txt`). A
+/// viewer draws them as nothing or as a blank, or uses them to reorder, stack or annotate the text around them (the
+/// "Trojan Source" trick, the tag characters of "ASCII smuggling", the Hangul fillers); the
+/// `Prepended_Concatenation_Mark` characters it draws (U+0600, U+06DD) pass, as do the characters a font draws with ink
+/// that lists of invisible characters name (U+1D159, U+16FE4). The control characters among `White_Space` are escaped
+/// before it is asked. A test compares it, for every scalar value, with the verbatim extracts of those files in
+/// `data/ucd-16.0.0` (Unicode License v3).
 fn hides_text(c: char) -> bool {
     matches!(
         c,
@@ -63,6 +65,7 @@ fn hides_text(c: char) -> bool {
             | '\u{ffa0}'
             | '\u{fff0}'..='\u{fffb}'
             | '\u{13430}'..='\u{1343f}'
+            | '\u{13441}'..='\u{13442}'
             | '\u{1bca0}'..='\u{1bca3}'
             | '\u{1d173}'..='\u{1d17a}'
             | '\u{e0000}'..='\u{e0fff}'
@@ -107,6 +110,29 @@ mod tests {
         code_points
     }
 
+    /// The code points of the verbatim lines of `UnicodeData.txt` 16.0 whose name ends in ` BLANK`, checked against the
+    /// version of the extract's header and the name of each line, so that a line of another name fails.
+    fn named_blank(extract: &str) -> BTreeSet<u32> {
+        let mut lines = extract.lines();
+        assert!(
+            lines
+                .next()
+                .is_some_and(|line| line.starts_with("# UnicodeData-16.0.0.txt:")),
+            "the extract is not of Unicode 16.0.0"
+        );
+        lines
+            .map(|line| {
+                let mut fields = line.split(';');
+                let code_point = fields.next().expect("a code point");
+                assert!(
+                    fields.next().is_some_and(|name| name.ends_with(" BLANK")),
+                    "the extract holds another name: {line}"
+                );
+                u32::from_str_radix(code_point, 16).expect("a code point")
+            })
+            .collect()
+    }
+
     // spec: EWD-16 (internal: every scalar value against the Unicode data, which no SBOM fixture would walk through)
     #[test]
     fn the_characters_that_hide_text_are_those_the_unicode_data_lists() {
@@ -121,7 +147,9 @@ mod tests {
             "White_Space",
         ));
         listed.remove(&0x20);
-        listed.insert(0x2800);
+        listed.extend(named_blank(include_str!(
+            "../data/ucd-16.0.0/UnicodeData-names-ending-in-BLANK.txt"
+        )));
         listed.extend((0xfff9..=0xfffb).chain(0x13430..=0x1343f));
         // The control characters among White_Space (`\t`, U+0085) are escaped before `hides_text` is asked.
         let wrong: Vec<String> = (0..=0x0010_ffff_u32)
@@ -166,6 +194,8 @@ mod tests {
             '\u{fffb}',
             '\u{13430}',
             '\u{1343f}',
+            '\u{13441}',
+            '\u{13442}',
             '\u{e0001}',
             '\u{e0041}',
             '\u{e007f}',
@@ -187,6 +217,8 @@ mod tests {
             '\u{110bd}',
             '\u{3165}',
             '\u{fffc}',
+            '\u{16fe4}',
+            '\u{1d159}',
             '\u{1f600}',
         ] {
             assert_eq!(escaped(&c.to_string()), c.to_string());

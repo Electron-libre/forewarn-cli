@@ -30,3 +30,37 @@ which of them EWD-16 escapes, by a rule a reader can check, not one by one.
 * `crates/forewarn/src/escape.rs` (`hides_text` and its test against the extracts).
 * `crates/forewarn/data/ucd-16.0.0`.
 * `issues/done/revise_the_set_of_the_characters_that_hide_text.md`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+Measured on the installed fonts (fontTools, glyph outlines of every font under `/usr/share/fonts`, Noto included): outside
+the set of EWD-16, only U+13441 and U+13442 EGYPTIAN HIEROGLYPH FULL/HALF BLANK are drawn with no ink (the other hits are
+shaping artefacts: Duployan letters drawn by GSUB, two viramas, a Nerd Font gap). U+1D159 and U+16FE4 are drawn with
+ink (Noto Music, Noto Serif Khitan Small Script); the flopp/invisible-characters list adds nothing else (its other
+entries are already escaped, or misnamed: U+1D000…). Rule: the characters whose Unicode name ends in `BLANK`
+(U+2800, U+13441, U+13442), which replaces the special case of U+2800.
+
+## Plan
+1. [x] Escape the characters named `… BLANK`: vendor the lines of `UnicodeData.txt` 16.0 whose name ends in ` BLANK`
+   into `crates/forewarn/data/ucd-16.0.0` (a header line naming the file and the filter, the three lines verbatim),
+   read them in the exhaustive test of `hides_text` instead of inserting U+2800 by hand, add U+13441..U+13442 to the
+   table and the samples, U+1D159 and U+16FE4 to those that pass, a draft test of the two new EWD-16 scenarios;
+   verified by `cargo test`; makes true EWD-16 (spec back to `accepted`). ~80 lines. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- 1 a: the three lines of `UnicodeData.txt` 16.0 whose name ends in ` BLANK`, verbatim, under a header line naming
+  the file and the filter.
+- Base commit: a3dce1a1f58b3649624d0b6ed2ba3c1ed8ef587d
+
+## Deliverable 1
+- done: `hides_text` escapes U+13441 and U+13442 too; the exhaustive test reads the characters named `… BLANK` from
+  the new extract `UnicodeData-names-ending-in-BLANK.txt` instead of inserting U+2800; U+1D159 and U+16FE4 among the
+  samples that pass; two draft tests for the new EWD-16 scenarios; EWD-16 amended, spec `accepted` again.
+- red: EWD-16: `hides_text disagrees with Unicode 16.0 on ["U+13441", "U+13442"]`, `left: "𓑁" right: "\\u{13441}"`.
+- Code review: no findings.
+- not verified: the drawing in a terminal and a Markdown viewer (measured on the glyph outlines of the installed
+  fonts). decisions needed: none.

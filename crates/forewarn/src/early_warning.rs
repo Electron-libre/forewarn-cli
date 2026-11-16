@@ -411,6 +411,30 @@ mod tests {
         assert!(text.contains("\n  - \u{600}123 2\\.14\\.1, "), "{text}");
     }
 
+    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    #[test]
+    fn a_character_named_blank_is_escaped() {
+        let mut draft = log4shell();
+        draft.components[0].component.name = "log4j\u{13441}-core".to_owned();
+        let text = markdown(&draft);
+        assert!(
+            text.contains("\n  - log4j\\\\u\\{13441\\}\\-core 2\\.14\\.1, "),
+            "{text}"
+        );
+    }
+
+    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    #[test]
+    fn a_character_a_font_draws_reads_as_written_though_lists_name_it_invisible() {
+        let mut draft = log4shell();
+        draft.components[0].component.name = "log4j\u{1d159}-core".to_owned();
+        let text = markdown(&draft);
+        assert!(
+            text.contains("\n  - log4j\u{1d159}\\-core 2\\.14\\.1, "),
+            "{text}"
+        );
+    }
+
     // spec: EWD-13 (internal: no command writes a draft before cli_draft_early_warnings)
     #[test]
     fn the_fields_marked_are_those_the_draft_lists_to_complete() {

@@ -1,0 +1,4 @@
+# UnicodeData-16.0.0.txt: its lines whose name ends in " BLANK" (grep -E '^[0-9A-F]+;[^;]* BLANK;'), verbatim.
+2800;BRAILLE PATTERN BLANK;So;0;L;;;;;N;;;;;
+13441;EGYPTIAN HIEROGLYPH FULL BLANK;Lo;0;L;;;;;N;;;;;
+13442;EGYPTIAN HIEROGLYPH HALF BLANK;Lo;0;L;;;;;N;;;;;
