@@ -26,7 +26,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - State: in issues
 - Issues:
   - [choose_a_distinct_product_name](issues/done/choose_a_distinct_product_name.md)
-  - [tell_each_record_status_apart_in_the_match_report](issues/tell_each_record_status_apart_in_the_match_report.md)
+  - [tell_each_record_status_apart_in_the_match_report](issues/done/tell_each_record_status_apart_in_the_match_report.md)
   - [tell_file_components_apart_in_the_completeness_check](issues/tell_file_components_apart_in_the_completeness_check.md)
 
 ## Upload from CI
