@@ -44,6 +44,9 @@ const ECOSYSTEMS: [(&str, &str, NameForm, Scheme); 8] = [
 /// Why a component cannot be matched at all (VMT-10).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComponentReason {
+    /// The component is the vendor's own code (`specs/sbom-reading.md`, SBR-14), which the vulnerabilities of a
+    /// published package of the same name do not affect.
+    FirstParty,
     /// The component has no package URL.
     NoPackageUrl,
     /// The package URL does not follow the specification, or lacks a namespace its type requires.
@@ -547,6 +550,9 @@ impl ComponentPackage {
     ///
     /// The [`ComponentReason`] that keeps the component from being matched.
     pub fn of(component: &Component) -> Result<Self, ComponentReason> {
+        if component.first_party {
+            return Err(ComponentReason::FirstParty);
+        }
         let purl = component
             .purl
             .as_deref()

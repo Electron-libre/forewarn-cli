@@ -1,6 +1,6 @@
 ---
 id: MCH
-status: draft
+status: accepted
 adrs: [0001, 0004, 0006]
 ---
 
@@ -139,12 +139,15 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   the vendor runs `forewarn match --osv-api --no-kev --osv-api-url <mirror> sbom.json` on an SBOM of crates, then one
   `querybatch` request names the crates, `time` 0.1.43 is listed with `RUSTSEC-2020-0071`, the report gives the API
   with the time of the query, and the command exits with 1.
-- **MCH-H4** (happy; MCH-42, MCH-2, MCH-24) Given the SBOM `cdxgen` generated for a Maven project whose module
-  `mod-a` 1.0 shares its name with a published package that an OSV API mirror names as vulnerable, when the vendor
-  runs `forewarn match --osv-api --no-kev --no-euvd --osv-api-url <mirror> sbom.json`, then the `querybatch` request names
-  the libraries but neither module, both modules are printed not evaluated, first-party, and the command exits with 0.
-- (MCH-42) Given the same SBOM and a directory of OSV records naming `mod-a` 1.0, when it is matched with `--osv`,
-  then `mod-a` is not affected and is printed not evaluated, first-party.
+- **MCH-H4** (happy; MCH-42, MCH-2, MCH-24) Given an SBOM whose product nests the vendor's own crate `time` 0.1.43,
+  named like a published crate an OSV API mirror names as vulnerable, beside the dependency `serde`, when the vendor
+  runs `forewarn match --osv-api --no-kev --no-euvd --osv-api-url <mirror> sbom.json`, then the `querybatch` request
+  names `serde` alone, `time` is printed not evaluated, first-party, and the command exits with 0.
+- (MCH-42) Given the SBOM `cdxgen` generated for a Maven project of two modules and a directory of OSV records naming
+  its module `mod-a` 1.0, when it is matched with `--osv`, then no component is affected and both modules are printed
+  not evaluated, first-party.
+- (MCH-42) Given an SBOM whose only component is nested in the product, an empty cache and `--refresh offline`, when
+  it is matched, then no archive is read and the command exits with 0.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.
 - (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no OSV archive

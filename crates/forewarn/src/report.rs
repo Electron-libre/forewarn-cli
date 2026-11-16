@@ -652,6 +652,7 @@ fn reason(reason: &Reason) -> (&'static str, Option<&str>) {
     match reason {
         Reason::Component(reason) => (
             match reason {
+                ComponentReason::FirstParty => "first-party",
                 ComponentReason::NoPackageUrl => "no package URL",
                 ComponentReason::InvalidPackageUrl => "invalid package URL",
                 ComponentReason::UnknownEcosystem => "unknown ecosystem",

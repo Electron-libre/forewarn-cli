@@ -54,10 +54,10 @@ its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx
 1. [ ] Read the first-party flag: `Component::first_party` in the domain, set by the CycloneDX adapter (nested in the
    product, or the product's purl base); verified by `crates/forewarn-cyclonedx/tests/reading.rs` and
    `real_tools.rs` (cdxgen Maven and Cargo fixtures); makes true SBR-14, SBR-H5.
-2. [ ] Keep first-party components out of the match: `ComponentReason::FirstParty` first in `ComponentPackage::of`
+2. [x] Keep first-party components out of the match: `ComponentReason::FirstParty` first in `ComponentPackage::of`
    (so `ecosystems`/`packages` of `main.rs` skip them with no change there), `"first-party"` in both reports;
    verified by a domain test and a new `crates/forewarn/tests/first_party.rs` (the `--osv-api` mirror sees no module,
-   `--osv` records naming `mod-a` give no match); makes true VMT-10, MCH-16, MCH-42, MCH-H4.
+   `--osv` records naming `mod-a` give no match); makes true VMT-10, MCH-16, MCH-42, MCH-H4. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -68,3 +68,12 @@ its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx
 - No flag to match them anyway (non-goal of MCH).
 - New CLI tests go in `crates/forewarn/tests/first_party.rs`: `tests/matching.rs` is over the file size limit.
 - Code review: 1 findings: `first_party` not read by matching yet; it is deliverable 2 of this plan, not fixed here.
+
+## Deliverable 2
+- done: `ComponentReason::FirstParty`, checked first in `ComponentPackage::of`, so a first-party component is
+  never matched, fetched for nor queried; `first-party` in both reports; the three specs `accepted`; MCH-H4 reworded
+  on the `time` crate the OSV API test mirror serves; README and CLAUDE.md say it.
+- checks: project-check green; specs accepted and traced.
+- red: MCH-42, MCH-H4: `left: 1 right: 0` (exit code, `time` queried), `"Maven": not cached ... offline` (exit 5);
+  VMT-10: `no variant FirstParty`.
+- Code review: no findings

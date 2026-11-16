@@ -34,7 +34,8 @@ per ecosystem makes concurrent runs sharing a cache wait for a run that download
 [0007](docs/adr/0007-share-the-osv-cache-lock-between-readers.md)). It can also query the OSV API
 (`/v1/querybatch`, then `/v1/vulns/<id>`), an opt-in source that sends the ecosystem, name and version of each
 component out (ADR [0006](docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md)).
-`forewarn match` prints the affected components of an SBOM, apart from those not evaluated, matched against the cached
+`forewarn match` prints the affected components of an SBOM, apart from those not evaluated (the first-party ones
+among them, never matched nor sent to the OSV API), matched against the cached
 OSV archives of the ecosystems it uses, local records given with `--osv`, or, with `--osv-api`, the records the
 OSV API names for its components (`specs/cli-match.md`), each match the CISA KEV catalog or EUVD names marked
 actively exploited with its evidence (the catalog fetched into the same cache or read with `--kev`, the EUVD list paged

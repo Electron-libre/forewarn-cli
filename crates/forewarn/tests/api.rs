@@ -187,6 +187,38 @@ fn a_vendor_queries_the_osv_api_for_the_components_of_an_sbom() {
     );
 }
 
+// spec: MCH-H4, MCH-42, MCH-2, MCH-24
+#[test]
+fn a_vendor_s_own_crate_is_not_sent_to_the_osv_api() {
+    let api = OsvApi::new(None);
+    let mut document: Value = serde_json::from_slice(&bom(
+        "1.6",
+        &json!([component("serde", "1.0.0", Some("pkg:cargo/serde@1.0.0"))]),
+    ))
+    .expect("JSON");
+    document["metadata"] = json!({"component": {
+        "type": "application",
+        "name": "shop",
+        "components": [component("time", "0.1.43", Some("pkg:cargo/time@0.1.43"))]
+    }});
+
+    let run = query(&api, &[], document.to_string().as_bytes());
+
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(api.lines(), ["POST /v1/querybatch"]);
+    assert_eq!(
+        api.requests()[0].1,
+        Some(json!({"queries": [
+            {"package": {"ecosystem": "crates.io", "name": "serde"}, "version": "1.0.0"},
+        ]}))
+    );
+    assert!(
+        run.stdout.contains("time 0.1.43") && run.stdout.contains("first-party"),
+        "{}",
+        run.stdout
+    );
+}
+
 // spec: MCH-16, MCH-26
 #[test]
 fn the_json_report_gives_the_api_as_the_source() {

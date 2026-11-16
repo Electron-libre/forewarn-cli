@@ -202,3 +202,22 @@ fn reads_an_unencoded_npm_scope_without_a_version() {
         ("@babel/core", "7.0.0")
     );
 }
+
+// spec: VMT-10, VMT-11
+#[test]
+fn keeps_a_first_party_component_out_before_any_other_reason() {
+    let first_party = |component: Component| Component {
+        first_party: true,
+        ..component
+    };
+    for component in [
+        component("pkg:cargo/time@0.1.43", None),
+        component("pkg:deb/debian/curl@7.0", None),
+        Component::default(),
+    ] {
+        assert_eq!(
+            ComponentPackage::of(&first_party(component)),
+            Err(ComponentReason::FirstParty)
+        );
+    }
+}
