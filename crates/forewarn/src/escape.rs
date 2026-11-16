@@ -111,7 +111,8 @@ mod tests {
     }
 
     /// The code points of the verbatim lines of `UnicodeData.txt` 16.0 whose name ends in ` BLANK`, checked against the
-    /// version of the extract's header and the name of each line, so that a line of another name fails.
+    /// version of the extract's header, the name of each line and the `# Total code points` it ends on, so that a line
+    /// of another name or a dropped line fails.
     fn named_blank(extract: &str) -> BTreeSet<u32> {
         let mut lines = extract.lines();
         assert!(
@@ -120,17 +121,23 @@ mod tests {
                 .is_some_and(|line| line.starts_with("# UnicodeData-16.0.0.txt:")),
             "the extract is not of Unicode 16.0.0"
         );
-        lines
-            .map(|line| {
+        let mut code_points = BTreeSet::new();
+        let mut total = None;
+        for line in lines.filter(|line| !line.trim().is_empty()) {
+            if let Some(count) = line.strip_prefix("# Total code points: ") {
+                total = Some(count.parse::<usize>().expect("a total"));
+            } else {
                 let mut fields = line.split(';');
                 let code_point = fields.next().expect("a code point");
                 assert!(
                     fields.next().is_some_and(|name| name.ends_with(" BLANK")),
                     "the extract holds another name: {line}"
                 );
-                u32::from_str_radix(code_point, 16).expect("a code point")
-            })
-            .collect()
+                code_points.insert(u32::from_str_radix(code_point, 16).expect("a code point"));
+            }
+        }
+        assert_eq!(Some(code_points.len()), total, "the extract lost a line");
+        code_points
     }
 
     // spec: EWD-16 (internal: every scalar value against the Unicode data, which no SBOM fixture would walk through)

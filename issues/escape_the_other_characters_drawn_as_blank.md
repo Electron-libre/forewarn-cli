@@ -49,6 +49,9 @@ entries are already escaped, or misnamed: U+1D000…). Rule: the characters whos
    read them in the exhaustive test of `hides_text` instead of inserting U+2800 by hand, add U+13441..U+13442 to the
    table and the samples, U+1D159 and U+16FE4 to those that pass, a draft test of the two new EWD-16 scenarios;
    verified by `cargo test`; makes true EWD-16 (spec back to `accepted`). ~80 lines. (autonomous)
+2. [x] Fixes of the `high` review of the issue: U+13441 and U+1D159 driven through `forewarn check`, the extract ends
+   on its `# Total code points`, checked; the follow-up issue `prove_the_written_draft_through_the_binary`; verified
+   by `cargo test`; traces EWD-16, CHK-14. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -64,3 +67,14 @@ entries are already escaped, or misnamed: U+1D000…). Rule: the characters whos
 - Code review: no findings.
 - not verified: the drawing in a terminal and a Markdown viewer (measured on the glyph outlines of the installed
   fonts). decisions needed: none.
+
+## Deliverable 2
+- done: `check_escapes_the_blank_characters_and_lets_the_visible_format_ones_read` drives U+13441 (escaped) and
+  U+1D159 (read as written) through `forewarn check`; `named_blank` checks the `# Total code points: 3` the extract
+  now ends on; follow-up issue written.
+- red: none (the boundary test passed at once: it covers code delivered in deliverable 1).
+- `high` review of the issue, 6 findings: 1 to the follow-up issue (the stale internal reason predates this issue);
+  2 fixed (the `check` test); 3 kept (U+13440, U+13447..U+13455 are drawn marks, they hide no text); 4 fixed (the
+  total); 5 kept (decision 1 a, the rule validated); 6 kept (two extract formats, two headers; one line each).
+- Code review: no findings.
+- not verified: the drawing in a terminal and a Markdown viewer. decisions needed: none.
