@@ -8,4 +8,4 @@ Read by `skill:update-docs`. Owned by the project: one row per kind of change, w
 | New crate or module, or a changed boundary or flow | `docs/architecture.md`, the layout table of `CLAUDE.md`, `commit_scopes` in `.claude/cardinal.toml` |
 | New ADR | its row in the Decisions table of `docs/architecture.md` |
 | Third-party data vendored or its version changed | its license file next to it, the License section of `CLAUDE.md` |
-| Release process or version handling (`set-version`, `release_version_command`) | `CLAUDE.md` (the project check paragraph) |
+| Release process or version handling (`set-version`, `release_version_command`) | `CLAUDE.md` (the project check paragraph); `docs/user-guide.md` (Install) when what `--version` prints changes |

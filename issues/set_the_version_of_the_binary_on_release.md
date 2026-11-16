@@ -50,6 +50,9 @@ changelog with the version as last argument. Out of scope: publishing, a spec (b
    section, and a test running the binary with `--version` that it prints `forewarn <workspace version>`; docs
    (CLAUDE.md, `docs/architecture.md` or user guide where releases are described); verified by those two tests and a
    dry run of `just set-version` restored afterwards. (autonomous)
+2. [x] Fixes of the `high` review of the issue: the version tests moved into `workspace_policy.rs` on its helpers and
+   `common::run`, `## [Unreleased]` skipped; `set-version` refuses a version not `X.Y.Z` and fails when the version was
+   not written; `--version` in the user guide; verified by the project check and dry runs. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -64,3 +67,12 @@ changelog with the version as last argument. Out of scope: publishing, a spec (b
   `Cargo.lock` and back.
 - red: none (no spec): `left: Some("0.0.0") right: Some("0.2.0")`.
 - Code review: no findings
+
+## Deliverable 2 summary
+- done: fixes of the `high` review (8 findings).
+- checks: tests ok, lint ok, specs n/a, docs ok; `just set-version '1.0&x'` refused, `9.9.9` then `0.2.0` round trip.
+- red: none (review fixes of tested code).
+- Code review (high, whole issue): 8 findings: Unreleased heading, unwritten version, unescaped version, duplicated
+  helpers (x2), Index panic, user guide fixed; `cargo update --offline` on an uncached checkout not fixed: a release
+  is prepared on a machine that built the project, and Cardinal's own recipe does the same.
+- Code review (low, deliverable 2): no findings

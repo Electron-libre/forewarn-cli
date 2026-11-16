@@ -25,6 +25,8 @@ Not published yet; build it from a clone (Rust stable):
 cargo install --path crates/forewarn
 ```
 
+`forewarn --version` prints the release it was built from; give it when you report a bug.
+
 `forewarn` does not detect dependencies: produce the SBOM with your usual tool, in CycloneDX JSON.
 
 | Ecosystem | Example |

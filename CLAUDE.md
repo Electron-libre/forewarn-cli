@@ -58,7 +58,7 @@ that cannot be read exits with 3.
 of `rust-version` (read from `Cargo.toml`) and runs the tests on macOS.
 `cardinal run release <version>` writes the `CHANGELOG.md` section, then runs the `release_version_command` of
 `.claude/cardinal.toml`, `just set-version <version>`, which writes `[workspace.package] version` and `Cargo.lock`:
-`forewarn --version` prints it, and `crates/forewarn/tests/release_version.rs` checks it is the newest section of the
+`forewarn --version` prints it, and `crates/forewarn/tests/workspace_policy.rs` checks it is the newest release of the
 changelog.
 
 ## Layout

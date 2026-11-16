@@ -1,5 +1,9 @@
 //! The workspace policy of `CLAUDE.md` and ADR 0001: every crate inherits the license and the lints of the workspace
-//! root, and the domain crate depends on no other crate of the workspace.
+//! root, and the domain crate depends on no other crate of the workspace. Also the version of the last release:
+//! `cardinal run release <version>` writes the `CHANGELOG.md` section and, through the `release_version_command` of
+//! `.claude/cardinal.toml` (`just set-version`), the `[workspace.package] version` that `forewarn --version` prints.
+
+mod common;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -123,4 +127,40 @@ fn the_domain_depends_on_no_other_crate_of_the_workspace() {
             );
         }
     }
+}
+
+fn workspace_version() -> String {
+    let root = read_manifest(&workspace_root().join("Cargo.toml"));
+    lookup(&root, &["workspace", "package", "version"])
+        .and_then(toml::Value::as_str)
+        .expect("Cargo.toml: [workspace.package] version is a string")
+        .to_owned()
+}
+
+/// The version of the first `## [X.Y.Z]` heading of `CHANGELOG.md` (`## [Unreleased]` skipped), the newest release.
+fn newest_changelog_version() -> Option<String> {
+    let path = workspace_root().join("CHANGELOG.md");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    text.lines().find_map(|line| {
+        let (version, _) = line.strip_prefix("## [")?.split_once(']')?;
+        (version != "Unreleased").then(|| version.to_owned())
+    })
+}
+
+#[test]
+fn the_workspace_version_is_the_newest_release_of_the_changelog() {
+    assert_eq!(
+        Some(workspace_version()),
+        newest_changelog_version(),
+        "[workspace.package] version differs from the newest release of CHANGELOG.md: run \
+         `just set-version <version>` (the release_version_command of `cardinal run release`)"
+    );
+}
+
+#[test]
+fn the_binary_prints_the_workspace_version() {
+    let run = common::run(&["--version"], None);
+
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(run.stdout, format!("forewarn {}\n", workspace_version()));
 }
