@@ -435,3 +435,22 @@ fn a_manufacturer_given_only_by_its_contact_is_not_named_in_the_draft() {
     );
     assert!(!draft.contains("acme"), "{draft}");
 }
+
+// spec: EWD-16
+#[test]
+fn a_component_name_that_hides_text_or_forges_markdown_is_written_escaped() {
+    let mut bom: Value = serde_json::from_slice(&shop()).expect("JSON");
+    bom["components"][0]["name"] = json!("a|b\u{202e}log4j\u{13441}-core");
+    let bom = serde_json::to_vec(&bom).expect("the SBOM serializes");
+    let out = TempDir::new().expect("a temporary directory");
+
+    let run = matched(&["--drafts", path(out.path())], &bom);
+
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let draft = fs::read_to_string(out.path().join(DRAFT)).expect("the draft is written");
+    assert!(
+        draft.contains("\n  - a\\|b\\\\u\\{202e\\}log4j\\\\u\\{13441\\}\\-core 2\\.14\\.1, "),
+        "{draft}"
+    );
+    assert!(!draft.contains(['\u{202e}', '\u{13441}']), "{draft:?}");
+}

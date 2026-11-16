@@ -257,7 +257,7 @@ mod tests {
             .unwrap_or_else(|| panic!("no field {label} in\n{text}"))
     }
 
-    // spec: EWD-H3, EWD-12, EWD-13, EWD-14, EWD-15 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-H3, EWD-12, EWD-13, EWD-14, EWD-15 (internal: the whole text compared to the byte; tests/drafts.rs checks the written file field by field)
     #[test]
     fn the_draft_gives_the_deadlines_the_evidence_then_the_fields_of_the_glossary() {
         assert_eq!(
@@ -296,7 +296,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-13, EWD-14 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-13, EWD-14 (internal: the writer alone, on the fields the domain lists to complete)
     #[test]
     fn a_draft_with_no_product_marks_its_name_and_version_to_complete() {
         let mut draft = log4shell();
@@ -319,7 +319,7 @@ mod tests {
         ));
     }
 
-    // spec: EWD-14, EWD-15 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-14, EWD-15 (internal: the writer alone; tests/drafts.rs drives the EUVD id and the measure through the binary)
     #[test]
     fn a_draft_gives_its_euvd_id_and_the_measure_when_known() {
         let mut draft = log4shell();
@@ -339,7 +339,7 @@ mod tests {
         assert!(text.contains("\n- Final report due by: 2026-11-29T17:00:00Z\n"));
     }
 
-    // spec: EWD-14 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-14 (internal: a component with no package URL, which no match yields)
     #[test]
     fn a_component_with_no_version_nor_purl_gives_its_name_and_match() {
         let mut draft = log4shell();
@@ -350,7 +350,7 @@ mod tests {
         ));
     }
 
-    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
     #[test]
     fn a_value_of_the_sbom_forges_no_markdown() {
         let mut draft = log4shell();
@@ -365,7 +365,7 @@ mod tests {
         assert!(!text.lines().any(|line| line.starts_with("# Title")));
     }
 
-    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
     #[test]
     fn a_value_hides_no_text_and_opens_no_code_block() {
         let mut draft = log4shell();
@@ -378,7 +378,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
     #[test]
     fn a_value_hides_no_text_behind_a_tag_character_or_a_filler() {
         let mut draft = log4shell();
@@ -390,7 +390,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
     #[test]
     fn a_value_hides_no_blank_behind_a_space_other_than_the_ascii_one() {
         let mut draft = log4shell();
@@ -402,7 +402,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
     #[test]
     fn a_format_character_a_viewer_draws_reads_as_written() {
         let mut draft = log4shell();
@@ -411,7 +411,7 @@ mod tests {
         assert!(text.contains("\n  - \u{600}123 2\\.14\\.1, "), "{text}");
     }
 
-    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
     #[test]
     fn a_character_named_blank_is_escaped() {
         let mut draft = log4shell();
@@ -423,7 +423,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-16 (internal: a sample per class of character; tests/drafts.rs drives a few through the binary)
     #[test]
     fn a_character_a_font_draws_reads_as_written_though_lists_name_it_invisible() {
         let mut draft = log4shell();
@@ -435,7 +435,7 @@ mod tests {
         );
     }
 
-    // spec: EWD-13 (internal: no command writes a draft before cli_draft_early_warnings)
+    // spec: EWD-13 (internal: a draft the domain does not build, a missing name left out of the fields to complete)
     #[test]
     fn the_fields_marked_are_those_the_draft_lists_to_complete() {
         let mut draft = log4shell();

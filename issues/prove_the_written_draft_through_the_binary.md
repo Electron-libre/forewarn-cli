@@ -28,3 +28,32 @@ that is true.
 # Resources
 * `crates/forewarn/src/early_warning.rs` (its tests), `crates/forewarn/tests/drafts.rs`.
 * `specs/README.md` (placement of `// spec:` and the internal reason).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+Prove EWD-16 through `forewarn match --drafts`: an SBOM component named with U+202E, U+13441 and Markdown punctuation
+reaches the written file escaped. Then give the 12 internal tests of `early_warning.rs` a true reason. No requirement
+and no production code change.
+
+## Plan
+1. [x] Binary test and true reasons: a test of `tests/drafts.rs` reads the written draft of a component named
+   `a|b` U+202E `log4j` U+13441 `-core` and finds each escaped; the internal tests keep their samples (one per class
+   of character, drafts the domain does not build, the exact whole text) with a reason saying so; verified by
+   `cargo test` and `check-specs`; makes true EWD-16 (traced through the binary). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- 1 a: the internal tests stay, with a true reason.
+- Base commit: 5722d2978c31db71200abc0d667d87afd80c9d5b
+
+## Summary of deliverable 1
+- done: `tests/drafts.rs` drives a component named `a|b` U+202E `log4j` U+13441 `-core` through `forewarn match
+  --drafts` and finds it escaped in the written file; the 12 internal tests of `early_warning.rs` give a true reason.
+- red: EWD-16: the test passed at once (the behaviour exists); with `push_escaped` bypassed it failed at
+  `drafts.rs:451` (the escaped name missing from the draft).
+- Code review: no findings (low).
+- not verified: none.
+- decisions needed: none.
