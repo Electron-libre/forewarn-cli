@@ -44,6 +44,9 @@ whole files (17,685 lines, over the deliverable limit, almost all of it unrelate
    line fails) and its header's version `16.0.0`, then compares `hides_text` with the set plus U+2028 and U+2029 for
    every scalar value; the sample test keeps the letters around; verified by `cargo test` (and by breaking a bound
    by hand, which must fail); traces EWD-16. (autonomous)
+2. [x] Fixes of the `high` review of the issue: the test checks the section of each extract; the doc comment of
+   `hides_text` no longer says every character it escapes is drawn as nothing; verified by `cargo test` (and by naming
+   another section, which fails); traces EWD-16. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -58,3 +61,19 @@ whole files (17,685 lines, over the deliverable limit, almost all of it unrelate
   (the table already agreed with the data: no bound was wrong).
 - Code review: no findings.
 - not verified: none. decisions needed: none.
+
+## Deliverable 2
+- done: `code_points_of` asserts the extract holds the one expected section; the doc comment of `hides_text` names the
+  visible format characters (U+0600, U+06DD) that EWD-16 escapes with the rest of Cf.
+- red: EWD-16: with the heading `# General_Category=Control` expected, `the extract holds another section`.
+- `high` review of the issue, 5 findings:
+  1. Cf holds visible characters (Prepended_Concatenation_Mark, U+FFF9..FFFB, U+13430..1343F): doc comment fixed; the
+     set itself is EWD-16's, a change of the spec for the user to decide.
+  2. Generate the table from the extracts: not done, option 1 c rejected at validation.
+  3. The vendored LICENSE reads 1991-2026: not changed, the 16.0.0 release ships no license file of its own; the
+     current notice of unicode.org covers 2024 and the extracts keep their own `© 2024` header verbatim.
+  4. The section of an extract is not checked: fixed.
+  5. Other blank characters (U+2800, U+3000, U+2000..U+200A) pass unescaped: outside the set of EWD-16, for the user to
+     decide.
+- not verified: none. decisions needed: findings 1 and 5 (whether to open an issue amending EWD-16).
+- Code review (low): no findings.

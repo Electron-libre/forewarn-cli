@@ -35,8 +35,9 @@ pub fn escaped(value: &str) -> String {
 
 /// Whether `c` hides or reorders text (EWD-16): of the general category Cf, the separator U+2028 or U+2029, or a
 /// `Default_Ignorable_Code_Point`, as Unicode 16.0 lists them (`DerivedGeneralCategory.txt`,
-/// `DerivedCoreProperties.txt`). A viewer draws them as nothing or uses them to reorder the text around them (the
-/// "Trojan Source" trick, the tag characters of "ASCII smuggling", the Hangul fillers). A test compares it, for every
+/// `DerivedCoreProperties.txt`). A viewer draws most of them as nothing or uses them to reorder the text around them
+/// (the "Trojan Source" trick, the tag characters of "ASCII smuggling", the Hangul fillers); the few format characters
+/// it draws (U+0600, U+06DD) are escaped with the rest of Cf, as EWD-16 sets. A test compares it, for every
 /// scalar value, with the verbatim extracts of those files in `data/ucd-16.0.0` (Unicode License v3).
 fn hides_text(c: char) -> bool {
     matches!(
@@ -74,9 +75,10 @@ mod tests {
     use super::{escaped, hides_text};
     use std::collections::BTreeSet;
 
-    /// The code points of the one section of a verbatim extract of the Unicode 16.0 data (`data/ucd-16.0.0`), checked
-    /// against the version of its header and the `# Total code points` of the section, so that a dropped line fails.
-    fn code_points_of(extract: &str) -> BTreeSet<u32> {
+    /// The code points of the section `heading` of a verbatim extract of the Unicode 16.0 data (`data/ucd-16.0.0`),
+    /// checked against the version of its header, its heading, the only one, and the `# Total code points` of the
+    /// section, so that a wrong section or a dropped line fails.
+    fn code_points_of(extract: &str, heading: &str) -> BTreeSet<u32> {
         assert!(
             extract
                 .lines()
@@ -84,6 +86,13 @@ mod tests {
                 .is_some_and(|line| line.ends_with("-16.0.0.txt")),
             "the extract is not of Unicode 16.0.0"
         );
+        let headings: Vec<&str> = extract
+            .lines()
+            .filter(|line| {
+                line.starts_with("# General_Category=") || line.starts_with("# Derived Property: ")
+            })
+            .collect();
+        assert_eq!(headings, [heading], "the extract holds another section");
         let mut code_points = BTreeSet::new();
         let mut total = None;
         for line in extract.lines() {
@@ -103,12 +112,16 @@ mod tests {
     // spec: EWD-16 (internal: every scalar value against the Unicode data, which no SBOM fixture would walk through)
     #[test]
     fn the_characters_that_hide_text_are_those_the_unicode_data_lists() {
-        let mut listed = code_points_of(include_str!(
-            "../data/ucd-16.0.0/DerivedGeneralCategory-Format.txt"
+        let mut listed = code_points_of(
+            include_str!("../data/ucd-16.0.0/DerivedGeneralCategory-Format.txt"),
+            "# General_Category=Format",
+        );
+        listed.extend(code_points_of(
+            include_str!(
+                "../data/ucd-16.0.0/DerivedCoreProperties-Default_Ignorable_Code_Point.txt"
+            ),
+            "# Derived Property: Default_Ignorable_Code_Point",
         ));
-        listed.extend(code_points_of(include_str!(
-            "../data/ucd-16.0.0/DerivedCoreProperties-Default_Ignorable_Code_Point.txt"
-        )));
         listed.extend([0x2028, 0x2029]);
         let wrong: Vec<String> = (0..=0x0010_ffff_u32)
             .filter_map(char::from_u32)
