@@ -29,7 +29,7 @@ fn complete_component(name: &str) -> Value {
     })
 }
 
-// spec: CHK-H1, CHK-1, CHK-2, CHK-3, CHK-9
+// spec: CHK-H1, CHK-H4, CHK-1, CHK-2, CHK-3, CHK-9, CHK-15
 #[test]
 fn reports_the_gaps_of_the_sbom_of_syft_and_exits_with_1() {
     let path = syft_fixture();
@@ -38,14 +38,15 @@ fn reports_the_gaps_of_the_sbom_of_syft_and_exits_with_1() {
     assert_eq!(run.stderr, "");
     let lines: Vec<&str> = run.stdout.lines().collect();
     assert_eq!(lines[0], "SBOM: CycloneDX 1.6");
-    assert_eq!(lines[1], "4 of 4 components incomplete:");
+    assert_eq!(lines[1], "3 of 3 components incomplete:");
     assert_eq!(
         lines[2..],
         [
             "  itoa 1.0.19 (pkg:cargo/itoa@1.0.19): missing supplier, license, hash",
             "  rollcall-fixture-sample 0.1.0: missing supplier, license, hash",
             "  semver 1.0.28 (pkg:cargo/semver@1.0.28): missing supplier, license, hash",
-            "  /Cargo.lock: missing supplier, license",
+            "Not checked, file components (1):",
+            "  /Cargo.lock",
         ]
     );
 }
@@ -174,7 +175,7 @@ fn no_subcommand_prints_the_usage_and_exits_with_2() {
     assert!(run.stderr.contains("check"), "{}", run.stderr);
 }
 
-// spec: CHK-5, CHK-10, CHK-11
+// spec: CHK-5, CHK-10, CHK-11, CHK-15
 #[test]
 fn prints_the_report_of_the_sbom_of_syft_as_json() {
     let path = syft_fixture();
@@ -195,19 +196,21 @@ fn prints_the_report_of_the_sbom_of_syft_as_json() {
         json!({
             "specVersion": "1.6",
             "belowBsiMinimum": false,
-            "componentCount": 4,
+            "componentCount": 3,
             "complete": false,
             "incomplete": [
                 {"name": "itoa", "version": "1.0.19", "purl": "pkg:cargo/itoa@1.0.19", "missing": all},
                 {"name": "rollcall-fixture-sample", "version": "0.1.0", "purl": null, "missing": all},
                 {"name": "semver", "version": "1.0.28", "purl": "pkg:cargo/semver@1.0.28", "missing": all},
-                {"name": "/Cargo.lock", "version": null, "purl": null, "missing": ["supplier", "license"]},
+            ],
+            "notChecked": [
+                {"name": "/Cargo.lock", "version": null, "purl": null, "reason": "file"},
             ],
         })
     );
 }
 
-// spec: CHK-10
+// spec: CHK-10, CHK-15
 #[test]
 fn the_json_report_of_a_complete_sbom_below_the_bsi_minimum() {
     let path = fixture("complete-1.5.cdx.json");
@@ -229,6 +232,7 @@ fn the_json_report_of_a_complete_sbom_below_the_bsi_minimum() {
             "componentCount": 2,
             "complete": true,
             "incomplete": [],
+            "notChecked": [],
         })
     );
 }
@@ -253,7 +257,7 @@ fn a_ci_job_pipes_an_sbom_and_reads_its_gaps_without_failing() {
     assert_eq!(run.code, 0, "{}", run.stderr);
     let report = json_report(&run);
     assert_eq!(report["complete"], json!(false));
-    assert_eq!(report["incomplete"].as_array().map(Vec::len), Some(4));
+    assert_eq!(report["incomplete"].as_array().map(Vec::len), Some(3));
 }
 
 // spec: CHK-6
@@ -339,4 +343,24 @@ fn a_report_that_cannot_be_written_is_named_and_exits_with_4() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(stderr.lines().count(), 1, "{stderr}");
     assert!(stderr.contains("standard output"), "{stderr}");
+}
+
+// spec: CHK-3, CHK-7, CHK-15
+#[test]
+fn a_file_component_with_no_supplier_leaves_complete_packages_complete() {
+    let input = bom(
+        "1.6",
+        &json!([
+            complete_component("serde"),
+            {"type": "file", "name": "/requirements.txt", "hashes": [{"alg": "SHA-1", "content": "ab"}]},
+        ]),
+    );
+    let run = run(&["check", "-"], Some(&input));
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(
+        run.stdout,
+        "SBOM: CycloneDX 1.6\n\
+         Complete: 1 component checked, none missing a supplier, a license or a hash\n\
+         Not checked, file components (1):\n  /requirements.txt\n"
+    );
 }

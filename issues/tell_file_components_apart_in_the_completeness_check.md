@@ -62,10 +62,10 @@ component listed, with no rule per type.
 ## Plan
 1. [x] Read the component type: `Component::file` set from CycloneDX type `file` in the adapter; verified by
    `crates/forewarn-cyclonedx/tests` (syft fixture, a `file` and an unknown type); makes true SBR-15. (autonomous)
-2. [ ] Leave the files out of the check and report them apart: `CompletenessReport::not_checked`, the human heading
+2. [x] Leave the files out of the check and report them apart: `CompletenessReport::not_checked`, the human heading
    `Not checked, file components (n):`, the JSON `notChecked` and `componentCount` without them; verified by
    `crates/forewarn/tests/check.rs` (syft fixture, files only, complete packages plus a file) and domain tests;
-   makes true SBC-8, SBC-9, CHK-15, CHK-10 (amended row).
+   makes true SBC-8, SBC-9, CHK-15, CHK-10 (amended row). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -84,5 +84,16 @@ component listed, with no rule per type.
 - Code review: 1 findings
   - The doc of `Component::file` said the completeness check leaves it out, which only deliverable 2 does: reworded
     to state what the field is.
+- not verified: none.
+- decisions needed: none.
+
+## Deliverable 2
+- done: the completeness check leaves the file components out and returns them apart; `forewarn check` lists them
+  under `Not checked, file components (n):`, the JSON under `notChecked`, `componentCount` counting the checked
+  ones; the three specs `accepted`; `README.md` and `CLAUDE.md` updated.
+- checks: tests pass, clippy clean, `check-specs` clean, docs updated, code review below.
+- red: SBC-8, SBC-9, CHK-15, CHK-10: `left: "3 of 4 components incomplete:"` against `right: "3 of 3 components incomplete:"`
+  (and `notChecked` absent from the JSON report).
+- Code review: no findings
 - not verified: none.
 - decisions needed: none.

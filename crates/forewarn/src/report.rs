@@ -24,8 +24,32 @@ use crate::escape::push_escaped;
 use time::OffsetDateTime;
 use time::macros::format_description;
 
-/// The text report for a person: the spec version, then the incomplete components or that the SBOM is complete.
+/// The text report for a person: the spec version, the incomplete components or that the SBOM is complete, then the
+/// components not checked under a heading of their own.
 pub fn human(sbom: &Sbom, completeness: &CompletenessReport) -> String {
+    let mut text = checked_report(sbom, completeness);
+    let not_checked = completeness.not_checked();
+    if !not_checked.is_empty() {
+        let _ = writeln!(
+            text,
+            "Not checked, file components ({}):",
+            not_checked.len()
+        );
+        for component in not_checked {
+            push_component(
+                &mut text,
+                &component.name,
+                component.version.as_deref(),
+                component.purl.as_deref(),
+            );
+            text.push('\n');
+        }
+    }
+    text
+}
+
+/// The spec version, then the incomplete components or that the SBOM is complete.
+fn checked_report(sbom: &Sbom, completeness: &CompletenessReport) -> String {
     let mut text = format!("SBOM: CycloneDX {}", sbom.spec_version);
     if sbom.spec_version.is_below_bsi_minimum() {
         let _ = write!(
@@ -35,7 +59,7 @@ pub fn human(sbom: &Sbom, completeness: &CompletenessReport) -> String {
         );
     }
     text.push('\n');
-    let checked = sbom.components.len();
+    let checked = completeness.checked();
     if completeness.is_complete() {
         let _ = writeln!(
             text,
@@ -101,12 +125,25 @@ pub fn json(sbom: &Sbom, completeness: &CompletenessReport) -> String {
             })
         })
         .collect();
+    let not_checked: Vec<Value> = completeness
+        .not_checked()
+        .iter()
+        .map(|component| {
+            json!({
+                "name": component.name,
+                "version": component.version,
+                "purl": component.purl,
+                "reason": "file",
+            })
+        })
+        .collect();
     let report = json!({
         "specVersion": sbom.spec_version.to_string(),
         "belowBsiMinimum": sbom.spec_version.is_below_bsi_minimum(),
-        "componentCount": sbom.components.len(),
+        "componentCount": completeness.checked(),
         "complete": completeness.is_complete(),
         "incomplete": incomplete,
+        "notChecked": not_checked,
     });
     format!("{report:#}\n")
 }

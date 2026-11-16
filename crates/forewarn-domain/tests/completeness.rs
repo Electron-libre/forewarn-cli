@@ -1,6 +1,6 @@
 //! The completeness check of the components of an SBOM (`specs/sbom-completeness.md`).
 
-use forewarn_domain::completeness::{Field, IncompleteComponent, check};
+use forewarn_domain::completeness::{Field, IncompleteComponent, NotCheckedComponent, check};
 use forewarn_domain::sbom::{Component, Hash};
 
 fn hash(algorithm: &str, value: &str) -> Hash {
@@ -193,4 +193,60 @@ fn keeps_the_order_of_the_sbom_and_reports_duplicates_twice() {
         .map(|c| c.name.as_str())
         .collect();
     assert_eq!(names, ["b", "a", "b"]);
+}
+
+fn file(name: &str) -> Component {
+    Component {
+        name: name.into(),
+        hashes: vec![hash("SHA-256", "abcd")],
+        file: true,
+        ..Component::default()
+    }
+}
+
+// spec: SBC-8, SBC-9, SBC-H3
+#[test]
+fn leaves_the_file_components_out_and_returns_them_apart_in_order() {
+    let bare = Component {
+        name: "itoa".into(),
+        ..Component::default()
+    };
+    let versioned_file = Component {
+        version: Some("1".into()),
+        purl: Some("pkg:generic/manifest@1".into()),
+        ..file("/pom.xml")
+    };
+    let report = check(&[file("/Cargo.lock"), complete("serde"), bare, versioned_file]);
+    let incomplete: Vec<&str> = report
+        .incomplete()
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(incomplete, ["itoa"]);
+    assert_eq!(report.checked(), 2);
+    assert_eq!(
+        report.not_checked(),
+        [
+            NotCheckedComponent {
+                name: "/Cargo.lock".into(),
+                version: None,
+                purl: None,
+            },
+            NotCheckedComponent {
+                name: "/pom.xml".into(),
+                version: Some("1".into()),
+                purl: Some("pkg:generic/manifest@1".into()),
+            },
+        ]
+    );
+}
+
+// spec: SBC-3, SBC-8
+#[test]
+fn an_sbom_of_files_only_is_complete_with_nothing_checked() {
+    let report = check(&[file("/Cargo.lock"), file("/requirements.txt")]);
+    assert!(report.is_complete());
+    assert_eq!(report.incomplete(), []);
+    assert_eq!(report.checked(), 0);
+    assert_eq!(report.not_checked().len(), 2);
 }

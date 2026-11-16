@@ -1,6 +1,6 @@
 ---
 id: SBC
-status: draft
+status: accepted
 adrs: [0001]
 ---
 

@@ -26,9 +26,9 @@ fn gaps(report: &CompletenessReport) -> Vec<(&str, &[Field])> {
         .collect()
 }
 
-// spec: SBC-H1
+// spec: SBC-H1, SBC-H3
 #[test]
-fn reports_the_gaps_of_the_sbom_of_syft() {
+fn reports_the_gaps_of_the_sbom_of_syft_and_leaves_its_lock_file_out() {
     let report = check_fixture("syft.cdx.json");
     assert_eq!(
         gaps(&report),
@@ -36,10 +36,15 @@ fn reports_the_gaps_of_the_sbom_of_syft() {
             ("itoa", ALL),
             ("rollcall-fixture-sample", ALL),
             ("semver", ALL),
-            ("/Cargo.lock", NO_HASH_GAP),
         ]
     );
     assert!(!report.is_complete());
+    let not_checked: Vec<&str> = report
+        .not_checked()
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(not_checked, ["/Cargo.lock"]);
 }
 
 // spec: SBC-1, SBC-4

@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Early proof of concept. The CycloneDX adapter reads a JSON SBOM, its components (those nested in the product included, flagged first-party when of the
 type and namespace of the product's package URL, as is a component naming the product's package) and the product it describes, into the
-domain types (`specs/sbom-reading.md`); the domain lists the components missing a supplier, a license or a hash
+domain types (`specs/sbom-reading.md`); the domain lists the components missing a supplier, a license or a hash,
+the file components (CycloneDX type `file`, the manifests a tool read) left out and listed apart
 (`specs/sbom-completeness.md`); `forewarn check` prints both (`specs/cli-check.md`). The domain also matches components against OSV-shaped vulnerabilities by package
 URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems, NuGet, Composer),
 grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),

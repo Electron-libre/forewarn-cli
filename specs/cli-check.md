@@ -1,6 +1,6 @@
 ---
 id: CHK
-status: draft
+status: accepted
 adrs: [0001]
 ---
 

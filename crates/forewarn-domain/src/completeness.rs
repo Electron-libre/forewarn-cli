@@ -80,43 +80,75 @@ pub struct IncompleteComponent {
     pub missing: Vec<Field>,
 }
 
-/// The result of the check: the incomplete components, in the order of the SBOM.
+/// A component the check leaves out: a file (SBR-15), such as a manifest a tool read.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotCheckedComponent {
+    pub name: String,
+    pub version: Option<String>,
+    pub purl: Option<String>,
+}
+
+/// The result of the check: the incomplete components and those not checked, in the order of the SBOM.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CompletenessReport {
+    checked: usize,
     incomplete: Vec<IncompleteComponent>,
+    not_checked: Vec<NotCheckedComponent>,
 }
 
 impl CompletenessReport {
+    /// How many components were checked, those not checked left out.
+    #[must_use]
+    pub fn checked(&self) -> usize {
+        self.checked
+    }
+
     /// The components that lack at least one checked field, in the order of the SBOM.
     #[must_use]
     pub fn incomplete(&self) -> &[IncompleteComponent] {
         &self.incomplete
     }
 
-    /// Whether no component lacks a checked field (an SBOM with no component is complete).
+    /// The components left out of the check, the files, in the order of the SBOM.
+    #[must_use]
+    pub fn not_checked(&self) -> &[NotCheckedComponent] {
+        &self.not_checked
+    }
+
+    /// Whether no checked component lacks a checked field (an SBOM with no component is complete).
     #[must_use]
     pub fn is_complete(&self) -> bool {
         self.incomplete.is_empty()
     }
 }
 
-/// Checks each component for the fields of [`CHECKED_FIELDS`].
+/// Checks each component but the files for the fields of [`CHECKED_FIELDS`], and returns the files apart
+/// (`specs/sbom-completeness.md`, SBC-8).
 #[must_use]
 pub fn check(components: &[Component]) -> CompletenessReport {
-    let incomplete = components
-        .iter()
-        .filter_map(|component| {
-            let missing: Vec<Field> = CHECKED_FIELDS
-                .into_iter()
-                .filter(|field| !field.is_present_in(component))
-                .collect();
-            (!missing.is_empty()).then(|| IncompleteComponent {
+    let mut report = CompletenessReport::default();
+    for component in components {
+        if component.file {
+            report.not_checked.push(NotCheckedComponent {
+                name: component.name.clone(),
+                version: component.version.clone(),
+                purl: component.purl.clone(),
+            });
+            continue;
+        }
+        report.checked += 1;
+        let missing: Vec<Field> = CHECKED_FIELDS
+            .into_iter()
+            .filter(|field| !field.is_present_in(component))
+            .collect();
+        if !missing.is_empty() {
+            report.incomplete.push(IncompleteComponent {
                 name: component.name.clone(),
                 version: component.version.clone(),
                 purl: component.purl.clone(),
                 missing,
-            })
-        })
-        .collect();
-    CompletenessReport { incomplete }
+            });
+        }
+    }
+    report
 }
