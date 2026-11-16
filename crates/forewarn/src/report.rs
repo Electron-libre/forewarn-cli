@@ -21,6 +21,7 @@ use serde_json::{Value, json};
 
 use crate::drafts::Written;
 use crate::escape::push_escaped;
+use crate::vex::{self, Verdicts};
 use time::OffsetDateTime;
 use time::macros::format_description;
 
@@ -245,6 +246,8 @@ pub struct MatchReport<'a> {
     pub matching: &'a FlaggedReport,
     /// The draft early warnings written, `None` without `--drafts` (MXL-28).
     pub drafts: Option<&'a [Written]>,
+    /// The VEX verdicts applied to the matches (MVX-1).
+    pub verdicts: &'a Verdicts<'a>,
 }
 
 /// The text report of `forewarn match` for a person: the SBOM, the sources of the records and the exploited lists,
@@ -258,6 +261,7 @@ pub fn matching_human(report: &MatchReport) -> String {
         awareness,
         matching,
         drafts,
+        verdicts,
     } = *report;
     let count = sbom.components.len();
     let mut text = format!(
@@ -281,6 +285,7 @@ pub fn matching_human(report: &MatchReport) -> String {
     for source in exploited {
         push_exploited_source(&mut text, source);
     }
+    vex::push_sources(&mut text, verdicts);
     if matching.exploited_count() > 0 {
         push_awareness(&mut text, awareness);
     }
@@ -317,6 +322,7 @@ pub fn matching_human(report: &MatchReport) -> String {
             text.push('\n');
         }
     }
+    vex::push_set_aside(&mut text, verdicts, matching);
     let _ = writeln!(text, "Not evaluated ({}):", matching.not_evaluated().len());
     for gap in matching.not_evaluated() {
         push_component_ref(&mut text, &gap.component);
@@ -441,7 +447,7 @@ fn status_group(status: RecordStatus) -> (u8, &'static str) {
 }
 
 /// Pushes the line marking a match actively exploited, with each list naming it (MXL-1).
-fn push_evidence(text: &mut String, evidence: &[Evidence]) {
+pub(crate) fn push_evidence(text: &mut String, evidence: &[Evidence]) {
     text.push_str("    actively exploited: ");
     for (i, named) in evidence.iter().enumerate() {
         if i > 0 {
@@ -536,7 +542,7 @@ fn duration(seconds: u64) -> String {
         .join(" ")
 }
 
-fn push_component_ref(text: &mut String, component: &ComponentRef) {
+pub(crate) fn push_component_ref(text: &mut String, component: &ComponentRef) {
     push_component(
         text,
         &component.name,
@@ -554,6 +560,7 @@ pub fn matching_json(report: &MatchReport) -> String {
         awareness,
         matching,
         drafts,
+        verdicts,
     } = *report;
     let sources: Vec<Value> = sources
         .iter()
@@ -602,7 +609,7 @@ pub fn matching_json(report: &MatchReport) -> String {
             })
         })
         .collect();
-    let report = json!({
+    let mut report = json!({
         "specVersion": sbom.spec_version.to_string(),
         "componentCount": sbom.components.len(),
         "cleanCount": matching.clean_count(),
@@ -623,6 +630,9 @@ pub fn matching_json(report: &MatchReport) -> String {
             .collect::<Vec<_>>(),
         "notEvaluated": not_evaluated,
     });
+    if let Value::Object(members) = &mut report {
+        members.extend(vex::json_members(verdicts, matching, awareness));
+    }
     format!("{report:#}\n")
 }
 
@@ -651,7 +661,7 @@ fn exploited_list_json(source: &ExploitedSource) -> Value {
 
 /// A match in the JSON report, with its records, the evidence of the lists naming it and, when one does, its reporting
 /// deadlines (MCH-16, MXL-14).
-fn match_json(flagged: &FlaggedMatch, deadlines: &ReportingDeadlines) -> Value {
+pub(crate) fn match_json(flagged: &FlaggedMatch, deadlines: &ReportingDeadlines) -> Value {
     let found = &flagged.found;
     let records: Vec<Value> = found
         .records

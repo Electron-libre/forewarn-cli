@@ -112,6 +112,31 @@ evidence:
 
 The report gives each list's version or size and when it was downloaded. Neither request names a component.
 
+### Matches your VEX says do not affect you
+
+Once you have analysed a match (the vulnerable code is never called, say), record it in CycloneDX VEX: in the
+`vulnerabilities` of the SBOM, or in a VEX document of your own given with `--vex vex.json` (repeat it for several).
+
+```json
+{"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "vulnerabilities": [{
+  "id": "CVE-2021-44228",
+  "analysis": {"state": "not_affected", "justification": "code_not_reachable", "detail": "JndiLookup is removed."},
+  "affects": [{"ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"}]
+}]}
+```
+
+| | |
+|---|---|
+| The vulnerability | its `id` or the `id` of one of its `references`, matched against the id and aliases of a match (a CVE in any case) |
+| The component | `affects[].ref`: its `bom-ref`, a BOM-Link (`urn:cdx:<serial>/<version>#<bom-ref>`, whatever the serial), or its package URL as written when no component has that `bom-ref` (the `bom-ref`s of `syft` are opaque) |
+| Set aside | `not_affected`, `false_positive`, `resolved`, `resolved_with_pedigree`, when every verdict naming the match says so |
+| Kept | `exploitable`, `in_triage`, any other state |
+
+A match set aside is listed under **Set aside by a VEX verdict**, with the verdict, where it was read, and the lists
+naming it as actively exploited: it never disappears silently. It counts for neither exit code 1 nor 6, gets no
+deadline and no draft. A verdict that names no match (a mistyped `bom-ref` or id) is listed under **Unused VEX
+verdicts**. A `--vex` file that cannot be read stops the run with exit code 3.
+
 ### The cache
 
 | | |
@@ -255,15 +280,18 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
 | `notEvaluated` | each component not evaluated, with its reason (`first-party`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
 | `drafts` | each draft written: `cve`, `path` |
+| `vex` | each source of verdicts: `kind` (`sbom`, `file`), `verdictCount`, and the `path` of a file |
+| `setAsideCount`, `setAside` | each match a VEX verdict set aside, as in `affected` without `deadlines`, with its `verdict` (`state`, `justification`, `detail`, `source`: `sbom` or the path) |
+| `unusedVerdicts` | each verdict that names no match: `ids`, `targets`, `source` |
 
 ### Exit codes
 
 | Code | `check` | `match` |
 |---|---|---|
 | 0 | the SBOM is complete (or `--allow-incomplete`) | nothing affected (or `--allow-affected` and nothing actively exploited) |
-| 1 | a component is incomplete | a component is affected |
+| 1 | a component is incomplete | a component is affected, a match set aside by VEX not counted |
 | 2 | invalid arguments | invalid arguments, an instant refused |
-| 3 | the SBOM cannot be read | the SBOM cannot be read |
+| 3 | the SBOM cannot be read | the SBOM or a `--vex` file cannot be read |
 | 4 | the report cannot be written | the report cannot be written |
 | 5 | | the OSV records, the KEV catalog or the EUVD list cannot be read, fetched or queried |
 | 6 | | a match is actively exploited, even with `--allow-affected` |

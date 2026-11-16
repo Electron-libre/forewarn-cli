@@ -6,6 +6,7 @@ mod drafts;
 mod early_warning;
 mod escape;
 mod report;
+mod vex;
 
 use std::collections::HashSet;
 use std::env;
@@ -17,13 +18,14 @@ use std::process::ExitCode;
 use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
-use forewarn_cyclonedx::{ReadError, read_json};
+use forewarn_cyclonedx::{ReadError, read_json, read_vex_json};
 use forewarn_domain::completeness::check;
 use forewarn_domain::deadlines::{DeadlinePastRange, reporting_deadlines};
 use forewarn_domain::early_warning::draft_early_warnings;
 use forewarn_domain::exploited::{ExploitedList, FlaggedReport, flag_exploited};
 use forewarn_domain::matching::{ComponentPackage, match_components};
 use forewarn_domain::sbom::Sbom;
+use forewarn_domain::vex::{Verdict, apply_verdicts};
 use forewarn_domain::vulnerability::Vulnerability;
 use forewarn_exploited::{euvd, kev};
 use forewarn_osv::api::{Api, Package};
@@ -88,6 +90,7 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         .filter(|_| fetches_euvd)
         .map(|cache| euvd_feed(args, cache, refresh));
     let sbom = read_sbom(&args.sbom)?;
+    let vex_files = read_vex_files(&args.vex)?;
     let mut records = Records::default();
     let mut fetched = Vec::new();
     if let Some(archives) = archives {
@@ -120,10 +123,8 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         .map(KevCatalog::source)
         .chain(euvd_list.iter().map(EuvdList::source))
         .collect();
-    let matching = flag_exploited(
-        match_components(&sbom.components, &records.vulnerabilities),
-        exploited.iter().map(|source| source.list),
-    );
+    let verdicts = vex::Verdicts::new(&sbom, &vex_files);
+    let matching = matched(&sbom, &records.vulnerabilities, &exploited, &verdicts);
     let sources: Vec<Source> = fetched
         .iter()
         .map(|(ecosystem, freshness, records)| Source::Archive {
@@ -153,6 +154,7 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         awareness: &awareness,
         matching: &matching,
         drafts: drafts.as_deref(),
+        verdicts: &verdicts,
     };
     write_report(&match args.format {
         Format::Human => report::matching_human(&report),
@@ -162,6 +164,24 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         return Ok(ExitCode::from(EXPLOITED));
     }
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
+}
+
+/// Matches the components of `sbom`, flags the matches the exploited lists name, then sets aside those the verdicts
+/// do, after the flagging so that a match set aside keeps its evidence (MVX-1, ADR 0014).
+fn matched(
+    sbom: &Sbom,
+    vulnerabilities: &[Vulnerability],
+    exploited: &[ExploitedSource],
+    verdicts: &vex::Verdicts,
+) -> FlaggedReport {
+    apply_verdicts(
+        flag_exploited(
+            match_components(&sbom.components, vulnerabilities),
+            exploited.iter().map(|source| source.list),
+        ),
+        verdicts.all(),
+        &sbom.components,
+    )
 }
 
 /// Writes the draft early warning of each actively exploited CVE into `directory` (MXL-27), or prints why one cannot
@@ -489,6 +509,24 @@ fn read_sbom(path: &Path) -> Result<Sbom, u8> {
         eprintln!("error: {}", escape::escaped(&error));
         UNREADABLE
     })
+}
+
+/// Reads the verdicts of each `--vex` file, in order; prints why one cannot be read and returns the code 3 (MVX-7).
+fn read_vex_files(paths: &[PathBuf]) -> Result<Vec<(&Path, Vec<Verdict>)>, u8> {
+    paths
+        .iter()
+        .map(|path| {
+            File::open(path)
+                .map_err(|e| ReadError::Io(e.to_string()))
+                .and_then(read_vex_json)
+                .map(|verdicts| (path.as_path(), verdicts))
+                .map_err(|error| {
+                    let error = format!("{}: {error}", path.display());
+                    eprintln!("error: {}", escape::escaped(&error));
+                    UNREADABLE
+                })
+        })
+        .collect()
 }
 
 /// Reads an OSV record file, or each record of a directory.

@@ -48,7 +48,10 @@ into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-s
 run) and `--measure-available`, each with the time left before it or how long it is overdue at `--now` (by default the
 moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`); with `--drafts <dir>`, it
 writes the draft early warning of each such CVE into `<dir>/<product>-<CVE>.md` (module `drafts`), names the files in
-the report, and exits with 7 when one cannot be written.
+the report, and exits with 7 when one cannot be written. It applies the VEX verdicts of the SBOM and of each
+`--vex <file>`, listing the matches set aside with their verdict and evidence apart, out of the exit codes, the
+deadlines and the drafts, and the verdicts that name no match (`specs/cli-match-vex.md`, module `vex`); a `--vex` file
+that cannot be read exits with 3.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
@@ -66,7 +69,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-osv` | OSV adapter: vulnerability records, read, fetched into a cache or queried from the OSV API, into domain types | `feeds` |
 | `forewarn-cache` | the cache of the downloads: refresh policy, freshness and the files of each download (ADR 0010), a file lock per entry (ADR 0008), one `GET` or the download of the source (ADR 0009) | `feeds` |
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read or paged into a cache, into the domain's exploited lists | `feeds` |
-| `forewarn` | the CLI binary: arguments (module `args`), wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the characters both writers escape (module `escape`) | `cli` |
+| `forewarn` | the CLI binary: arguments (module `args`), wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`
 crates. `publish = false` stays until the first publication is decided (the path dependencies then need a `version`).

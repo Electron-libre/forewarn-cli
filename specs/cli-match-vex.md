@@ -1,6 +1,6 @@
 ---
 id: MVX
-status: draft
+status: accepted
 adrs: [0014]
 ---
 
@@ -21,8 +21,9 @@ exploited or draft its early warning.
   state, the justification and the detail of its verdict, and the evidence of the lists naming it (MXL-1).
 - **MVX-2** (deterministic) `forewarn match --vex <path> <sbom>` must also apply the verdicts of the VEX document of
   that file (VEX-2), the option given once per document, after those of the SBOM in the order of the options.
-- **MVX-3** (deterministic) `forewarn match <sbom>` must print how many matches were set aside, and the sources of
-  verdicts it read, the SBOM and the path of each `--vex` file, each with its number of verdicts.
+- **MVX-3** (deterministic) When the SBOM holds a verdict or `--vex` is given, the human report of `forewarn match`
+  must print how many matches were set aside, and the sources of verdicts it read, the SBOM and the path of each
+  `--vex` file, each with its number of verdicts; otherwise it prints none of them.
 - **MVX-4** (deterministic) A match set aside must count neither as an affected component nor as an actively
   exploited match for the exit code (MCH-10), nor in the count of MXL-1, nor get deadlines (MXL-14).
 - **MVX-5** (deterministic) `forewarn match --drafts <dir> <sbom>` must write no draft for a CVE whose matches are all
@@ -55,7 +56,7 @@ exploited or draft its early warning.
   the vendor runs `forewarn match --osv records/ --kev kev.json --drafts drafts/ sbom.json`, then the report lists
   `log4j-core` set aside with the verdict and the KEV evidence, 0 actively exploited, no draft is written and the
   command exits with 0.
-- **MVX-H2** (happy; MVX-2, MVX-3, MVX-8) Given an SBOM without `vulnerabilities` and a file `vex.json` saying
+- **MVX-H2** (happy; MVX-2, MVX-8) Given an SBOM without `vulnerabilities` and a file `vex.json` saying
   `false_positive` for one of its two matches, when the vendor runs
   `forewarn match --format json --vex vex.json ... sbom.json`, then `setAside` holds that match with `source`
   `vex.json`, `affected` the other, and the command exits with 1.

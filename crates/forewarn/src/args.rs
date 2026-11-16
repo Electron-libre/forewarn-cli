@@ -113,6 +113,11 @@ pub(crate) struct MatchArgs {
     /// one Markdown file per CVE named `<product>-<CVE>.md`, replaced on a rerun.
     #[arg(long, value_name = "DIR")]
     pub(crate) drafts: Option<PathBuf>,
+    /// A CycloneDX VEX document whose verdicts are applied after those of the SBOM; repeat it for several. A match
+    /// every verdict naming it says `not_affected`, `false_positive` or `resolved` is set aside: listed apart, out of
+    /// the exit code and the drafts.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) vex: Vec<PathBuf>,
     /// The format of the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     pub(crate) format: Format,
