@@ -190,4 +190,5 @@ document a person copies into the ENISA Single Reporting Platform form.
 - The fields of the 72-hour notification and of the final report, and the fields of a severe incident.
 - Submitting the draft to the ENISA Single Reporting Platform: it has no API (SRP FAQ, 15 October 2026).
 - Telling the Member States where a product is made available, or the CSIRT designated as coordinator.
-- A draft for a component the vendor's verdict (VEX) marks not affected.
+- Telling a match a verdict set aside: it is no longer among the matches of the flagged report (VEX-3), so it gets
+  no draft and is named in none.

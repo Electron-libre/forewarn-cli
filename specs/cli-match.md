@@ -1,6 +1,6 @@
 ---
 id: MCH
-status: accepted
+status: draft
 adrs: [0001, 0004, 0006]
 ---
 
@@ -62,11 +62,12 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   |---|---|
   | the arguments are invalid (unknown option, unknown format or refresh policy, `--osv` with `--osv-url` or `--osv-api`, `--osv-api` with `--osv-url`, `--osv-api-url` without `--osv-api`, `--kev` with `--no-kev` or `--kev-url`, `--no-kev` with `--kev-url`, `--euvd` with `--no-euvd` or `--euvd-url`, `--no-euvd` with `--euvd-url`, an instant `--aware-since`, `--measure-available` or `--now` refused (MXL-20, MXL-25), `--cache` or `--refresh` when nothing is fetched (`--osv` or `--osv-api`, with `--kev` or `--no-kev`, and with `--euvd` or `--no-euvd`), no SBOM given, no cache directory MCH-12 can find when an OSV archive, the KEV catalog or the EUVD list is fetched) | 2 |
   | the SBOM cannot be read (any error of SBR-7) | 3 |
+  | a `--vex` file cannot be read (MVX-7) | 3 |
   | the OSV records cannot be read (OSR-9), fetched (OSF-18) or queried (OSR-31), the KEV catalog cannot be read (KEV-16) or fetched (KEV-15), or the EUVD list cannot be read (EUV-16) or fetched (EUV-15) | 5 |
   | a draft early warning cannot be written (MXL-33) | 7 |
   | the report cannot be written to standard output, a closed pipe aside (MCH-20) | 4 |
-  | a match is actively exploited (MXL-1), with or without `--allow-affected` | 6 |
-  | a component is affected, without `--allow-affected` | 1 |
+  | a match is actively exploited (MXL-1), a match set aside not counted (MVX-4), with or without `--allow-affected` | 6 |
+  | a component is affected, a match set aside not counted (MVX-4), without `--allow-affected` | 1 |
   | no component is affected, or one is with `--allow-affected` | 0 |
 
 - **MCH-11** (deterministic) `--refresh` must accept `offline`, `if-missing`, `always`, and an age written as a
@@ -98,6 +99,7 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   | `measureAvailable` | the moment of `--measure-available` as `awareSince`, or `null` without it or when no match is actively exploited |
   | `affected` | an array, in the order of VMT-13, of objects `name`, `version` (string or `null`), `purl` (string or `null`), `id`, `aliases` (an array of strings), `records` (an array of objects `{"id", "source", "affects"}`, in the order of VMT-18, `affects` being `true`, `false`, or `null` for a record not evaluated), `exploited` (an array of objects `{"list", "cve", "dateAdded"}`, in the order of EXF-5, `dateAdded` a date `YYYY-MM-DD` or `null`, empty when no list names the match), `deadlines` (an object `{"earlyWarning", "notification", "finalReport"}` of MXL-14, MXL-15 and MXL-16, each as `awareSince`, `finalReport` `null` without `--measure-available`, or `null` when no list names the match) |
   | `drafts` | an array of objects `{"cve", "path"}` of the draft files written (MXL-28), in the order of EWD-1, `path` the path written, empty without `--drafts` or when no match is actively exploited |
+  | `vex`, `setAsideCount`, `setAside`, `unusedVerdicts` | as MVX-8 says |
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"first-party"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.

@@ -1,6 +1,7 @@
 //! The `forewarn` command line: parses the arguments and wires the adapters to the domain (`specs/cli-check.md`,
 //! `specs/cli-match.md`, `specs/cli-match-exploited.md`).
 
+mod args;
 mod drafts;
 mod early_warning;
 mod escape;
@@ -15,10 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{Duration, SystemTime};
 
-use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser};
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::completeness::check;
-use forewarn_domain::date::{Date, Moment};
 use forewarn_domain::deadlines::{DeadlinePastRange, reporting_deadlines};
 use forewarn_domain::early_warning::draft_early_warnings;
 use forewarn_domain::exploited::{ExploitedList, FlaggedReport, flag_exploited};
@@ -30,130 +30,8 @@ use forewarn_osv::api::{Api, Package};
 use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
-use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
-
+use args::{CheckArgs, Cli, Command, Format, GivenMoment, MatchArgs, moment};
 use report::{Awareness, ExploitedSource, Origin, Source};
-
-/// Check a CycloneDX SBOM for the fields the EU Cyber Resilience Act expects, and match its components against known
-/// vulnerabilities.
-#[derive(Parser)]
-#[command(version, arg_required_else_help = true)]
-struct Cli {
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// Print the spec version of an SBOM and the components missing a supplier, a license or a hash.
-    Check(CheckArgs),
-    /// Print the components of an SBOM affected by known OSV vulnerabilities, those the CISA KEV catalog or EUVD names
-    /// marked actively exploited with their CRA reporting deadlines, and those that could not be evaluated.
-    Match(Box<MatchArgs>),
-}
-
-#[derive(Args)]
-struct CheckArgs {
-    /// The CycloneDX JSON SBOM to check, `-` for standard input (`./-` for a file named `-`).
-    sbom: PathBuf,
-    /// The format of the report.
-    #[arg(long, value_enum, default_value_t = Format::Human)]
-    format: Format,
-    /// Exit with 0 when components are incomplete, so that a CI job reports the gaps without failing.
-    #[arg(long)]
-    allow_incomplete: bool,
-}
-
-#[derive(Args)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "each bool is a flag of the command line"
-)]
-struct MatchArgs {
-    /// The CycloneDX JSON SBOM to match, `-` for standard input (`./-` for a file named `-`).
-    sbom: PathBuf,
-    /// An OSV record file, or a directory of them (an extracted OSV archive), read instead of fetching the OSV
-    /// archives; repeat it for several.
-    #[arg(long, conflicts_with = "osv_url")]
-    osv: Vec<PathBuf>,
-    /// The cache of the OSV archives, of the CISA KEV catalog (`cisa-kev`) and of the EUVD list (`euvd-exploited`)
-    /// [default:
-    /// `$XDG_CACHE_HOME/forewarn/osv`, else `$HOME/.cache/forewarn/osv`].
-    #[arg(long)]
-    cache: Option<PathBuf>,
-    /// When to download an archive, the CISA KEV catalog or the EUVD list again: `offline`, `if-missing`, `always`, or
-    /// when older than an age (`30m`, `12h`, `7d`) [default: 1d].
-    #[arg(long, value_parser = parse_refresh)]
-    refresh: Option<Refresh>,
-    /// The URL the OSV archives are downloaded from (`<url>/<ecosystem>/all.zip`), a mirror for example
-    /// [default: `https://osv-vulnerabilities.storage.googleapis.com`].
-    #[arg(long)]
-    osv_url: Option<String>,
-    /// Query the OSV API instead of fetching the OSV archives: sends the OSV ecosystem, name and version of each
-    /// component to the OSV API, out of the CI; the answer depends on the moment of the query.
-    #[arg(long, conflicts_with_all = ["osv", "osv_url"])]
-    osv_api: bool,
-    /// The URL of the OSV API queried with `--osv-api` [default: `https://api.osv.dev`].
-    #[arg(long, requires = "osv_api")]
-    osv_api_url: Option<String>,
-    /// A CISA KEV catalog file (`known_exploited_vulnerabilities.json`) the matches are flagged against, read instead
-    /// of fetching the catalog into the cache.
-    #[arg(long, conflicts_with_all = ["no_kev", "kev_url"])]
-    kev: Option<PathBuf>,
-    /// Flag no match against the CISA KEV catalog: neither fetch nor read it.
-    #[arg(long, conflicts_with = "kev_url")]
-    no_kev: bool,
-    /// The URL the CISA KEV catalog is downloaded from, a mirror for example [default:
-    /// `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`].
-    #[arg(long)]
-    kev_url: Option<String>,
-    /// An EUVD exploited list file (`{"items": [...]}`, the pages of its search or a copy of the cache's
-    /// `euvd-exploited/exploited.json`) the matches are flagged against, read instead of paging the list into the
-    /// cache.
-    #[arg(long, conflicts_with_all = ["no_euvd", "euvd_url"])]
-    euvd: Option<PathBuf>,
-    /// Flag no match against the exploited list of EUVD: neither page nor read it.
-    #[arg(long, conflicts_with = "euvd_url")]
-    no_euvd: bool,
-    /// The URL of the EUVD search the exploited list is paged from, a mirror for example [default:
-    /// `https://euvdservices.enisa.europa.eu/api/search`].
-    #[arg(long)]
-    euvd_url: Option<String>,
-    /// The moment the vendor became aware of the actively exploited vulnerabilities, an RFC 3339 instant
-    /// (`2026-11-13T09:30:00Z`, an offset is converted to UTC), from which their early warning (24 h) and notification
-    /// (72 h) deadlines are computed [default: the moment of the run].
-    #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
-    aware_since: Option<GivenMoment>,
-    /// The moment a corrective or mitigating measure became available, an RFC 3339 instant, from which the final
-    /// report deadline (14 days) is computed; without it the final report is due 14 days after a measure is
-    /// available.
-    #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
-    measure_available: Option<GivenMoment>,
-    /// The moment the deadlines are checked at, an RFC 3339 instant, for the time left before each or how long it is
-    /// overdue, printed in the human report only [default: the moment of the run].
-    #[arg(long, value_name = "INSTANT", value_parser = parse_moment)]
-    now: Option<GivenMoment>,
-    /// Write the draft CRA early warning of each actively exploited CVE into this directory, created when missing,
-    /// one Markdown file per CVE named `<product>-<CVE>.md`, replaced on a rerun.
-    #[arg(long, value_name = "DIR")]
-    drafts: Option<PathBuf>,
-    /// The format of the report.
-    #[arg(long, value_enum, default_value_t = Format::Human)]
-    format: Format,
-    /// Exit with 0 when components are affected and none is actively exploited, so that a CI job fails only on an
-    /// actively exploited vulnerability (exit code 6).
-    #[arg(long)]
-    allow_affected: bool,
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-enum Format {
-    /// Text for a person at a terminal.
-    Human,
-    /// One JSON document for a machine.
-    Json,
-}
 
 /// The exit codes of CHK-7 and MCH-10; a usage error exits with 2, through `clap`.
 const FOUND: u8 = 1;
@@ -368,39 +246,6 @@ fn past_range(option: &str, given: Option<&GivenMoment>, error: DeadlinePastRang
         &format!("invalid value '{text}' for '{option}': {error}"),
     )
 }
-
-/// A moment given on the command line, with the text it was read from, so that an error names what the user typed.
-#[derive(Clone)]
-struct GivenMoment {
-    text: String,
-    moment: Moment,
-}
-
-/// Reads an RFC 3339 instant into a moment of UTC, its offset applied and its fraction of a second dropped, so that no
-/// deadline is computed later (MXL-19, MXL-20).
-fn parse_moment(text: &str) -> Result<GivenMoment, String> {
-    let time = OffsetDateTime::parse(text, &Rfc3339)
-        .map_err(|error| format!("an RFC 3339 instant such as `2026-11-13T09:30:00Z`: {error}"))?;
-    let moment =
-        moment(time).ok_or_else(|| "an instant of the years 1 to 9999 in UTC".to_owned())?;
-    Ok(GivenMoment {
-        text: text.to_owned(),
-        moment,
-    })
-}
-
-/// The moment of UTC of a time, to the second; `None` outside the years 1 to 9999.
-fn moment(time: OffsetDateTime) -> Option<Moment> {
-    let utc = time.checked_to_offset(time::UtcOffset::UTC)?;
-    let date = Date::new(
-        u16::try_from(utc.year()).ok()?,
-        u8::from(utc.month()),
-        utc.day(),
-    )
-    .ok()?;
-    Moment::new(date, utc.hour(), utc.minute(), utc.second()).ok()
-}
-
 /// The CISA KEV catalog and the EUVD list of a run, the files given read before a list is fetched (MXL-2, MXL-3,
 /// MXL-6, MXL-7).
 fn exploited_lists(
@@ -563,46 +408,6 @@ fn default_cache() -> Option<PathBuf> {
                 .map(|home| Path::new(&home).join(".cache"))
         })
         .map(|cache| cache.join("forewarn").join("osv"))
-}
-
-/// Reads a refresh policy: `offline`, `if-missing`, `always`, or an age, a positive whole number of `m`, `h` or `d`.
-fn parse_refresh(text: &str) -> Result<Refresh, String> {
-    match text {
-        "offline" => return Ok(Refresh::Offline),
-        "if-missing" => return Ok(Refresh::IfMissing),
-        "always" => return Ok(Refresh::Always),
-        _ => {}
-    }
-    let refused = || {
-        format!(
-            "`offline`, `if-missing`, `always`, or a positive age such as `30m`, `12h`, `7d`, not {text:?}"
-        )
-    };
-    // The unit is the last character, which may not be ASCII (`1é`).
-    let Some((count, unit)) = text
-        .char_indices()
-        .last()
-        .map(|(at, unit)| (&text[..at], unit))
-    else {
-        return Err(refused());
-    };
-    let seconds = match unit {
-        'm' => 60,
-        'h' => 60 * 60,
-        'd' => 24 * 60 * 60,
-        _ => return Err(refused()),
-    };
-    if count.is_empty() || !count.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(refused());
-    }
-    match count
-        .parse::<u64>()
-        .ok()
-        .and_then(|n| n.checked_mul(seconds))
-    {
-        Some(age) if age > 0 => Ok(Refresh::OlderThan(Duration::from_secs(age))),
-        _ => Err(refused()),
-    }
 }
 
 /// The OSV ecosystem of each component that maps to one, each once, in the order of its first component (MCH-5).

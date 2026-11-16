@@ -44,7 +44,7 @@ flowchart TD
 | `forewarn-osv` | Reads OSV records, fetches ecosystem archives into the cache, queries the OSV API | `lib` (read), `fetch`, `api` |
 | `forewarn-exploited` | Reads or fetches the exploited lists into `ExploitedList` | `kev`, `euvd` |
 | `forewarn-cache` | Refresh policy, freshness, the files of each download, a file lock per entry | single module |
-| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `escape` |
+| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `escape` |
 
 The dependency direction is enforced: `crates/forewarn/tests/workspace_policy.rs` fails when the domain depends on
 another crate of the workspace, or when a crate does not inherit the workspace license and lints.
@@ -141,3 +141,4 @@ Every structural decision is an ADR in [`docs/adr/`](adr/):
 | [0011](adr/0011-compute-the-reporting-deadlines-on-utc-seconds-of-the-domain.md) | Deadlines on UTC seconds of the domain |
 | [0012](adr/0012-align-the-early-warning-draft-on-the-enisa-srp-glossary.md) | The early warning aligned on the ENISA SRP glossary |
 | [0013](adr/0013-write-the-early-warning-draft-in-markdown-in-the-cli-crate.md) | The draft written in Markdown by the CLI crate |
+| [0014](adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md) | The VEX verdicts applied in the domain after the flagging, components known by their `bom-ref` (proposed) |

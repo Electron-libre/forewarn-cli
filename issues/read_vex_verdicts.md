@@ -47,3 +47,27 @@ Beta
 # Hints
 * A verdict must never hide a match silently: the report lists what was set aside and why.
 * Keep the CRA deadlines unchanged for the matches a verdict leaves affected.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+Read CycloneDX VEX verdicts (in the SBOM and in `--vex <file>` documents), set aside in the domain the matches a
+`not_affected` / `false_positive` verdict names (by `bom-ref` and id or alias), and report them apart in `match`, out
+of the exit code, the deadlines and the drafts. Out of scope: CSAF VEX, OpenVEX, verdicts in `check`, `--vex -`.
+Means: verdicts applied after the flagging, so a set-aside match keeps its exploited evidence (ADR 0014).
+
+## Plan
+1. [x] Split `crates/forewarn/src/main.rs` (810 lines, over the file size limit): move the `clap` arguments into a module `args`, no change of behaviour; verified by `cargo test`; makes true nothing new (~300 lines, a move). (autonomous)
+   Summary: done: `Cli`, `Command`, `CheckArgs`, `MatchArgs`, `Format`, `GivenMoment` and the parsers `parse_moment`, `moment`, `parse_refresh` moved to `crates/forewarn/src/args.rs` (main.rs 810 → 615 lines); the specs and ADR 0014 drafts committed with it. Checks: project-check green (fmt, clippy, tests, specs), docs (architecture, CLAUDE.md) updated. red: none (a move, no new test). Code review: no findings.
+2. [ ] Adapter and domain: `bom-ref` on `Component` and `ComponentRef`, the module `forewarn_domain::vex` (verdicts, applied to a `FlaggedReport`, the matches set aside), `read_json` returning the SBOM's verdicts and `read_vex_json` reading a VEX document; verified by tests in `forewarn-domain/tests/vex_verdicts.rs` and `forewarn-cyclonedx/tests/vex.rs`; makes true SBR-16, VEX-1 to VEX-13 (~750 lines).
+3. [ ] CLI: `--vex <path>` (repeatable), the set-aside matches, the sources of verdicts and the unused verdicts in the human and JSON reports (a module `set_aside` beside `report`, which is at 719 lines), exit codes and drafts without them; verified by `crates/forewarn/tests/vex.rs` through the binary; makes true MVX-1 to MVX-10 and the amended rows of MCH-10 and MCH-16 (~700 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 714b050ee2157406aa87d7780c1a6f9bc4d4ac76
+- `resolved` and `resolved_with_pedigree` set a match aside, like `not_affected` and `false_positive` (VEX-8).
+- A target that is the `bom-ref` of no component names the components whose package URL equals it as written (VEX-7).
+- A `--vex` file that cannot be read exits with 3, as an SBOM (MVX-7, MCH-10).
+- The verdicts that name no match are listed (`unusedVerdicts`, MVX-6).

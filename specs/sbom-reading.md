@@ -1,7 +1,7 @@
 ---
 id: SBR
-status: accepted
-adrs: [0001, 0002]
+status: draft
+adrs: [0001, 0002, 0014]
 ---
 
 # SBOM reading
@@ -95,6 +95,8 @@ check and the matching work on the components and a report names the product.
 - **SBR-15** (deterministic) Each component read must say whether it is a file, a component of CycloneDX type `file`
   (a manifest or lock file a tool read, such as `/Cargo.lock`), the type compared as written; a component of any other
   type, or of a type the enumeration does not list, is not a file.
+- **SBR-16** (deterministic) Each component read must carry its `bom-ref` as written, none when it has none, so that a
+  verdict can name it (`specs/vex-verdicts.md`, VEX-7).
 
 ## Scenarios
 
@@ -186,7 +188,7 @@ check and the matching work on the components and a report names the product.
 - The organization that made the SBOM (`metadata.manufacturer` in 1.6): it is not the manufacturer of the product.
 - Skipping a duplicate by anything but its `bom-ref` (its package URL, its name and version): two entries with
   different `bom-ref`s are two components.
-- Services, dependencies and VEX statements: later milestones read them.
+- Services and dependencies: later milestones read them. VEX statements are read by `specs/vex-verdicts.md`.
 - Deciding whether an SBOM without a product, or a product without a manufacturer, is incomplete for the CRA.
 - The contacts and URLs of the manufacturer and the supplier of the product: nothing uses them yet, and a draft early
   warning has no field for them (ADR 0012). A component keeps its organization's email or URL (SBR-5).
