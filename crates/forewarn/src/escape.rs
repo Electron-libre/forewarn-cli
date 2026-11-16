@@ -33,13 +33,14 @@ pub fn escaped(value: &str) -> String {
     text
 }
 
-/// Whether `c` hides or reorders text (EWD-16): a `Default_Ignorable_Code_Point`, the separator U+2028 or U+2029, a
-/// `White_Space` character other than the space U+0020, or U+2800 BRAILLE PATTERN BLANK, as Unicode 16.0 lists them
-/// (`DerivedCoreProperties.txt`, `PropList.txt`). A viewer draws them as nothing or as a blank, or uses them to reorder
-/// the text around them (the "Trojan Source" trick, the tag characters of "ASCII smuggling", the Hangul fillers); the
-/// format characters it draws (U+0600, U+06DD, U+FFF9) pass, as the derivation of `Default_Ignorable_Code_Point`
-/// leaves them out. The control characters among `White_Space` are escaped before it is asked. A test compares it, for
-/// every scalar value, with the verbatim extracts of those files in `data/ucd-16.0.0` (Unicode License v3).
+/// Whether `c` hides or reorders text (EWD-16): a `Default_Ignorable_Code_Point`, a `White_Space` character other than
+/// the space U+0020 (the separators U+2028 and U+2029 among them), U+2800 BRAILLE PATTERN BLANK, the interlinear
+/// annotation characters U+FFF9 to U+FFFB or the Egyptian hieroglyph format controls U+13430 to U+1343F, as Unicode
+/// 16.0 lists them (`DerivedCoreProperties.txt`, `PropList.txt`). A viewer draws them as nothing or as a blank, or uses
+/// them to reorder, stack or annotate the text around them (the "Trojan Source" trick, the tag characters of "ASCII
+/// smuggling", the Hangul fillers); the `Prepended_Concatenation_Mark` characters it draws (U+0600, U+06DD) pass. The
+/// control characters among `White_Space` are escaped before it is asked. A test compares it, for every scalar value,
+/// with the verbatim extracts of those files in `data/ucd-16.0.0` (Unicode License v3).
 fn hides_text(c: char) -> bool {
     matches!(
         c,
@@ -60,7 +61,8 @@ fn hides_text(c: char) -> bool {
             | '\u{fe00}'..='\u{fe0f}'
             | '\u{feff}'
             | '\u{ffa0}'
-            | '\u{fff0}'..='\u{fff8}'
+            | '\u{fff0}'..='\u{fffb}'
+            | '\u{13430}'..='\u{1343f}'
             | '\u{1bca0}'..='\u{1bca3}'
             | '\u{1d173}'..='\u{1d17a}'
             | '\u{e0000}'..='\u{e0fff}'
@@ -119,7 +121,8 @@ mod tests {
             "White_Space",
         ));
         listed.remove(&0x20);
-        listed.extend([0x2028, 0x2029, 0x2800]);
+        listed.insert(0x2800);
+        listed.extend((0xfff9..=0xfffb).chain(0x13430..=0x1343f));
         // The control characters among White_Space (`\t`, U+0085) are escaped before `hides_text` is asked.
         let wrong: Vec<String> = (0..=0x0010_ffff_u32)
             .filter_map(char::from_u32)
@@ -159,6 +162,10 @@ mod tests {
             '\u{fe00}',
             '\u{fe0f}',
             '\u{ffa0}',
+            '\u{fff9}',
+            '\u{fffb}',
+            '\u{13430}',
+            '\u{1343f}',
             '\u{e0001}',
             '\u{e0041}',
             '\u{e007f}',
@@ -179,10 +186,7 @@ mod tests {
             '\u{6dd}',
             '\u{110bd}',
             '\u{3165}',
-            '\u{fff9}',
-            '\u{fffb}',
             '\u{fffc}',
-            '\u{13430}',
             '\u{1f600}',
         ] {
             assert_eq!(escaped(&c.to_string()), c.to_string());

@@ -228,3 +228,20 @@ fn an_error_escapes_a_value_of_the_sbom_once() {
     assert_ne!(run.code, 0, "{}", run.stderr);
     assert!(run.stderr.contains("\"1.6\\u{202e}\""), "{}", run.stderr);
 }
+
+// spec: CHK-14
+#[test]
+fn check_escapes_the_blank_characters_and_lets_the_visible_format_ones_read() {
+    let input = bom(
+        "1.6",
+        &json!([{"type": "library", "name": "\u{600}12", "version": "1\u{3000}0\u{2800}\u{fff9}\u{13430}"}]),
+    );
+    let run = run(&["check", "-"], Some(&input));
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    assert_eq!(
+        run.stdout.lines().nth(2),
+        Some(
+            "  \u{600}12 1\\u{3000}0\\u{2800}\\u{fff9}\\u{13430}: missing supplier, license, hash"
+        )
+    );
+}

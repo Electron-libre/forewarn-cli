@@ -88,10 +88,11 @@ document a person copies into the ENISA Single Reporting Platform form.
   that hides or reorders text as its Unicode escape (`\u{202e}`) and each leading space as `&#32;`, so that it reads
   as its text and forges no line, list item, code block, emphasis, link or HTML. The characters that hide or reorder
   text are, in Unicode 16.0, the Default_Ignorable_Code_Point characters (the bidi controls, the joiners U+200C and
-  U+200D, the Hangul fillers, the variation selectors and the tag characters among them), the separators U+2028 and
-  U+2029, the White_Space characters other than the space U+0020 (U+00A0, U+2000 to U+200A, U+3000 among them) and
-  U+2800 BRAILLE PATTERN BLANK; the format characters a viewer draws (the Prepended_Concatenation_Mark characters such
-  as U+0600 and U+06DD, U+FFF9 to U+FFFB, U+13430 to U+1343F) are not among them.
+  U+200D, the Hangul fillers, the variation selectors and the tag characters among them), the White_Space characters
+  other than the space U+0020 (U+00A0, U+2000 to U+200A, U+2028, U+2029, U+3000 among them), U+2800 BRAILLE PATTERN
+  BLANK, the interlinear annotation characters U+FFF9 to U+FFFB and the Egyptian hieroglyph format controls U+13430
+  to U+1343F; the Prepended_Concatenation_Mark characters, format characters a viewer draws (U+0600, U+06DD), are not
+  among them.
 
 ## Scenarios
 

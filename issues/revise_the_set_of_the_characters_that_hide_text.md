@@ -51,10 +51,16 @@ blank ones are escaped. Out of scope: the leading-space rule, the control charac
    U+2029, U+2800, the control characters left to `is_control`), move U+0600 and U+FFF9 to the samples that pass and
    add U+3000, U+2800, U+00A0 to those escaped, plus a draft test of the two new EWD-16 scenarios; verified by
    `cargo test`; makes true EWD-16 (spec back to `accepted`). ~150 lines.
+2. [x] Fixes of the `high` review of the issue: U+FFF9..U+FFFB and U+13430..U+1343F stay escaped (EWD-16, table,
+   test), U+2028 and U+2029 named among White_Space, a `check` test of the new set through the binary, the
+   follow-up issue `escape_the_other_characters_drawn_as_blank`; verified by `cargo test`; traces EWD-16, CHK-14. (autonomous)
 
 ## Decisions
 - Mode: autonomous
 - 1 a: every White_Space character but U+0020, the UCD section verbatim (U+00A0 and U+1680 escaped).
+- A a (high review): the interlinear annotation characters and the Egyptian hieroglyph format controls stay escaped;
+  only the Prepended_Concatenation_Mark characters pass.
+- B a (high review): the other characters drawn as blank go to `escape_the_other_characters_drawn_as_blank`.
 - Base commit: 10fb431c7c9171f2c3545ad5cb8c9bbac114d3e9
 
 ## Deliverable 1
@@ -63,3 +69,16 @@ blank ones are escaped. Out of scope: the leading-space rule, the control charac
   property of each line; two draft tests for the new EWD-16 scenarios; EWD-16 amended, spec `accepted` again.
 - red: EWD-16: `hides_text disagrees with Unicode 16.0 on ["U+00A0", "U+0600", …, "U+2800", "U+3000", "U+FFF9", …]`
   and `left: "\u{a0}" right: "\\u{a0}"`.
+
+## Deliverable 2
+- done: U+FFF9..U+FFFB and U+13430..U+1343F escaped again; U+2028 and U+2029 counted with White_Space in the test, the
+  doc comment and EWD-16; `check_escapes_the_blank_characters_and_lets_the_visible_format_ones_read` drives the set
+  through `forewarn check`; follow-up issue written.
+- red: EWD-16: `hides_text disagrees with Unicode 16.0 on ["U+FFF9", …, "U+1343F"]`, `left: "\u{fff9}" right:
+  "\\u{fff9}"`.
+- `high` review of the issue, 7 findings: 1, 2 fixed (A a); 3 to the follow-up issue (B a); 4 kept (decision 1 a: the
+  no-break spaces are escaped); 5 fixed (the `check` test); 6 fixed (U+2028, U+2029 within White_Space); 7 kept (the
+  test names the carve-outs EWD-16 sets, from the spec, not from the code).
+- Code review: no findings.
+- not verified: how a viewer draws U+1D159 and U+16FE4 (left to the follow-up issue). decisions needed: none.
+- Done: both deliverables committed; nothing left in this issue.
