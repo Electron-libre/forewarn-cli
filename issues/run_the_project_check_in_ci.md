@@ -34,3 +34,35 @@ Beta
 
 # Hints
 * `cardinal.yml` is synced by Cardinal (`cardinal check` fails when it is edited): put the new job in a file of its own.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+Add a workflow of its own (`.github/workflows/check.yml`, `cardinal.yml` being synced) on `push` to `main` and
+`pull_request` that runs the `check_command` read from `.claude/cardinal.toml` (one source of truth), with the cargo
+cache. Out of scope: `cargo deny` (its own issue), publishing, releases.
+
+## Plan
+1. [x] Project check in CI: `.github/workflows/check.yml` with a job `check` (ubuntu, stable with `rustfmt` and
+   `clippy`, the `check_command` of `.claude/cardinal.toml`), a job `msrv` (`cargo check --all-targets --locked` on
+   the toolchain of `rust-version`), a job `test` on macOS and Windows (`cargo test --locked`); verified by
+   `actionlint`, the `check_command` and the MSRV build run locally, then the first run on GitHub (after the push, the
+   user's); makes true no requirement (CI, no spec).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 1178af9dd3392f845c02a208b5e7a92af5bd06a9
+- Tests on macOS and Windows (`cargo test --locked`) besides the full check on Linux.
+- MSRV: `cargo check --all-targets --locked` on 1.89, verified locally before the commit.
+- `cargo deny` (licenses, advisories): its own issue.
+
+## Summary of deliverable 1
+- done: `.github/workflows/check.yml` (jobs `check`, `msrv`, `test` on macOS and Windows); `CLAUDE.md` names it.
+- checks: project check passes; the `check_command` extracted by the workflow's `sed` and run locally passes;
+  `cargo +1.89 check --all-targets --locked` passes; the YAML parses.
+- red: none (CI configuration, no test).
+- Code review: no findings
+- not verified: `actionlint` (its container was refused locally); the macOS and Windows jobs (a cross build for
+  Windows needs a MinGW compiler for `ring`): the first run on GitHub tells.

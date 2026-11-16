@@ -1,0 +1,60 @@
+name: Check
+
+# The project check (format, lint, tests) of every push to main and every pull request. A file of its own:
+# `cardinal.yml` is synced by Cardinal and must not be edited.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: project check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Run the check_command of .claude/cardinal.toml
+        run: |
+          command=$(sed -n 's/^check_command = "\(.*\)"$/\1/p' .claude/cardinal.toml)
+          if [ -z "$command" ]; then echo "no check_command in .claude/cardinal.toml" >&2; exit 1; fi
+          echo "$command"
+          sh -c "$command"
+
+  msrv:
+    name: build on the rust-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.89
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-targets --locked
+
+  test:
+    name: tests on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # The fixtures and the expected reports are compared byte for byte: keep their line endings.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked

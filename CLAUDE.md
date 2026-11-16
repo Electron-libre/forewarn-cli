@@ -53,7 +53,9 @@ the report, and exits with 7 when one cannot be written. It applies the VEX verd
 deadlines and the drafts, and the verdicts that name no match (`specs/cli-match-vex.md`, module `vex`); a `--vex` file
 that cannot be read exits with 3.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
-`cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
+`cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`. The workflow
+`.github/workflows/check.yml` runs that command on every push to `main` and every pull request, builds on the toolchain
+of `rust-version` (pinned there too: bump both together) and runs the tests on macOS and Windows.
 
 ## Layout
 
