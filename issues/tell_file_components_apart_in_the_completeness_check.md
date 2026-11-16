@@ -34,6 +34,9 @@ the components a vendor ships, and either leave the file components out or repor
   `specs/cli-check.md` (CHK-2, CHK-3, CHK-H1), and `specs/cli-match.md` (MCH-3) if the count of clean components
   changes.
 
+# Milestone
+Proof-of-concept demo
+
 # Resources
 * `crates/forewarn-cyclonedx/src/lib.rs`, `crates/forewarn-domain/src/completeness.rs`, `crates/forewarn/src/report.rs`.
 * `crates/forewarn-cyclonedx/tests/fixtures/README.md` (how the fixtures were generated).

@@ -33,6 +33,9 @@ the component.
 # Specs
 * `specs/cli-match.md`: amends MCH-1 (how the status of a record is shown).
 
+# Milestone
+Proof-of-concept demo
+
 # Resources
 * `crates/forewarn/src/report.rs` (human report of `match`), `crates/forewarn/tests/matching.rs`.
 * `specs/vulnerability-matching.md` (VMT-18), `crates/forewarn-domain/src/matching.rs` (`RecordStatus`).
