@@ -147,3 +147,4 @@ Every structural decision is an ADR in [`docs/adr/`](adr/):
 | [0012](adr/0012-align-the-early-warning-draft-on-the-enisa-srp-glossary.md) | The early warning aligned on the ENISA SRP glossary |
 | [0013](adr/0013-write-the-early-warning-draft-in-markdown-in-the-cli-crate.md) | The draft written in Markdown by the CLI crate |
 | [0014](adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md) | The VEX verdicts applied in the domain after the flagging, components known by their `bom-ref` |
+| [0015](adr/0015-distribute-release-binaries-on-github-before-crates-io.md) | Release binaries built on each tag and attached to a GitHub release, before any crates.io publication |

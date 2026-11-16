@@ -19,11 +19,29 @@
 
 ## Install
 
-Not published yet; build it from a clone (Rust stable):
+Each release on [GitHub](https://github.com/Electron-libre/forewarn-cli/releases) holds a binary per platform, in
+`forewarn-<target>.tar.gz`, and a `SHA256SUMS` file over them:
+
+| Target | Platform |
+|---|---|
+| `x86_64-unknown-linux-musl` | Linux x86_64, static (any distribution, Alpine included) |
+| `aarch64-unknown-linux-musl` | Linux ARM64, static |
+| `aarch64-apple-darwin` | macOS, Apple silicon |
+| `x86_64-apple-darwin` | macOS, Intel |
+
+Download the archive of your platform, check it and install the binary:
 
 ```sh
-cargo install --path crates/forewarn
+target=x86_64-unknown-linux-musl
+base=https://github.com/Electron-libre/forewarn-cli/releases/latest/download
+curl -fsSL -O "$base/forewarn-$target.tar.gz" -O "$base/SHA256SUMS"
+sha256sum --check --ignore-missing SHA256SUMS      # macOS: shasum -a 256 --check --ignore-missing SHA256SUMS
+tar -xzf "forewarn-$target.tar.gz"
+sudo install "forewarn-$target/forewarn" /usr/local/bin/
 ```
+
+A CI job pins a version with `base=https://github.com/Electron-libre/forewarn-cli/releases/download/v<version>`.
+No Windows binary yet; on another platform, build it from a clone (Rust stable): `cargo install --path crates/forewarn`.
 
 `forewarn --version` prints the release it was built from; give it when you report a bug.
 

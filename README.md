@@ -35,7 +35,10 @@ deadlines are deterministic), or a leak (only ecosystem names leave your CI by d
 ## Quick start
 
 ```sh
-cargo install --path crates/forewarn          # not on crates.io yet
+# Linux x86_64; the other platforms, the checksums and pinning a version: docs/user-guide.md#install
+curl -fsSL https://github.com/Electron-libre/forewarn-cli/releases/latest/download/forewarn-x86_64-unknown-linux-musl.tar.gz \
+  | tar -xz --strip-components=1 forewarn-x86_64-unknown-linux-musl/forewarn
+sudo install forewarn /usr/local/bin/
 
 syft scan . -o cyclonedx-json > sbom.cdx.json
 forewarn check sbom.cdx.json                  # is the SBOM complete?

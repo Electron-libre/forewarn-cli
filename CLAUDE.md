@@ -60,6 +60,11 @@ of `rust-version` (read from `Cargo.toml`) and runs the tests on macOS.
 `.claude/cardinal.toml`, `just set-version <version>`, which writes `[workspace.package] version` and `Cargo.lock`:
 `forewarn --version` prints it, and `crates/forewarn/tests/workspace_policy.rs` checks it is the newest release of the
 changelog.
+Pushing the tag `v<version>` runs `.github/workflows/release.yml` (ADR
+[0015](docs/adr/0015-distribute-release-binaries-on-github-before-crates-io.md)): it refuses a tag that is not the
+workspace version, builds `forewarn-<target>.tar.gz` for Linux (musl, x86_64 and aarch64) and macOS, and attaches them
+with `SHA256SUMS` to a GitHub release whose notes are the changelog section; `crates/forewarn/tests/release_workflow.rs`
+checks the user guide lists the targets it builds. crates.io waits for its own decision.
 
 ## Layout
 
