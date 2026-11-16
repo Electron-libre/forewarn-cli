@@ -51,7 +51,7 @@ stay as `serde_json` writes them (a non-goal of both specs).
 - Base commit: 62aa4afb0c3a12cf3cdcefe2abe41e8e68623df4
 - JSON reports: not escaped (1 a), a non-goal of CHK and MCH.
 - Follow-up: the other invisible characters, the backslash and the joiners go to
-  `issues/widen_the_escaping_of_the_writers.md` (findings 1 to 3 of the `high` review).
+  `issues/done/widen_the_escaping_of_the_writers.md` (findings 1 to 3 of the `high` review).
 
 ## Summary of deliverable 1
 - Code review: no findings
@@ -66,7 +66,7 @@ stay as `serde_json` writes them (a non-goal of both specs).
 ## Summary of deliverable 2
 - Code review: no findings
 - done: findings 4 to 7 of the `high` review fixed (one escaping policy in `escape`, stricter assertions);
-  findings 1 to 3 (other Cf characters, the backslash, the joiners) filed as `issues/widen_the_escaping_of_the_writers.md`.
+  findings 1 to 3 (other Cf characters, the backslash, the joiners) filed as `issues/done/widen_the_escaping_of_the_writers.md`.
 - checks: tests, fmt, clippy, specs pass.
 - red: none (a refactor under green tests, assertions added).
 - not verified: nothing beyond deliverable 1.

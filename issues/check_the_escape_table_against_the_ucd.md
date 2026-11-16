@@ -25,4 +25,4 @@ range or a new Unicode version would pass. The table should be checked against t
 
 # Resources
 * `crates/forewarn/src/escape.rs`.
-* `issues/widen_the_escaping_of_the_writers.md` (decision 1 a: a table, no dependency).
+* `issues/done/widen_the_escaping_of_the_writers.md` (decision 1 a: a table, no dependency).
