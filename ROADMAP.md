@@ -5,6 +5,19 @@ A milestone becomes issues once it is shaped (`skill:create-issue`); the `priori
 States: `idea`, `shaped`, `in issues`, `done` (set by `cardinal run close-issue` when the last issue of an `in issues` one closes); `cardinal run release` adds `- Released: v<version>` to a `done` one and moves it to `ROADMAP-done.md` (`roadmap_archive`). A milestone carries no date unless the project gives it one. `cardinal run roadmap` prints the state of every milestone.
 A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offers none of its issues until it is removed.
 
+## Beta
+
+- Goal: an outside vendor installs a released `forewarn`, runs it in CI on its SBOM, and silences a match it analysed
+  as not affecting its product, on code that CI builds and tests at each change.
+- Why: the proof of concept works for its author; a beta tester needs a version to report against, an install without
+  a clone, and a way out of a false positive.
+- State: in issues
+- Issues:
+  - [set_the_version_of_the_binary_on_release](issues/set_the_version_of_the_binary_on_release.md)
+  - [run_the_project_check_in_ci](issues/run_the_project_check_in_ci.md)
+  - [distribute_the_binary](issues/distribute_the_binary.md)
+  - [read_vex_verdicts](issues/read_vex_verdicts.md)
+
 ## Upload from CI
 
 - Goal: `forewarn` uploads the SBOM and AI-BOM with product, version and date to a Forewarn service, whose URL is set
