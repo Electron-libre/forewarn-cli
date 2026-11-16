@@ -1,6 +1,7 @@
 //! The completeness check: which of the fields the CRA expects each component of an SBOM lacks
 //! (`specs/sbom-completeness.md`).
 
+use crate::matching::ComponentRef;
 use crate::sbom::{Component, Hash};
 
 /// A field of a component the completeness check looks for.
@@ -80,12 +81,18 @@ pub struct IncompleteComponent {
     pub missing: Vec<Field>,
 }
 
-/// A component the check leaves out: a file (SBR-15), such as a manifest a tool read.
+/// A component the check leaves out, with why.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NotCheckedComponent {
-    pub name: String,
-    pub version: Option<String>,
-    pub purl: Option<String>,
+    pub component: ComponentRef,
+    pub reason: NotCheckedReason,
+}
+
+/// Why the check leaves a component out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NotCheckedReason {
+    /// A file (SBR-15), such as a manifest a tool read.
+    File,
 }
 
 /// The result of the check: the incomplete components and those not checked, in the order of the SBOM.
@@ -130,9 +137,8 @@ pub fn check(components: &[Component]) -> CompletenessReport {
     for component in components {
         if component.file {
             report.not_checked.push(NotCheckedComponent {
-                name: component.name.clone(),
-                version: component.version.clone(),
-                purl: component.purl.clone(),
+                component: component.into(),
+                reason: NotCheckedReason::File,
             });
             continue;
         }

@@ -48,6 +48,8 @@ Proof-of-concept demo
 
 # Tracking
 
+Done: all deliverables committed.
+
 Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
 
 ## Understanding
@@ -66,6 +68,8 @@ component listed, with no rule per type.
    `Not checked, file components (n):`, the JSON `notChecked` and `componentCount` without them; verified by
    `crates/forewarn/tests/check.rs` (syft fixture, files only, complete packages plus a file) and domain tests;
    makes true SBC-8, SBC-9, CHK-15, CHK-10 (amended row). (autonomous)
+3. [x] Fixes of the `high` review: the domain carries why a component is not checked (`NotCheckedReason`) and names
+   it by `ComponentRef`; verified by the existing tests; no new requirement. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -94,6 +98,24 @@ component listed, with no rule per type.
 - checks: tests pass, clippy clean, `check-specs` clean, docs updated, code review below.
 - red: SBC-8, SBC-9, CHK-15, CHK-10: `left: "3 of 4 components incomplete:"` against `right: "3 of 3 components incomplete:"`
   (and `notChecked` absent from the JSON report).
+- Code review: no findings
+- not verified: none.
+- decisions needed: none.
+
+## High review (dde0527..HEAD): 6 findings
+- `forewarn match` still lists the file components under `Not evaluated`: kept, decision 2 a.
+- `componentCount` counts the checked components in `check` and every component in `match`, a change of meaning for
+  `check`: kept, the validated amendment of CHK-10, `notChecked` naming what is left out.
+- A file the product ships, of type `file`, is no longer checked: kept, the non-goal of `specs/sbom-completeness.md`
+  (nothing in the SBOM tells a shipped file from a manifest read).
+- The reason `"file"` was hard-coded in the CLI: fixed in deliverable 3, `NotCheckedReason` in the domain, matched
+  exhaustively by both reports.
+- `NotCheckedComponent` duplicated `ComponentRef`: fixed in deliverable 3.
+
+## Deliverable 3
+- done: the fixes of the `high` review above.
+- checks: tests pass, clippy clean, `check-specs` clean, docs n/a (no change of behaviour), code review below.
+- red: none (a refactor under the green tests).
 - Code review: no findings
 - not verified: none.
 - decisions needed: none.

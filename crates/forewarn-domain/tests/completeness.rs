@@ -1,6 +1,9 @@
 //! The completeness check of the components of an SBOM (`specs/sbom-completeness.md`).
 
-use forewarn_domain::completeness::{Field, IncompleteComponent, NotCheckedComponent, check};
+use forewarn_domain::completeness::{
+    Field, IncompleteComponent, NotCheckedComponent, NotCheckedReason, check,
+};
+use forewarn_domain::matching::ComponentRef;
 use forewarn_domain::sbom::{Component, Hash};
 
 fn hash(algorithm: &str, value: &str) -> Hash {
@@ -228,14 +231,20 @@ fn leaves_the_file_components_out_and_returns_them_apart_in_order() {
         report.not_checked(),
         [
             NotCheckedComponent {
-                name: "/Cargo.lock".into(),
-                version: None,
-                purl: None,
+                component: ComponentRef {
+                    name: "/Cargo.lock".into(),
+                    version: None,
+                    purl: None,
+                },
+                reason: NotCheckedReason::File,
             },
             NotCheckedComponent {
-                name: "/pom.xml".into(),
-                version: Some("1".into()),
-                purl: Some("pkg:generic/manifest@1".into()),
+                component: ComponentRef {
+                    name: "/pom.xml".into(),
+                    version: Some("1".into()),
+                    purl: Some("pkg:generic/manifest@1".into()),
+                },
+                reason: NotCheckedReason::File,
             },
         ]
     );

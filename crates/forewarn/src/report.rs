@@ -4,7 +4,7 @@
 use std::fmt::Write;
 use std::path::Path;
 
-use forewarn_domain::completeness::{CompletenessReport, Field};
+use forewarn_domain::completeness::{CompletenessReport, Field, NotCheckedReason};
 use forewarn_domain::exploited::{Evidence, FlaggedMatch, FlaggedReport};
 use forewarn_domain::matching::{
     ComponentReason, ComponentRef, PairReason, Reason, RecordRef, RecordStatus,
@@ -35,13 +35,9 @@ pub fn human(sbom: &Sbom, completeness: &CompletenessReport) -> String {
             "Not checked, file components ({}):",
             not_checked.len()
         );
-        for component in not_checked {
-            push_component(
-                &mut text,
-                &component.name,
-                component.version.as_deref(),
-                component.purl.as_deref(),
-            );
+        for skipped in not_checked {
+            let NotCheckedReason::File = skipped.reason;
+            push_component_ref(&mut text, &skipped.component);
             text.push('\n');
         }
     }
@@ -128,12 +124,12 @@ pub fn json(sbom: &Sbom, completeness: &CompletenessReport) -> String {
     let not_checked: Vec<Value> = completeness
         .not_checked()
         .iter()
-        .map(|component| {
+        .map(|skipped| {
             json!({
-                "name": component.name,
-                "version": component.version,
-                "purl": component.purl,
-                "reason": "file",
+                "name": skipped.component.name,
+                "version": skipped.component.version,
+                "purl": skipped.component.purl,
+                "reason": not_checked_reason(skipped.reason),
             })
         })
         .collect();
@@ -146,6 +142,13 @@ pub fn json(sbom: &Sbom, completeness: &CompletenessReport) -> String {
         "notChecked": not_checked,
     });
     format!("{report:#}\n")
+}
+
+/// The reason a component was not checked, in the JSON report.
+fn not_checked_reason(reason: NotCheckedReason) -> &'static str {
+    match reason {
+        NotCheckedReason::File => "file",
+    }
 }
 
 /// The name of a field in a report.

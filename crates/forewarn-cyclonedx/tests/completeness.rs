@@ -42,7 +42,7 @@ fn reports_the_gaps_of_the_sbom_of_syft_and_leaves_its_lock_file_out() {
     let not_checked: Vec<&str> = report
         .not_checked()
         .iter()
-        .map(|c| c.name.as_str())
+        .map(|c| c.component.name.as_str())
         .collect();
     assert_eq!(not_checked, ["/Cargo.lock"]);
 }
