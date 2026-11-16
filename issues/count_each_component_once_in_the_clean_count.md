@@ -58,3 +58,18 @@ carries the count, and `report::clean_count` and its `HashSet` of `ComponentRef`
   `Sbom` are still used in `report.rs`).
 - Not split: `crates/forewarn-domain/tests/matching.rs` was already over the file size limit (1,184 lines) before this
   deliverable; splitting it is a change of its own.
+2. [x] Fixes of the `high` review of the issue: `into_parts` returns the clean count with the matches and the
+   components not evaluated, the docs of `MatchReport` and `FlaggedReport` name it; verified by the project check.
+   (autonomous)
+
+## Summary of deliverable 2
+- done: findings 2 and 4 of the `high` review fixed (`into_parts` carries the count, struct docs updated).
+- red: none (refactor and docs, no new behaviour).
+- `high` review, 4 findings:
+  1. the total `count` comes from `sbom.components` and the clean count from the slice matched: not fixed, `main.rs`
+     matches `&sbom.components` itself, the only caller; a filtered caller would need its own total.
+  2. `into_parts` dropped the count: fixed.
+  3. no domain requirement for the count: not fixed, a `VMT-31` would push `specs/vulnerability-matching.md` over
+     its `spec_max_*` bound; the domain test cites MCH-3 as internal.
+  4. stale struct docs: fixed.
+- Code review of deliverable 2: no findings.

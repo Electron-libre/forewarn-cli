@@ -141,7 +141,7 @@ pub struct NotEvaluated {
 }
 
 /// The result of matching: the matches, and apart from them what could not be evaluated, both in the order of the
-/// SBOM's components, then of the vulnerability ids.
+/// SBOM's components, then of the vulnerability ids, and the number of clean components.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MatchReport {
     matches: Vec<Match>,
@@ -169,10 +169,10 @@ impl MatchReport {
         self.clean_count
     }
 
-    /// The matches and what could not be evaluated, taken out of the report.
+    /// The matches, what could not be evaluated and the number of clean components, taken out of the report.
     #[must_use]
-    pub fn into_parts(self) -> (Vec<Match>, Vec<NotEvaluated>) {
-        (self.matches, self.not_evaluated)
+    pub fn into_parts(self) -> (Vec<Match>, Vec<NotEvaluated>, usize) {
+        (self.matches, self.not_evaluated, self.clean_count)
     }
 }
 
