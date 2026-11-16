@@ -45,7 +45,7 @@ analysed a false positive is not asked to report it while the report still shows
 - **VEX-7** (deterministic) A verdict must name the component of a match when one of its targets equals the
   `bom-ref` of the component (SBR-16), a BOM-Link (`urn:cdx:<serial number>/<version>#<bom-ref>`) being compared by
   its percent-decoded `bom-ref`; a target that is the `bom-ref` of no component of the SBOM names each component
-  whose package URL equals it as written.
+  whose package URL equals it as written, or, for a BOM-Link, equals its `bom-ref`.
 - **VEX-8** (deterministic) A verdict must set a match aside or keep it by its state, as this table says, a state the
   table does not list keeping it.
 

@@ -222,6 +222,7 @@ fn reads_a_state_or_a_justification_the_enumerations_do_not_list_as_written() {
 #[test]
 fn a_vulnerability_without_an_analysis_state_gives_no_verdict() {
     let verdicts = sbom_verdicts(&json!([
+        { "id": "CVE-2021-44228", "analysis": { "state": " " }, "affects": [{ "ref": "log4j" }] },
         { "id": "CVE-2021-44228", "ratings": [{ "severity": "critical" }], "affects": [{ "ref": "log4j" }] },
         { "id": "CVE-2022-42889", "analysis": { "detail": "looking" }, "affects": [{ "ref": "text" }] },
     ]));

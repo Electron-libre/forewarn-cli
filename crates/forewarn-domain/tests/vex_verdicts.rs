@@ -255,6 +255,27 @@ fn names_by_its_package_url_a_component_when_the_target_is_no_bom_ref() {
     assert_eq!(aside, []);
 }
 
+// spec: VEX-7
+#[test]
+fn names_by_its_package_url_a_component_when_the_bom_ref_of_a_bom_link_is_no_bom_ref() {
+    let opaque = [
+        component(LOG4J, Some("pkg:maven/x?package-id=1")),
+        component(TEXT, Some("pkg:maven/y?package-id=2")),
+    ];
+    let link = format!(
+        "urn:cdx:abc/1#{}",
+        LOG4J
+            .replace(':', "%3A")
+            .replace('/', "%2F")
+            .replace('@', "%40")
+    );
+    let (_, aside) = applied_to(
+        &opaque,
+        &[verdict(&["CVE-2021-44228"], &[&link], "not_affected")],
+    );
+    assert_eq!(aside, [("CVE-2021-44228".to_owned(), 0)]);
+}
+
 // spec: VEX-9
 #[test]
 fn keeps_a_match_one_of_its_verdicts_keeps_in_either_order() {

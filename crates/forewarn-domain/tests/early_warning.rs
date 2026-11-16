@@ -245,6 +245,34 @@ fn names_a_component_listed_twice_once() {
     );
 }
 
+// spec: EWD-3
+#[test]
+fn names_a_component_listed_twice_under_two_bom_refs_once() {
+    let log4j = component("org.apache.logging.log4j", "log4j-core", "2.14.1");
+    let at = |bom_ref: &str| Component {
+        bom_ref: Some(bom_ref.into()),
+        ..log4j.clone()
+    };
+    let report = flag_exploited(
+        match_components(
+            &[
+                at("pkg:maven/x?package-id=1"),
+                at("pkg:maven/x?package-id=2"),
+            ],
+            &[record(
+                "GHSA-jfh8-c2jp-5v3q",
+                &["CVE-2021-44228"],
+                "org.apache.logging.log4j:log4j-core",
+            )],
+        ),
+        &[kev()],
+    );
+    assert_eq!(
+        component_names(&draft(&report, Some(&shop()))[0]),
+        ["log4j-core"]
+    );
+}
+
 // spec: EWD-1
 #[test]
 fn drafts_nothing_for_a_report_with_no_match() {

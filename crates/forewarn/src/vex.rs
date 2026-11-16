@@ -10,7 +10,7 @@ use forewarn_domain::vex::Verdict;
 use serde_json::{Map, Value, json};
 
 use crate::escape::push_escaped;
-use crate::report::{Awareness, match_json, push_component_ref, push_evidence};
+use crate::report::{Awareness, match_json, push_evidence, push_match_header};
 
 /// Where a verdict was read.
 #[derive(Clone, Copy)]
@@ -88,15 +88,7 @@ pub fn push_set_aside(text: &mut String, verdicts: &Verdicts, matching: &Flagged
         matching.set_aside().len()
     );
     for aside in matching.set_aside() {
-        let found = &aside.found.found;
-        push_component_ref(text, &found.component);
-        text.push_str(": ");
-        push_escaped(text, &found.id);
-        if !found.aliases.is_empty() {
-            text.push_str(" (");
-            push_escaped(text, &found.aliases.join(", "));
-            text.push(')');
-        }
+        push_match_header(text, &aside.found.found);
         text.push('\n');
         let verdict = &verdicts.all[aside.verdict];
         text.push_str("    ");

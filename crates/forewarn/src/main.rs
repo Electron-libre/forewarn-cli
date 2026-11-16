@@ -504,11 +504,14 @@ fn read_sbom(path: &Path) -> Result<Sbom, u8> {
             .map_err(|e| ReadError::Io(e.to_string()))
             .and_then(read_json)
     };
-    sbom.map_err(|error| {
-        let error = format!("{}: {error}", input_name(path).display());
-        eprintln!("error: {}", escape::escaped(&error));
-        UNREADABLE
-    })
+    sbom.map_err(|error| unreadable(input_name(path), &error))
+}
+
+/// Prints why the CycloneDX document of `path` cannot be read and returns the code 3 (MCH-14, MVX-7).
+fn unreadable(path: &Path, error: &ReadError) -> u8 {
+    let error = format!("{}: {error}", path.display());
+    eprintln!("error: {}", escape::escaped(&error));
+    UNREADABLE
 }
 
 /// Reads the verdicts of each `--vex` file, in order; prints why one cannot be read and returns the code 3 (MVX-7).
@@ -520,11 +523,7 @@ fn read_vex_files(paths: &[PathBuf]) -> Result<Vec<(&Path, Vec<Verdict>)>, u8> {
                 .map_err(|e| ReadError::Io(e.to_string()))
                 .and_then(read_vex_json)
                 .map(|verdicts| (path.as_path(), verdicts))
-                .map_err(|error| {
-                    let error = format!("{}: {error}", path.display());
-                    eprintln!("error: {}", escape::escaped(&error));
-                    UNREADABLE
-                })
+                .map_err(|error| unreadable(path, &error))
         })
         .collect()
 }

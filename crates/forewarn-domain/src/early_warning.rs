@@ -101,7 +101,14 @@ pub fn draft_early_warnings(
                     component: flagged.found.component.clone(),
                     vulnerability: flagged.found.id.clone(),
                 };
-                if !components.contains(&affected) {
+                // The same component and id, whatever their `bom-ref`, which the draft does not name (EWD-3).
+                let same = |kept: &AffectedComponent| {
+                    kept.vulnerability == affected.vulnerability
+                        && kept.component.name == affected.component.name
+                        && kept.component.version == affected.component.version
+                        && kept.component.purl == affected.component.purl
+                };
+                if !components.iter().any(same) {
                     components.push(affected);
                 }
                 components

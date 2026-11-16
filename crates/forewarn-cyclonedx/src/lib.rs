@@ -128,7 +128,7 @@ fn verdicts(bom: &Bom) -> Vec<Verdict> {
         .flat_map(|v| &v.0)
         .filter_map(|vulnerability| {
             let analysis = vulnerability.vulnerability_analysis.as_ref()?;
-            let state = analysis.state.as_ref()?.to_string();
+            let state = filled(analysis.state.as_ref()?.to_string())?;
             let references = vulnerability
                 .vulnerability_references
                 .iter()

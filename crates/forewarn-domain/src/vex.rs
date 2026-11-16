@@ -64,8 +64,12 @@ pub fn apply_verdicts(
         .collect();
     let mut used = vec![false; verdicts.len()];
     for found in std::mem::take(&mut report.matches) {
+        let ids: Vec<Cow<str>> = std::iter::once(&found.found.id)
+            .chain(&found.found.aliases)
+            .map(|id| canonical_id(id))
+            .collect();
         let naming: Vec<usize> = (0..read.len())
-            .filter(|&at| read[at].names(&found))
+            .filter(|&at| read[at].names(&found, &ids))
             .collect();
         for &at in &naming {
             used[at] = true;
@@ -89,7 +93,8 @@ pub fn apply_verdicts(
 struct Read<'a> {
     ids: Vec<Cow<'a, str>>,
     bom_refs: Vec<Cow<'a, str>>,
-    purls: Vec<&'a str>,
+    /// The `bom-ref` of each target that is no component's, compared to the package URLs.
+    purls: Vec<Cow<'a, str>>,
 }
 
 impl<'a> Read<'a> {
@@ -102,14 +107,15 @@ impl<'a> Read<'a> {
         for target in &verdict.targets {
             let bom_ref = bom_ref_of(target);
             if !bom_refs.contains(bom_ref.as_ref()) {
-                read.purls.push(target);
+                read.purls.push(bom_ref.clone());
             }
             read.bom_refs.push(bom_ref);
         }
         read
     }
 
-    fn names(&self, found: &FlaggedMatch) -> bool {
+    /// Whether the verdict names the component of `found` and one of `ids`, the canonical ids of the match.
+    fn names(&self, found: &FlaggedMatch, ids: &[Cow<str>]) -> bool {
         let component = &found.found.component;
         let names_component = component
             .bom_ref
@@ -118,11 +124,8 @@ impl<'a> Read<'a> {
             || component
                 .purl
                 .as_deref()
-                .is_some_and(|own| self.purls.contains(&own));
-        names_component
-            && std::iter::once(&found.found.id)
-                .chain(&found.found.aliases)
-                .any(|id| self.ids.contains(&canonical_id(id)))
+                .is_some_and(|own| self.purls.iter().any(|purl| purl == own));
+        names_component && ids.iter().any(|id| self.ids.contains(id))
     }
 }
 

@@ -7,7 +7,7 @@ use std::path::Path;
 use forewarn_domain::completeness::{CompletenessReport, Field, NotCheckedReason};
 use forewarn_domain::exploited::{Evidence, FlaggedMatch, FlaggedReport};
 use forewarn_domain::matching::{
-    ComponentReason, ComponentRef, PairReason, Reason, RecordRef, RecordStatus,
+    ComponentReason, ComponentRef, Match, PairReason, Reason, RecordRef, RecordStatus,
 };
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
@@ -297,14 +297,7 @@ pub fn matching_human(report: &MatchReport) -> String {
     );
     for flagged in matching.matches() {
         let found = &flagged.found;
-        push_component_ref(&mut text, &found.component);
-        text.push_str(": ");
-        push_escaped(&mut text, &found.id);
-        if !found.aliases.is_empty() {
-            text.push_str(" (");
-            push_escaped(&mut text, &found.aliases.join(", "));
-            text.push(')');
-        }
+        push_match_header(&mut text, found);
         push_records_by_status(&mut text, &found.records);
         text.push('\n');
         if flagged.is_exploited() {
@@ -542,7 +535,19 @@ fn duration(seconds: u64) -> String {
         .join(" ")
 }
 
-pub(crate) fn push_component_ref(text: &mut String, component: &ComponentRef) {
+/// Pushes the component of a match, its id and its aliases (MCH-1).
+pub(crate) fn push_match_header(text: &mut String, found: &Match) {
+    push_component_ref(text, &found.component);
+    text.push_str(": ");
+    push_escaped(text, &found.id);
+    if !found.aliases.is_empty() {
+        text.push_str(" (");
+        push_escaped(text, &found.aliases.join(", "));
+        text.push(')');
+    }
+}
+
+fn push_component_ref(text: &mut String, component: &ComponentRef) {
     push_component(
         text,
         &component.name,
