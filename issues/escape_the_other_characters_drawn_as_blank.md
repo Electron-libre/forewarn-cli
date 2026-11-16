@@ -29,4 +29,4 @@ which of them EWD-16 escapes, by a rule a reader can check, not one by one.
 # Resources
 * `crates/forewarn/src/escape.rs` (`hides_text` and its test against the extracts).
 * `crates/forewarn/data/ucd-16.0.0`.
-* `issues/revise_the_set_of_the_characters_that_hide_text.md`.
+* `issues/done/revise_the_set_of_the_characters_that_hide_text.md`.
