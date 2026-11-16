@@ -1,5 +1,6 @@
 //! The release binaries of ADR 0015: the targets `.github/workflows/release.yml` builds are the ones the Install
-//! section of `docs/user-guide.md` offers, so the guide never names an archive no release holds.
+//! section of `docs/user-guide.md` offers, so the guide never names an archive no release holds, and the ones whose
+//! third-party license notices `about.toml` gathers, so each archive holds the notices of its binary.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -48,4 +49,18 @@ fn the_user_guide_lists_the_targets_the_release_workflow_builds() {
 
     assert!(!built.is_empty(), "the release workflow builds no target");
     assert_eq!(listed, built);
+}
+
+#[test]
+fn the_license_notices_cover_the_targets_the_release_workflow_builds() {
+    let built = workflow_targets(&read(".github/workflows/release.yml"));
+    let about: toml::Table = read("about.toml").parse().expect("about.toml is TOML");
+    let noticed: BTreeSet<String> = about["targets"]
+        .as_array()
+        .expect("about.toml lists its targets")
+        .iter()
+        .map(|target| target.as_str().expect("a target is a string").to_owned())
+        .collect();
+
+    assert_eq!(noticed, built);
 }

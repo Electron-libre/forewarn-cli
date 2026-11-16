@@ -72,3 +72,15 @@ installs a pinned version without Rust. Out of scope: crates.io publication, a c
 - not verified: `actionlint` (its download was refused in this session; YAML parsed); the workflow's first run (a pull
   request changing it, then the next pushed tag); the musl builds with `musl-gcc` (built locally with `gcc` as C
   compiler: static-pie, prints `forewarn 0.2.0`); the install URLs answer only once a release holds the archives.
+
+## Deliverable 2 summary
+- done: job `notices` of the release workflow: `THIRD-PARTY-LICENSES` (`cargo-about` 0.9.3, `about.toml`,
+  `about.hbs`) and a CycloneDX 1.6 SBOM per target (`cargo-cyclonedx` 0.5.10) that `forewarn check` reads, both in each
+  archive, the SBOMs also attached; checksums over archives and SBOMs; provenance attested; ADR 0015, user guide,
+  `CLAUDE.md`.
+- Code review: no findings.
+- red: none (no spec: distribution); `the_license_notices_cover_the_targets_the_release_workflow_builds` failed with
+  `x86_64-apple-darwin` missing from `about.toml` before it was listed.
+- verified locally: `cargo about generate --locked --fail` (55 licenses, no error); the SBOM of `aarch64-apple-darwin`
+  written and read by `forewarn check`.
+- not verified: the workflow's first run, `actions/attest-build-provenance@v3`, `actionlint`.

@@ -1,6 +1,8 @@
 name: Release
 
-# The release binaries of each pushed tag `v<version>` (ADR 0015), attached to a GitHub release with their checksums.
+# The release binaries of each pushed tag `v<version>` (ADR 0015), attached to a GitHub release with their checksums,
+# the SBOM of each and the attestation of their build provenance. Each archive holds the license notices of the crates
+# its binary includes.
 # A pull request that changes this file builds them without publishing.
 
 on:
@@ -36,9 +38,38 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+  notices:
+    name: write the license notices and the SBOMs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          cargo install --locked cargo-about@0.9.3 --features cli
+          cargo install --locked cargo-cyclonedx@0.5.10
+      - name: Write the license notices of the targets of about.toml
+        run: cargo about generate --locked --fail -c about.toml -m crates/forewarn/Cargo.toml about.hbs -o THIRD-PARTY-LICENSES
+      - name: Write the SBOM of each target and read it with forewarn
+        run: |
+          mkdir sbom
+          targets=$(python3 -c 'import tomllib; print(" ".join(tomllib.load(open("about.toml", "rb"))["targets"]))')
+          for target in $targets; do
+            cargo cyclonedx -q --manifest-path crates/forewarn/Cargo.toml -f json --spec-version 1.6 \
+              --target "$target" --no-build-deps --override-filename "forewarn-$target.cdx"
+            mv "crates/forewarn/forewarn-$target.cdx.json" sbom/
+            cargo run -q --locked -p forewarn -- check --allow-incomplete "sbom/forewarn-$target.cdx.json" > /dev/null
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notices
+          path: |
+            THIRD-PARTY-LICENSES
+            sbom/
+          if-no-files-found: error
+
   build:
     name: build ${{ matrix.target }}
-    needs: version
+    needs: [version, notices]
     strategy:
       fail-fast: false
       matrix:
@@ -80,10 +111,16 @@ jobs:
           printed=$("target/${{ matrix.target }}/release/forewarn" --version)
           echo "$printed"
           [ "$printed" = "forewarn $VERSION" ]
+      - uses: actions/download-artifact@v4
+        with:
+          name: notices
+          path: notices
       - name: Pack the archive
         run: |
           mkdir "$ARCHIVE"
-          cp "target/${{ matrix.target }}/release/forewarn" LICENSE-MIT LICENSE-APACHE README.md "$ARCHIVE/"
+          cp "target/${{ matrix.target }}/release/forewarn" LICENSE-MIT LICENSE-APACHE README.md \
+            notices/THIRD-PARTY-LICENSES "$ARCHIVE/"
+          cp "notices/sbom/$ARCHIVE.cdx.json" "$ARCHIVE/forewarn.cdx.json"
           tar -czf "$ARCHIVE.tar.gz" "$ARCHIVE"
       - uses: actions/upload-artifact@v4
         with:
@@ -94,21 +131,34 @@ jobs:
   release:
     name: publish the release
     if: github.ref_type == 'tag'
-    needs: [version, build]
+    needs: [version, notices, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
+          pattern: forewarn-*
           path: dist
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: notices
+          path: notices
       - name: Write the checksums
-        working-directory: dist
-        run: sha256sum -- *.tar.gz > SHA256SUMS
+        run: |
+          cp notices/sbom/*.cdx.json dist/
+          cd dist && sha256sum -- *.tar.gz *.cdx.json > SHA256SUMS
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.cdx.json
       - name: Take the release notes from CHANGELOG.md
         run: |
           awk -v head="## [$VERSION]" '

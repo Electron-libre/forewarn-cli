@@ -20,7 +20,8 @@
 ## Install
 
 Each release on [GitHub](https://github.com/Electron-libre/forewarn-cli/releases) holds a binary per platform, in
-`forewarn-<target>.tar.gz`, and a `SHA256SUMS` file over them:
+`forewarn-<target>.tar.gz`, the CycloneDX SBOM of each binary, `forewarn-<target>.cdx.json`, and a `SHA256SUMS`
+file over them:
 
 | Target | Platform |
 |---|---|
@@ -39,6 +40,11 @@ sha256sum --check --ignore-missing SHA256SUMS      # macOS: shasum -a 256 --chec
 tar -xzf "forewarn-$target.tar.gz"
 sudo install "forewarn-$target/forewarn" /usr/local/bin/
 ```
+
+The archive also holds the licenses of `forewarn`, the notices of the crates its binary includes
+(`THIRD-PARTY-LICENSES`) and its SBOM (`forewarn.cdx.json`). GitHub attests where each file was built:
+`gh attestation verify "forewarn-$target.tar.gz" --repo Electron-libre/forewarn-cli` checks it was built by the
+release workflow of this repository.
 
 A CI job pins a version with `base=https://github.com/Electron-libre/forewarn-cli/releases/download/v<version>`.
 No Windows binary yet; on another platform, build it from a clone (Rust stable): `cargo install --path crates/forewarn`.

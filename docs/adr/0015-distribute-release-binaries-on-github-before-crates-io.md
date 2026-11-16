@@ -30,8 +30,16 @@ target when cross-built. The tests run on Linux and macOS only: Windows waits fo
   Windows.
 - **One archive per target**, `forewarn-<target>.tar.gz` (no version in the name, so that
   `releases/latest/download/<archive>` always names the newest release), holding the binary, `LICENSE-MIT`,
-  `LICENSE-APACHE` and `README.md`, and one `SHA256SUMS` file over the archives; the release notes are the
-  `CHANGELOG.md` section of the version.
+  `LICENSE-APACHE`, `README.md`, `THIRD-PARTY-LICENSES` and the SBOM of the binary, `forewarn.cdx.json`; the SBOM
+  also attached apart (`forewarn-<target>.cdx.json`), one `SHA256SUMS` file over the archives and the SBOMs; the
+  release notes are the `CHANGELOG.md` section of the version.
+- **The notices of the third-party crates** the binary includes travel with it, as their MIT, BSD, ISC and Apache
+  licenses ask: `cargo-about` writes them for the targets of `about.toml`, which lists the licenses accepted; a crate
+  under another license fails the release.
+- **forewarn ships its own SBOM**, as the CRA asks of a product: `cargo-cyclonedx` writes one per target, in
+  CycloneDX 1.6, and `forewarn check` reads it before the release.
+- **The build provenance is attested** (`actions/attest-build-provenance`): `gh attestation verify` tells an archive
+  built by this workflow from another.
 - **The tag must name the workspace version**: the workflow refuses a tag `v<x>` when `[workspace.package] version`
   is not `<x>`, so `forewarn --version` matches the archive.
 - **Built, not published, on a pull request** that changes the workflow, so a change of it is tried before a tag.

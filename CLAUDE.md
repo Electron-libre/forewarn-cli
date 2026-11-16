@@ -62,9 +62,11 @@ of `rust-version` (read from `Cargo.toml`) and runs the tests on macOS.
 changelog.
 Pushing the tag `v<version>` runs `.github/workflows/release.yml` (ADR
 [0015](docs/adr/0015-distribute-release-binaries-on-github-before-crates-io.md)): it refuses a tag that is not the
-workspace version, builds `forewarn-<target>.tar.gz` for Linux (musl, x86_64 and aarch64) and macOS, and attaches them
-with `SHA256SUMS` to a GitHub release whose notes are the changelog section; `crates/forewarn/tests/release_workflow.rs`
-checks the user guide lists the targets it builds. crates.io waits for its own decision.
+workspace version, builds `forewarn-<target>.tar.gz` for Linux (musl, x86_64 and aarch64) and macOS, each with the
+third-party license notices `cargo-about` writes (`about.toml`, `about.hbs`) and the SBOM `cargo-cyclonedx` writes, and
+attaches them with the SBOMs and `SHA256SUMS`, their build provenance attested, to a GitHub release whose notes are the
+changelog section; `crates/forewarn/tests/release_workflow.rs` checks the user guide and `about.toml` name the targets
+it builds. crates.io waits for its own decision.
 
 ## Layout
 
@@ -122,7 +124,8 @@ this repository (matching logic, CycloneDX handling, API types shared with the s
 
 Dual-licensed `MIT OR Apache-2.0` (the Rust ecosystem default, the easiest to integrate). Every crate declares it,
 inherited from `[workspace.package] license = "MIT OR Apache-2.0"` with `license.workspace = true`. Dependencies must
-be compatible with both: no copyleft (GPL, AGPL, LGPL-only) crate.
+be compatible with both: no copyleft (GPL, AGPL, LGPL-only) crate. The `accepted` licenses of `about.toml` are those the
+release binaries may include.
 Vendored data follows the same rule and keeps its license next to it: the Unicode 16.0 extracts of
 `crates/forewarn/data/ucd-16.0.0` (Unicode License v3), test data only.
 
