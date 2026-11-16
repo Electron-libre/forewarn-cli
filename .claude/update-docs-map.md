@@ -4,6 +4,7 @@ Read by `skill:update-docs`. Owned by the project: one row per kind of change, w
 
 | Change | Update |
 |---|---|
-| New or changed command, flag or option | `README.md`, `CLAUDE.md` |
-| New crate or module | `CLAUDE.md` (its layout table is the architecture), `commit_scopes` in `.claude/cardinal.toml` |
+| New or changed command, flag, option, report field or exit code | `docs/user-guide.md`, `CLAUDE.md`; `README.md` only when its example or quick start changes |
+| New crate or module, or a changed boundary or flow | `docs/architecture.md`, the layout table of `CLAUDE.md`, `commit_scopes` in `.claude/cardinal.toml` |
+| New ADR | its row in the Decisions table of `docs/architecture.md` |
 | Third-party data vendored or its version changed | its license file next to it, the License section of `CLAUDE.md` |

@@ -1,115 +1,65 @@
 # forewarn
 
-An open-source CLI that checks a CycloneDX SBOM against actively exploited vulnerabilities and drafts the reports the
-EU Cyber Resilience Act (article 14) requires.
+**Know within minutes whether your release ships an actively exploited vulnerability, and when the EU Cyber
+Resilience Act wants you to report it.**
 
-Work in progress, not published yet: build it from a clone with `cargo install --path crates/forewarn`.
+Under CRA article 14, a manufacturer that learns of an actively exploited vulnerability in its product has 24 hours
+for an early warning, 72 hours for a notification and 14 days for a final report. `forewarn` turns the SBOM you
+already produce into that answer:
 
-## Usage
-
-```sh
-forewarn check sbom.cdx.json                  # `-` reads the SBOM from standard input (`./-` for a file named -)
-forewarn check --format json sbom.cdx.json    # one JSON document, for a CI job or a script
-syft scan . -o cyclonedx-json | forewarn check --allow-incomplete -   # report gaps without failing the job
+```console
+$ forewarn match --drafts drafts/ sbom.cdx.json
+...
+Affected (2, 1 actively exploited):
+  log4j-core 2.14.1 (pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1): CVE-2021-44228 (GHSA-jfh8-c2jp-5v3q), affected per GHSA-jfh8-c2jp-5v3q from GHSA
+    actively exploited: CISA KEV CVE-2021-44228 added 2021-12-10
+    report by: early warning 2026-11-14T09:30:00Z (1d 0h 0m 0s left), notification 2026-11-16T09:30:00Z (3d 0h 0m 0s left), final report 14 days after a corrective measure is available
+  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), affected per RUSTSEC-2020-0071 from RUSTSEC
+Draft early warnings (1):
+  CVE-2021-44228: drafts/acme-gateway-CVE-2021-44228.md
 ```
 
-`forewarn check` prints the CycloneDX spec version of the SBOM, flagged when it is below 1.6 (the BSI TR-03183-2
-minimum), and each component missing a supplier, a license or a hash, those the SBOM nests under its product included
-(`cdxgen` nests the modules of a Maven project there), apart from the targets of the product itself (the binary
-target `cargo-cyclonedx` nests there). The file components, the manifests a tool such as `syft` read
-(`/Cargo.lock`, `/pom.xml`), are not checked: they are listed apart, out of the counts and of the exit code. The JSON
-report holds `specVersion`, `belowBsiMinimum`, `componentCount` (the components checked), `complete`, `incomplete`
-(each component's `name`, `version`, `purl` and `missing` fields) and `notChecked` (each file's `name`, `version`,
-`purl` and `reason`, `"file"`); the text report's layout may change, scripts read the JSON one. It exits with:
+## What it does
 
-| Code | Meaning |
-|---|---|
-| 0 | the SBOM is complete |
-| 1 | at least one component is incomplete, unless `--allow-incomplete` is given |
-| 2 | invalid arguments |
-| 3 | the SBOM cannot be read |
-| 4 | the report cannot be written to standard output |
+- **Matches** each component against [OSV](https://osv.dev), by package URL and version, in each ecosystem's own
+  version ordering.
+- **Flags** what is actively exploited, with evidence from the CISA KEV catalog and ENISA's EUVD.
+- **Counts down** the 24 h / 72 h / 14-day deadlines from the moment you became aware.
+- **Drafts** the early warning, laid out like the ENISA Single Reporting Platform, the fields only you know marked
+  `TO COMPLETE`.
+- **Checks** the SBOM itself: components missing the supplier, license or hash the CRA expects.
+
+What it is not: a scanner (bring a CycloneDX SBOM from `cargo-cyclonedx`, `syft`, `cdxgen`…), an LLM (matching and
+deadlines are deterministic), or a leak (only ecosystem names leave your CI by default, never source code).
+
+## Quick start
 
 ```sh
-forewarn match sbom.cdx.json                      # fetch the OSV archive of each ecosystem of the SBOM into a cache
-forewarn match --refresh offline sbom.cdx.json    # an air-gapped CI: the cache only, no request
-forewarn match --osv osv-records/ sbom.cdx.json   # an OSV record file or an extracted OSV archive; repeat --osv
-forewarn match --osv-api sbom.cdx.json            # opt-in: query the OSV API, sending the packages of the SBOM out
-forewarn match --kev kev.json sbom.cdx.json       # a CISA KEV catalog file instead of fetching the catalog
-forewarn match --euvd euvd.json sbom.cdx.json     # an EUVD exploited list file instead of paging the list
-forewarn match --aware-since 2026-11-13T09:30:00Z sbom.cdx.json  # the CRA reporting deadlines from that moment
-forewarn match --aware-since 2026-11-13T09:30:00Z --now 2026-11-15T10:00:00Z sbom.cdx.json  # the time left at a moment
-forewarn match --aware-since 2026-11-13T09:30:00Z --drafts drafts/ sbom.cdx.json  # a draft early warning per CVE
+cargo install --path crates/forewarn          # not on crates.io yet
+
+syft scan . -o cyclonedx-json > sbom.cdx.json
+forewarn check sbom.cdx.json                  # is the SBOM complete?
+forewarn match sbom.cdx.json                  # affected? exploited? by when must I report?
 ```
 
-`forewarn match` prints the components affected by a known OSV vulnerability, once per vulnerability even when several
-records hold it (a `RUSTSEC` advisory and its `GHSA` mirror), two CVEs never merged: its id (its CVE, in upper case, when it has
-one), its aliases and each record with its source, grouped under the status it gives
-(`affected per`, `not affected per`, `not evaluated per`), apart from the components it could not evaluate (the vendor's own code, never matched nor sent out: the product
-listed again with its package URL, and the components nested under it of the type and namespace of its package URL; no package URL, no version, a version its ecosystem does
-not read, such as a Composer `dev-` branch, a record whose only ranges are `GIT` ranges), how many are clean, and how fresh the OSV data is; `--format json` works as for `check`. Only the
-names of the ecosystems leave the CI: it downloads `<ecosystem>/all.zip` from the OSV bucket (`--osv-url` for a
-mirror) into `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv` (`--cache` for another), again once a day
-(`--refresh`: `offline`, `if-missing`, `always` or an age such as `12h`). Runs that share a cache on one machine read
-it together; a run that downloads waits for the runs reading, and they for it, at most 40 minutes per ecosystem (runs
-that keep reading can hold a `--refresh always` run back that long). Each download records the name and size of the
-files it stored: a cached copy whose files differ (one removed, added or truncated outside forewarn) is downloaded
-again, except under `--refresh offline`, which fails with "damaged cached copy"; a copy that matches them but cannot be
-read fails with its reason. `--osv-api` queries the OSV API instead
-(`--osv-api-url` for another): no archive is downloaded, but the OSV ecosystem, name and version of each component leave the CI, and the
-answer depends on the moment of the query, which the report gives; it is never on by default.
+In CI, fail only on what must be reported:
 
-Each match whose CVE the CISA Known Exploited Vulnerabilities catalog names is marked actively exploited, with the
-catalog and the date it added the CVE as evidence (`exploited` in the JSON report); the report gives the catalog's
-version, release date and number of entries, and when it was downloaded. The catalog is downloaded from CISA
-(`--kev-url` for a mirror) into the directory `cisa-kev` of the same cache, under the same `--refresh` policy, also
-with `--osv` or `--osv-api`: the request names no component. `--kev <file>` reads a downloaded catalog
-(`known_exploited_vulnerabilities.json`) instead, for an air-gapped CI; `--no-kev` flags nothing against it.
+```sh
+forewarn match --allow-affected --format json --drafts drafts/ sbom.cdx.json > forewarn.json   # exits 6 if exploited
+```
 
-The vulnerabilities ENISA's European Vulnerability Database (EUVD) knows to be exploited flag the matches the same
-way, after the catalog, an entry per CVE of each EUVD record dated by its `exploitedSince` (undated when
-EUVD writes it in a form it does not know); the report gives their
-number and when they were downloaded. EUVD publishes no single file: the list is paged from its search
-(`exploited=true`, 100 records a page, about 18 requests; `--euvd-url` for a mirror) into the directory
-`euvd-exploited` of the same cache, under the same `--refresh` policy: the requests name no component. `--euvd <file>`
-reads a file of the shape `{"items": [...]}` instead (a copy of `euvd-exploited/exploited.json`), for an air-gapped
-CI; `--no-euvd` flags nothing against it. With `--no-kev` and `--no-euvd`, the report says that no list was used.
+## Documentation
 
-Each actively exploited match carries the deadlines CRA article 14(2) sets for reporting it (a line `report by:` under
-its evidence, `deadlines` in the JSON report): the early warning 24 hours and the notification 72 hours after the
-moment the vendor became aware of it, `--aware-since <instant>` (RFC 3339, an offset is converted to UTC) or, by
-default, the moment of the run; the final report 14 days after `--measure-available <instant>`, the moment a corrective
-or mitigating measure became available, else due 14 days after one is, with no date. One moment of awareness applies
-to every match of the run: when one is actively exploited, the human report prints it, given or read from the clock,
-above the matches, and the JSON report gives it as `awareSince`, the measure as `measureAvailable` (both `null`
-otherwise, so that a report read from the clock stays the same). The human report also prints, next to each deadline,
-the time left before it (`23h 30m 0s left`, `due now` at its very second) or how long it is overdue (`overdue by 1d 0h
-30m 0s`), at `--now <instant>` or, by default, the moment of the run; the JSON report leaves that comparison to its
-reader. An instant refused exits with 2.
+- [User guide](docs/user-guide.md): commands, sources and cache, air-gapped CI, deadlines, drafts, JSON reports, exit
+  codes.
+- [Architecture](docs/architecture.md): crates, boundaries, the flow of a run, decisions ([ADRs](docs/adr/)).
+- [Specs](specs/README.md): the exact behaviour of each capability.
+- [Changelog](CHANGELOG.md), [roadmap](ROADMAP.md).
 
-`--drafts <dir>` writes, in the same run, the draft CRA early warning of each actively exploited CVE into that
-directory, created when missing: one Markdown file per CVE, `<product>-<CVE>.md` (the product name of the SBOM, each
-character other than an ASCII letter, a digit, `.`, `_` or `-` written `_`; `<CVE>.md` when the SBOM names no product),
-which a rerun replaces whole; the report names each file written after the matches (`drafts` in the JSON report,
-`{"cve", "path"}`). A draft fills what the SBOM, the match and the moments give (the product, its
-manufacturer, the components, the CVE, the EUVD id of the EUVD record naming it, else of an `EUVD-` alias of the
-match, the evidence, the deadlines) and marks `**TO COMPLETE**` the fields of the ENISA
-Single Reporting Platform only the vendor knows (the title, the summary, the Member States). The drafts of a CVE no
-longer exploited stay in the directory.
-
-It exits with 6 when a match is actively exploited, even with `--allow-affected`, so that a CI job given
-`--allow-affected` fails only on those; 1 when a component is affected; 5 when the OSV records, the KEV catalog or the EUVD
-list cannot be read, fetched or queried; 7 when a draft cannot be written, with nothing printed on standard output;
-and otherwise as `check` does.
+Status: early proof of concept, CLI only.
 
 ## License
 
-Licensed under either of
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](LICENSE-MIT))
-
-at your option.
-
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as
 defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

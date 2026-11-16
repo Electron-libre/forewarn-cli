@@ -50,6 +50,9 @@ the report, and exits with 7 when one cannot be written.
 
 ## Layout
 
+The architecture (crates, boundaries, the flow of a run, the ADRs) is described in `docs/architecture.md`, the commands
+for their user in `docs/user-guide.md`; `README.md` stays a short pitch pointing to them.
+
 Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), with their commit scope:
 
 | Crate | Role | Scope |
