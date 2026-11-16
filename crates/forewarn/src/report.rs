@@ -1,7 +1,6 @@
 //! The report formats of `forewarn check` and `forewarn match`: adapters from the domain's results to text or JSON
 //! (`specs/cli-check.md`, `specs/cli-match.md`, `specs/cli-match-exploited.md`).
 
-use std::collections::HashSet;
 use std::fmt::Write;
 use std::path::Path;
 
@@ -304,7 +303,7 @@ pub fn matching_human(report: &MatchReport) -> String {
     let _ = writeln!(
         text,
         "Clean: {} of {count} {}",
-        clean_count(sbom, matching),
+        matching.clean_count(),
         components(count)
     );
     text
@@ -546,7 +545,7 @@ pub fn matching_json(report: &MatchReport) -> String {
     let report = json!({
         "specVersion": sbom.spec_version.to_string(),
         "componentCount": sbom.components.len(),
-        "cleanCount": clean_count(sbom, matching),
+        "cleanCount": matching.clean_count(),
         "osv": sources,
         "exploitedLists": exploited_lists,
         "exploitedCount": matching.exploited_count(),
@@ -631,20 +630,6 @@ fn match_json(flagged: &FlaggedMatch, deadlines: &ReportingDeadlines) -> Value {
             "finalReport": deadlines.final_report.map(|moment| moment.to_string()),
         })),
     })
-}
-
-/// The components neither affected nor named by a component or pair not evaluated (MCH-3).
-fn clean_count(sbom: &Sbom, matching: &FlaggedReport) -> usize {
-    let reported: HashSet<&ComponentRef> = matching
-        .matches()
-        .iter()
-        .map(|flagged| &flagged.found.component)
-        .chain(matching.not_evaluated().iter().map(|gap| &gap.component))
-        .collect();
-    sbom.components
-        .iter()
-        .filter(|component| !reported.contains(&ComponentRef::from(*component)))
-        .count()
 }
 
 /// The name of a reason in a report (VMT-10), and the id of the vulnerability of a pair.

@@ -146,6 +146,7 @@ pub struct NotEvaluated {
 pub struct MatchReport {
     matches: Vec<Match>,
     not_evaluated: Vec<NotEvaluated>,
+    clean_count: usize,
 }
 
 impl MatchReport {
@@ -159,6 +160,13 @@ impl MatchReport {
     #[must_use]
     pub fn not_evaluated(&self) -> &[NotEvaluated] {
         &self.not_evaluated
+    }
+
+    /// The number of components of the SBOM that gave neither a match nor a component or pair not evaluated, each
+    /// counted at its own place, even beside another of the same name, version and package URL.
+    #[must_use]
+    pub fn clean_count(&self) -> usize {
+        self.clean_count
     }
 
     /// The matches and what could not be evaluated, taken out of the report.
@@ -215,6 +223,9 @@ pub fn match_components(
             .collect();
         matches.sort_by(|a, b| a.id.cmp(&b.id));
         let pairs = reported_pairs(&named, &groups);
+        if matches.is_empty() && pairs.is_empty() {
+            report.clean_count += 1;
+        }
         report.matches.extend(matches);
         for (record, reason) in pairs {
             report.not_evaluated.push(NotEvaluated {

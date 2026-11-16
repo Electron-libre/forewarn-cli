@@ -23,7 +23,8 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - **MCH-2** (deterministic) `forewarn match <sbom>` must print each component or pair not evaluated (VMT-3) with its
   reason, under a heading of its own, apart from the matches and from the count of clean components.
 - **MCH-3** (deterministic) `forewarn match <sbom>` must print how many components were matched and how many are
-  clean: neither affected nor named by a component or pair not evaluated.
+  clean: neither affected nor named by a component or pair not evaluated, each component of the SBOM counted at its
+  own place, even when another component has the same name, version and package URL.
 - **MCH-4** (deterministic) `forewarn match <sbom>` must print the freshness of each source of OSV records it used:
   for a fetched ecosystem its name, the UTC time its archive was downloaded, its URL, and its `Last-Modified` when the
   server sent one (OSF-2); for a local path given with `--osv`, that path.
@@ -170,6 +171,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   `\u{1b}` is written out.
 - (MCH-2, MCH-16) Given a `NuGet` component and a record naming it with only a `GIT` range, when it is matched,
   then it is reported not evaluated with `range not evaluated` and the record's id, and is not counted clean.
+- (MCH-3) Given an SBOM whose product nests its module `mod-a` 1.0 and that lists `mod-a` 1.0 again at the top level,
+  with the same package URL and no `bom-ref`, when it is matched with `--osv` against records none of which affects
+  it, then the nested one is printed not evaluated, first-party, and the report counts 1 clean.
 - (MCH-3, MCH-10) Given an SBOM no record affects, when it is matched, then every evaluated component is clean and
   the command exits with 0.
 - (MCH-18) Given a record whose id holds an escape sequence, when the human report prints it, then `\u{1b}` is

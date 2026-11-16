@@ -880,7 +880,9 @@ fn reports_nothing_for_a_record_not_affecting_alone() {
         &[component("pkg:cargo/time@0.1.43")],
         &[fixed_time_record("GHSA-M", &["CVE-2023-0009"])],
     );
-    assert_eq!(report, MatchReport::default());
+    assert_eq!(report.matches(), []);
+    assert_eq!(report.not_evaluated(), []);
+    assert_eq!(report.clean_count(), 1);
 }
 
 // spec: VMT-20, VMT-21
@@ -1181,4 +1183,22 @@ fn lists_a_record_with_an_empty_id_not_affecting_the_component() {
             record("RUSTSEC-A", "RUSTSEC")
         ]
     );
+}
+
+// spec: MCH-3 (internal: the count the report prints comes from the matching)
+#[test]
+fn counts_each_clean_component_at_its_place_beside_a_twin_not_evaluated() {
+    let twin = component("pkg:cargo/time@0.1.43");
+    let first_party = Component {
+        first_party: true,
+        ..twin.clone()
+    };
+    let affected = component("pkg:cargo/time@0.1.0");
+    let vulnerabilities = [semver(&[introduced("0"), fixed("0.1.1")])];
+
+    let report = match_components(&[first_party, twin, affected], &vulnerabilities);
+
+    assert_eq!(report.not_evaluated().len(), 1, "{report:?}");
+    assert_eq!(report.matches().len(), 1, "{report:?}");
+    assert_eq!(report.clean_count(), 1);
 }

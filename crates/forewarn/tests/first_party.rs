@@ -126,3 +126,46 @@ fn fetches_no_archive_for_an_ecosystem_only_first_party_components_use() {
         [("mod-a".to_owned(), "first-party".to_owned())]
     );
 }
+
+// spec: MCH-3
+#[test]
+fn a_first_party_module_listed_again_at_the_top_level_leaves_that_copy_clean() {
+    let records = TempDir::new().expect("a temporary directory");
+    let mod_a = json!({
+        "type": "library",
+        "name": "mod-a",
+        "version": "1.0",
+        "purl": "pkg:maven/org.example.forewarn/mod-a@1.0"
+    });
+    let mut document: Value =
+        serde_json::from_slice(&bom("1.6", &json!([mod_a.clone()]))).expect("JSON");
+    document["metadata"] = json!({"component": {
+        "type": "application",
+        "name": "parent",
+        "purl": "pkg:maven/org.example.forewarn/parent@1.0?type=pom",
+        "components": [mod_a]
+    }});
+    let sbom = document.to_string().into_bytes();
+
+    let run = run(
+        &[
+            "match",
+            "--no-kev",
+            "--no-euvd",
+            "--osv",
+            records.path().to_str().expect("UTF-8 path"),
+            "--format",
+            "json",
+            "-",
+        ],
+        Some(&sbom),
+    );
+
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let report = json_report(&run);
+    assert_eq!(
+        reasons(&report),
+        [("mod-a".to_owned(), "first-party".to_owned())]
+    );
+    assert_eq!(report["cleanCount"], json!(1));
+}
