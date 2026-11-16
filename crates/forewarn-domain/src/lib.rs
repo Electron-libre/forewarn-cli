@@ -9,7 +9,7 @@ pub mod deadlines;
 pub mod early_warning;
 pub mod exploited;
 pub mod matching;
-mod purl;
+pub mod purl;
 pub mod sbom;
 mod version;
 pub mod vulnerability;

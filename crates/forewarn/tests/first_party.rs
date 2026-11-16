@@ -92,6 +92,7 @@ fn fetches_no_archive_for_an_ecosystem_only_first_party_components_use() {
     document["metadata"] = json!({"component": {
         "type": "application",
         "name": "parent",
+        "purl": "pkg:maven/org.example.forewarn/parent@1.0?type=pom",
         "components": [{
             "type": "library",
             "name": "mod-a",

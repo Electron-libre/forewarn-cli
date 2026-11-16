@@ -596,17 +596,63 @@ fn flags_first_party_a_component_with_the_package_url_of_the_product() {
 
 // spec: SBR-14
 #[test]
-fn flags_first_party_the_components_nested_in_the_product_only() {
-    let sbom = with_nested_product(
-        &json!([
-            { "type": "library", "name": "serde", "bom-ref": "serde" },
+fn flags_first_party_the_components_nested_in_the_product_of_its_type_and_namespace() {
+    let mut document = bom(
+        "1.6",
+        &json!([{ "type": "library", "name": "dependency", "bom-ref": "dep", "purl": "pkg:maven/org.acme/dep@1.0" }]),
+    );
+    document["metadata"] = json!({ "component": application(&json!({
+        "purl": "pkg:maven/org.acme/app@1.0?type=pom",
+        "components": [
+            { "type": "library", "name": "dependency again", "bom-ref": "dep" },
+            { "type": "library", "name": "mod-a", "purl": "pkg:maven/org.acme/mod-a@1.0?type=jar", "components": [
+                { "type": "library", "name": "log4j-core", "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1" },
+                { "type": "library", "name": "acme npm", "purl": "pkg:npm/org.acme/mod-b@1.0" }
+            ] },
             { "type": "library", "name": "no purl" }
-        ]),
+        ]
+    })) });
+    let sbom = read(&document).expect("readable");
+    assert_eq!(
+        names(&sbom),
+        ["dependency", "mod-a", "log4j-core", "acme npm", "no purl"]
+    );
+    assert_eq!(first_party(&sbom), ["mod-a"]);
+}
+
+// spec: SBR-14
+#[test]
+fn flags_no_component_first_party_for_a_product_without_a_valid_package_url() {
+    for purl in [None, Some(""), Some("  "), Some("not a purl")] {
+        let mut product = json!({ "components": [
+            { "type": "library", "name": "nested", "purl": "pkg:cargo/nested@1.0" },
+            { "type": "library", "name": "blank", "purl": "" }
+        ] });
+        if let Some(purl) = purl {
+            product["purl"] = json!(purl);
+        }
+        let mut document = bom(
+            "1.6",
+            &json!([{ "type": "library", "name": "top blank", "purl": purl.unwrap_or("") }]),
+        );
+        document["metadata"] = json!({ "component": application(&product) });
+        let sbom = read(&document).expect("readable");
+        assert_eq!(first_party(&sbom), Vec::<&str>::new(), "{purl:?}");
+    }
+}
+
+// spec: SBR-14
+#[test]
+fn compares_the_package_urls_by_the_specification() {
+    let mut document = bom(
+        "1.6",
         &json!([
-            { "type": "library", "name": "serde again", "bom-ref": "serde" },
-            { "type": "library", "name": "a", "components": [{ "type": "library", "name": "a1" }] }
+            { "type": "library", "name": "encoded", "purl": " pkg:NPM/@acme/app@1.0#dist " },
+            { "type": "library", "name": "other", "purl": "pkg:npm/%40acme/lib@1.0" }
         ]),
     );
-    assert_eq!(names(&sbom), ["serde", "no purl", "a", "a1"]);
-    assert_eq!(first_party(&sbom), ["a", "a1"]);
+    document["metadata"] =
+        json!({ "component": application(&json!({ "purl": "pkg:npm/%40acme/app@1.0" })) });
+    let sbom = read(&document).expect("readable");
+    assert_eq!(first_party(&sbom), ["encoded"]);
 }

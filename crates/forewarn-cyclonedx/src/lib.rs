@@ -9,6 +9,7 @@ use cyclonedx_bom::models::component::Component as CdxComponent;
 use cyclonedx_bom::models::license::{LicenseChoice, LicenseIdentifier};
 use cyclonedx_bom::models::metadata::Metadata;
 use cyclonedx_bom::models::organization::{OrganizationalContact, OrganizationalEntity};
+use forewarn_domain::purl::PackageUrl;
 use forewarn_domain::sbom::{Component, Hash, Product, Sbom, SpecVersion};
 use serde_json::Value;
 
@@ -81,25 +82,17 @@ pub fn read_json(mut reader: impl Read) -> Result<Sbom, ReadError> {
     let bom = Bom::parse_json_value_with_version(document, cdx_version)
         .map_err(|e| ReadError::Invalid(e.to_string()))?;
     let in_product = bom.metadata.as_ref().and_then(|m| m.component.as_ref());
-    let product_purl = in_product
-        .and_then(|product| product.purl.as_ref())
-        .map(ToString::to_string);
-    let product_base = product_purl.as_deref().map(purl_base);
+    let product_package = in_product.and_then(|product| package(product.purl.as_ref()));
+    let product_purl = product_package.as_ref();
     let mut components = Vec::new();
     let mut read_refs = HashSet::new();
     if let Some(top) = &bom.components {
-        let place = Place::TopLevel;
-        flatten(&top.0, &mut components, &mut read_refs, place, product_base);
+        let (into, refs) = (&mut components, &mut read_refs);
+        flatten(&top.0, into, refs, Place::TopLevel, product_purl);
     }
     if let Some(nested) = in_product.and_then(|product| product.components.as_ref()) {
-        let place = Place::InProduct;
-        flatten(
-            &nested.0,
-            &mut components,
-            &mut read_refs,
-            place,
-            product_base,
-        );
+        let (into, refs) = (&mut components, &mut read_refs);
+        flatten(&nested.0, into, refs, Place::InProduct, product_purl);
     }
     Ok(Sbom {
         spec_version,
@@ -138,7 +131,7 @@ fn product(metadata: &Metadata) -> Option<Product> {
         version,
         purl,
         ..
-    } = to_domain(component);
+    } = to_domain(component, false);
     Some(Product {
         name,
         version,
@@ -166,25 +159,25 @@ fn first_name<'a>(
 enum Place {
     /// The top-level components, each kept (SBR-6).
     TopLevel,
-    /// The components nested in the product (SBR-13), each first-party (SBR-14): one whose `bom-ref` one already read
-    /// carries is skipped, and so is a target of the product.
+    /// The components nested in the product (SBR-13), first-party when of its type and namespace (SBR-14): one whose
+    /// `bom-ref` one already read carries is skipped, and so is a target of the product.
     InProduct,
 }
 
-/// A package URL without its qualifiers (`?`) and subpath (`#`): a target of a product keeps the base of its purl.
-fn purl_base(purl: &str) -> &str {
-    purl.split(['?', '#']).next().unwrap_or(purl)
+/// The package a package URL names, its qualifiers and subpath ignored; none for a blank or invalid one.
+fn package(purl: Option<&impl ToString>) -> Option<PackageUrl> {
+    PackageUrl::parse(purl?.to_string().trim()).ok()
 }
 
 /// Pushes each component, then its nested ones, depth first, recording the `bom-ref` of each in `read_refs`, a
-/// blank one identifying nothing; a component whose package URL has the base of the product's, `product_base` (see
-/// [`purl_base`]), is first-party (SBR-14), and a target of the product when nested in it.
+/// blank one identifying nothing. A component naming the package of the `product` is first-party, and a target of the
+/// product when nested in it; one nested in the product is also first-party when of its type and namespace (SBR-14).
 fn flatten<'a>(
     components: &'a [CdxComponent],
     into: &mut Vec<Component>,
     read_refs: &mut HashSet<&'a str>,
     place: Place,
-    product_base: Option<&str>,
+    product: Option<&PackageUrl>,
 ) {
     for component in components {
         let fresh = component
@@ -192,25 +185,27 @@ fn flatten<'a>(
             .as_deref()
             .filter(|bom_ref| !bom_ref.trim().is_empty())
             .is_none_or(|bom_ref| read_refs.insert(bom_ref));
-        let purl = component.purl.as_ref().map(ToString::to_string);
-        let of_product = product_base.is_some() && purl.as_deref().map(purl_base) == product_base;
+        let own = package(component.purl.as_ref());
+        let of_product = product.is_some() && own.as_ref() == product;
         let kept = match place {
             Place::TopLevel => true,
             Place::InProduct => fresh && !of_product,
         };
         if kept {
-            into.push(Component {
-                first_party: place == Place::InProduct || of_product,
-                ..to_domain(component)
-            });
+            let module = place == Place::InProduct
+                && own.zip(product).is_some_and(|(own, product)| {
+                    own.purl_type == product.purl_type && own.namespace == product.namespace
+                });
+            into.push(to_domain(component, of_product || module));
         }
         if let Some(nested) = &component.components {
-            flatten(&nested.0, into, read_refs, place, product_base);
+            flatten(&nested.0, into, read_refs, place, product);
         }
     }
 }
 
-fn to_domain(component: &CdxComponent) -> Component {
+/// The component of the domain, `first_party` or not (SBR-14).
+fn to_domain(component: &CdxComponent, first_party: bool) -> Component {
     Component {
         name: component.name.to_string(),
         version: component.version.as_ref().map(ToString::to_string),
@@ -245,7 +240,7 @@ fn to_domain(component: &CdxComponent) -> Component {
                 value: hash.content.0.clone(),
             })
             .collect(),
-        first_party: false,
+        first_party,
     }
 }
 

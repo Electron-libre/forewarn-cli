@@ -199,6 +199,7 @@ fn a_vendor_s_own_crate_is_not_sent_to_the_osv_api() {
     document["metadata"] = json!({"component": {
         "type": "application",
         "name": "shop",
+        "purl": "pkg:cargo/shop@1.0.0",
         "components": [component("time", "0.1.43", Some("pkg:cargo/time@0.1.43"))]
     }});
 

@@ -88,8 +88,10 @@ check and the matching work on the components and a report names the product.
   component already returned, and a target of the product, whose package URL is that of the product once the
   qualifiers (`?`) and the subpath (`#`) of both are removed.
 - **SBR-14** (deterministic) Each component read must say whether it is first-party, the vendor's own code: one
-  returned from the components nested in the product (SBR-13), and one whose package URL, its qualifiers (`?`) and
-  subpath (`#`) removed, is that of the product with them removed; every other component is not first-party.
+  whose package URL names the package of the product's (the same type, namespace, name and version, read by the
+  package URL specification, its qualifiers and subpath ignored), and one returned from the components nested in the
+  product (SBR-13) whose package URL has the type and the namespace of the product's, two without a namespace having
+  the same; every other component, and each one when the product has no valid package URL, is not first-party.
 
 ## Scenarios
 
@@ -155,8 +157,13 @@ check and the matching work on the components and a report names the product.
 - (SBR-14) Given an SBOM whose product has the package URL `pkg:maven/acme/app@1.0?type=pom` and a top-level component
   `pkg:maven/acme/app@1.0?type=jar`, when it is read, then that component is first-party; `pkg:maven/acme/app@2.0` and
   `pkg:maven/acme/lib@1.0` are not.
-- (SBR-14) Given an SBOM whose product has no package URL, when it is read, then only the components nested in it are
-  first-party.
+- (SBR-14) Given an SBOM whose product `pkg:maven/org.acme/app@1.0` nests `pkg:maven/org.acme/mod-a@1.0` and a
+  bundled `pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1`, when it is read, then `mod-a` is first-party and
+  `log4j-core` is not, so that it is still matched.
+- (SBR-14) Given an SBOM whose product has no package URL, or a blank or invalid one, when it is read, then no
+  component is first-party, nested ones included, and a component with a blank package URL is not.
+- (SBR-14) Given an SBOM whose product has the package URL `pkg:npm/%40acme/app@1.0` and a top-level component
+  `pkg:npm/@acme/app@1.0`, when it is read, then that component is first-party.
 - (SBR-14) Given an SBOM whose product nests a component whose `bom-ref` a top-level component carries, when it is
   read, then that component, returned at the top level, is not first-party.
 - (SBR-11) Given an SBOM that lists its product only in `metadata.component`, when it is read, then the product is
@@ -182,4 +189,6 @@ check and the matching work on the components and a report names the product.
 - Telling first-party code by a `file://` download URL (`cargo-cyclonedx` writes one for a path dependency, which may
   be a vendored copy of a published package), the group of the product, the `scope` or a property of a tool
   (`cdx:cargo:sourceKind`): only the place in the SBOM and the package URL of the product are read.
+- Telling a component bundled in the product from a module of it when their package URLs share the type and have no
+  namespace (a Cargo product nesting a vendored crate): the SBOM gives nothing else to tell them apart.
 - Reading the file from disk or standard input: the command line does.

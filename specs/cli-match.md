@@ -146,7 +146,7 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - (MCH-42) Given the SBOM `cdxgen` generated for a Maven project of two modules and a directory of OSV records naming
   its module `mod-a` 1.0, when it is matched with `--osv`, then no component is affected and both modules are printed
   not evaluated, first-party.
-- (MCH-42) Given an SBOM whose only component is nested in the product, an empty cache and `--refresh offline`, when
+- (MCH-42) Given an SBOM whose only component is a module nested in the product, an empty cache and `--refresh offline`, when
   it is matched, then no archive is read and the command exits with 0.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.

@@ -58,6 +58,9 @@ its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx
    (so `ecosystems`/`packages` of `main.rs` skip them with no change there), `"first-party"` in both reports;
    verified by a domain test and a new `crates/forewarn/tests/first_party.rs` (the `--osv-api` mirror sees no module,
    `--osv` records naming `mod-a` give no match); makes true VMT-10, MCH-16, MCH-42, MCH-H4. (autonomous)
+3. [x] Fixes of the `high` review: SBR-14 narrowed to the nested components of the product's purl type and
+   namespace, purls compared parsed (`forewarn_domain::purl` made public), a blank or invalid purl names nothing,
+   `to_domain` takes `first_party`; verified by `reading.rs`; makes true SBR-14. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -66,6 +69,10 @@ its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx
   dependency may be a vendored copy of a published crate).
 - First-party components are kept out of the whole match, reported not evaluated `first-party`.
 - No flag to match them anyway (non-goal of MCH).
+- After the `high` review (validated by the user, `ok`): a component nested in the product is first-party only when
+  its purl has the type and namespace of the product's, so that a bundled third-party library is still matched; no
+  first-party component when the product has no valid purl. Finding 6 (`clean_count` by `ComponentRef`) filed as
+  `issues/count_each_component_once_in_the_clean_count.md`.
 - New CLI tests go in `crates/forewarn/tests/first_party.rs`: `tests/matching.rs` is over the file size limit.
 - Code review: 1 findings: `first_party` not read by matching yet; it is deliverable 2 of this plan, not fixed here.
 
@@ -77,3 +84,10 @@ its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx
 - red: MCH-42, MCH-H4: `left: 1 right: 0` (exit code, `time` queried), `"Maven": not cached ... offline` (exit 5);
   VMT-10: `no variant FirstParty`.
 - Code review: no findings
+
+## Deliverable 3
+- done: high-review fixes: findings 1, 3, 5, 7, 8 fixed; 2 and 4 kept out by decision 1a (a top-level duplicate or
+  a child of the top-level product copy stays matched); 6 filed as an issue.
+- checks: project-check green; specs accepted, traced; docs: README, CLAUDE.md.
+- red: SBR-14: `left: [] right: ["encoded"]`, `left: ["nested", "blank"] right: []` (product without purl).
+- Code review: 1 findings: a nested crate of a namespace-less product (Cargo) is flagged first-party; kept, the non-goal of SBR-14 validated with decision 1a.

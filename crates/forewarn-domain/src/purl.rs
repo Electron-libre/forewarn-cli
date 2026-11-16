@@ -3,24 +3,28 @@
 
 /// The parts of a package URL; its qualifiers and subpath are dropped.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct PackageUrl {
+pub struct PackageUrl {
     /// The type, in lower case (`cargo`, `npm`…).
-    pub(crate) purl_type: String,
+    pub purl_type: String,
     /// The namespace segments, percent-decoded, joined by `/`; empty when there is none.
-    pub(crate) namespace: String,
+    pub namespace: String,
     /// The name, percent-decoded.
-    pub(crate) name: String,
+    pub name: String,
     /// The version, percent-decoded.
-    pub(crate) version: Option<String>,
+    pub version: Option<String>,
 }
 
 /// The package URL does not follow the specification.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct InvalidPackageUrl;
+pub struct InvalidPackageUrl;
 
 impl PackageUrl {
     /// Reads a package URL: `pkg:type/namespace/name@version?qualifiers#subpath`.
-    pub(crate) fn parse(purl: &str) -> Result<Self, InvalidPackageUrl> {
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidPackageUrl`] when it does not follow the specification.
+    pub fn parse(purl: &str) -> Result<Self, InvalidPackageUrl> {
         let (scheme, rest) = purl.split_once(':').ok_or(InvalidPackageUrl)?;
         if !scheme.eq_ignore_ascii_case("pkg") {
             return Err(InvalidPackageUrl);
