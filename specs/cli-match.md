@@ -192,8 +192,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - (MCH-1, MCH-16) Given a directory holding `RUSTSEC-2020-0071` affecting `time` 0.1.43 and its `GHSA` mirror fixed at
   0.1.40, when the SBOM is matched, then the human report prints `affected per RUSTSEC-2020-0071 from RUSTSEC;
   not affected per GHSA-… from GHSA` and the JSON report gives the mirror `"affects": false`.
-- (MCH-1) Given records of one vulnerability that affect a component, do not affect it and could not be evaluated,
-  when the human report prints the match, then the three groups appear in that order, each record under its own.
+- (MCH-1) Given records of one vulnerability that affect a component and two records that could not be evaluated, none
+  that does not affect it, when the human report prints the match, then it prints `affected per …; not evaluated per`
+  and the two records separated by `, `, with no `not affected per`.
 - (MCH-24) Given a component `pkg:golang/github.com/x/y@v1.2.3`, when it is matched with `--osv-api`, then the
   `querybatch` request names the `Go` package `github.com/x/y` at version `1.2.3`.
 - (MCH-24) Given an SBOM whose components have no package URL, when it is matched with `--osv-api`, then the API is

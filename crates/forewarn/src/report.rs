@@ -372,23 +372,14 @@ fn push_download(text: &mut String, freshness: &Freshness) {
 /// Pushes the records of a match grouped under the status each gives, in the order affected, not affected, not
 /// evaluated, each group left out when empty (MCH-1).
 fn push_records_by_status(text: &mut String, records: &[RecordRef]) {
-    let groups = [
-        (RecordStatus::Affects, "affected per "),
-        (RecordStatus::DoesNotAffect, "not affected per "),
-        (RecordStatus::NotEvaluated, "not evaluated per "),
-    ];
+    let mut sorted: Vec<&RecordRef> = records.iter().collect();
+    // A stable sort: the records of a group keep their order (VMT-18).
+    sorted.sort_by_key(|record| status_group(record.status).0);
     let mut separator = ", ";
-    for (status, label) in groups {
-        let mut grouped = records
-            .iter()
-            .filter(|record| record.status == status)
-            .peekable();
-        if grouped.peek().is_none() {
-            continue;
-        }
+    for group in sorted.chunk_by(|a, b| a.status == b.status) {
         text.push_str(separator);
-        text.push_str(label);
-        for (i, record) in grouped.enumerate() {
+        text.push_str(status_group(group[0].status).1);
+        for (i, record) in group.iter().enumerate() {
             if i > 0 {
                 text.push_str(", ");
             }
@@ -397,6 +388,15 @@ fn push_records_by_status(text: &mut String, records: &[RecordRef]) {
             push_escaped(text, &record.source);
         }
         separator = "; ";
+    }
+}
+
+/// The rank and the label of the group of records of a status (MCH-1).
+fn status_group(status: RecordStatus) -> (u8, &'static str) {
+    match status {
+        RecordStatus::Affects => (0, "affected per "),
+        RecordStatus::DoesNotAffect => (1, "not affected per "),
+        RecordStatus::NotEvaluated => (2, "not evaluated per "),
     }
 }
 

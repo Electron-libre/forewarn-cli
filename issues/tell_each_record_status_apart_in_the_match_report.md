@@ -56,6 +56,8 @@ match. Out of scope: the JSON report (already one boolean per record) and the ma
 1. [x] Group the records by status: `report.rs` prints each group under its label, in that order, empty groups left
    out; verified by `crates/forewarn/tests/matching.rs` (the mixed-status test and the strings that quote
    `records …`); makes true MCH-1 as amended. (autonomous)
+2. [x] Fixes of the `high` review: exhaustive grouping, a test and a scenario of an omitted group, the README;
+   verified by `crates/forewarn/tests/matching.rs`; makes true MCH-1. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -70,3 +72,17 @@ match. Out of scope: the JSON report (already one boolean per record) and the ma
 - Code review: 1 finding: the doc comment of `push_evidence` sat above the new function, moved back; fixed.
 - not verified: none; decisions needed: none.
 - Docs: README.md (the `match` paragraph); CLAUDE.md n/a (does not describe the record format).
+
+## Deliverable 2
+- done: fixes of the `high` review: the records grouped through an exhaustive `match` of their status (a new status
+  cannot be dropped silently), a test and a scenario of MCH-1 for a group left out and a group of two records, the
+  README span unwrapped.
+- red: none (MCH-1: the new test guards the behaviour of deliverable 1, it passed at once).
+- Code review: no findings
+- not verified: none; decisions needed: none.
+- Docs: README.md (wrapping).
+- High review: 7 findings. Fixed: 2 (exhaustiveness), 3 (test of an omitted group), 5 (the scenario now describes an
+  omitted group), 7 (README). Not fixed: 1 (`; ` or a label inside a record id or source can fake a status: the same
+  held for ` (does not affect)` before; the reports escape hiding characters only, not punctuation, by decision of
+  `widen_the_escaping_of_the_writers`); 4 (`, ` inside an alias or id: the human report is not meant to be parsed,
+  the JSON report is); 6 (a blank record id prints empty: unchanged since VMT-30, outside MCH-1).

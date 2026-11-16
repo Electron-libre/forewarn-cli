@@ -618,29 +618,36 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
     );
 }
 
+/// A mirror of `RUSTSEC-2020-0071` for `time` with the given ranges.
+fn time_mirror(id: &str, ranges: &Value) -> Value {
+    json!({
+        "id": id,
+        "aliases": ["RUSTSEC-2020-0071"],
+        "affected": [{"package": {"ecosystem": "crates.io", "name": "time"}, "ranges": ranges}],
+    })
+}
+
+/// A mirror of `RUSTSEC-2020-0071` for `time` whose only range is a `GIT` range, not evaluated.
+fn time_git_mirror(id: &str) -> Value {
+    time_mirror(
+        id,
+        &json!([{"type": "GIT", "repo": "https://example.com/time", "events": [{"introduced": "abc"}]}]),
+    )
+}
+
+fn rustsec_2020_0071() -> Value {
+    serde_json::from_slice(&fs::read(osv_fixture("RUSTSEC-2020-0071.json")).expect("the fixture"))
+        .expect("the fixture is JSON")
+}
+
 // spec: MCH-1, MCH-16
 #[test]
 fn groups_the_records_of_a_match_under_their_status() {
-    let mirror = |id: &str, ranges: Value| {
-        json!({
-            "id": id,
-            "aliases": ["RUSTSEC-2020-0071"],
-            "affected": [{"package": {"ecosystem": "crates.io", "name": "time"}, "ranges": ranges}],
-        })
-    };
-    let fixed = mirror(
+    let fixed = time_mirror(
         "GHSA-fixed",
-        json!([{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "0.1.40"}]}]),
+        &json!([{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "0.1.40"}]}]),
     );
-    let git = mirror(
-        "GHSA-git",
-        json!([{"type": "GIT", "repo": "https://example.com/time", "events": [{"introduced": "abc"}]}]),
-    );
-    let rustsec: Value = serde_json::from_slice(
-        &fs::read(osv_fixture("RUSTSEC-2020-0071.json")).expect("the fixture"),
-    )
-    .expect("the fixture is JSON");
-    let osv = records(&[rustsec, fixed, git]);
+    let osv = records(&[rustsec_2020_0071(), fixed, time_git_mirror("GHSA-git")]);
     let input = three_components();
     let human = run(
         &[
@@ -681,6 +688,35 @@ fn groups_the_records_of_a_match_under_their_status() {
             {"id": "GHSA-git", "source": "GHSA", "affects": null},
             {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true},
         ])
+    );
+}
+
+// spec: MCH-1
+#[test]
+fn leaves_out_the_status_no_record_gives() {
+    let osv = records(&[
+        rustsec_2020_0071(),
+        time_git_mirror("GHSA-git-a"),
+        time_git_mirror("GHSA-git-b"),
+    ]);
+    let human = run(
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--osv",
+            path(osv.path()),
+            "-",
+        ],
+        Some(&three_components()),
+    );
+    assert!(
+        human.stdout.contains(
+            "affected per RUSTSEC-2020-0071 from RUSTSEC; \
+             not evaluated per GHSA-git-a from GHSA, GHSA-git-b from GHSA\n"
+        ),
+        "{}",
+        human.stdout
     );
 }
 
