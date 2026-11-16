@@ -10,7 +10,8 @@ on:
 
 concurrency:
   group: check-${{ github.ref }}
-  cancel-in-progress: true
+  # A push to main keeps its run: each commit of main gets its result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -28,10 +29,11 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # The check_command does not pass --locked: refuse a Cargo.lock out of date before it runs.
+      - run: cargo fetch --locked
       - name: Run the check_command of .claude/cardinal.toml
         run: |
-          command=$(sed -n 's/^check_command = "\(.*\)"$/\1/p' .claude/cardinal.toml)
-          if [ -z "$command" ]; then echo "no check_command in .claude/cardinal.toml" >&2; exit 1; fi
+          command=$(python3 -c 'import tomllib; print(tomllib.load(open(".claude/cardinal.toml", "rb"))["project"]["check_command"])')
           echo "$command"
           sh -c "$command"
 
@@ -40,7 +42,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.89
+      - name: Read the rust-version of Cargo.toml
+        id: msrv
+        run: |
+          python3 -c 'import tomllib; print("version=" + tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])' >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --all-targets --locked
 
@@ -49,11 +57,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # Windows waits for issues/support_windows_paths.md.
+        os: [macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      # The fixtures and the expected reports are compared byte for byte: keep their line endings.
-      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2

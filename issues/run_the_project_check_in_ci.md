@@ -57,6 +57,8 @@ cache. Out of scope: `cargo deny` (its own issue), publishing, releases.
 - Tests on macOS and Windows (`cargo test --locked`) besides the full check on Linux.
 - MSRV: `cargo check --all-targets --locked` on 1.89, verified locally before the commit.
 - `cargo deny` (licenses, advisories): its own issue.
+- Windows out of the CI until `support_windows_paths` (the `high` review: the CLI doubles the backslashes of the
+  paths it prints, and two tests create names Windows refuses); validated by the user on 2026-11-16.
 
 ## Summary of deliverable 1
 - done: `.github/workflows/check.yml` (jobs `check`, `msrv`, `test` on macOS and Windows); `CLAUDE.md` names it.
@@ -66,3 +68,13 @@ cache. Out of scope: `cargo deny` (its own issue), publishing, releases.
 - Code review: no findings
 - not verified: `actionlint` (its container was refused locally); the macOS and Windows jobs (a cross build for
   Windows needs a MinGW compiler for `ring`): the first run on GitHub tells.
+
+## Summary of deliverable 2
+- done: the fixes of the `high` review (8 findings): the 3 on Windows, and the one on the untested Windows job, go to
+  `support_windows_paths` (Windows out of the matrix); `tomllib` reads `check_command` and `rust-version`;
+  `cargo fetch --locked` before the check; `cancel-in-progress` on pull requests only.
+- checks: project check; both `tomllib` reads and `cargo fetch --locked` run locally; the YAML parses.
+- red: none (CI configuration, no test).
+- Code review: no findings
+- not verified: the macOS job (temporary directories under a symlinked `/var`) and `actionlint`: the first run on
+  GitHub tells.
