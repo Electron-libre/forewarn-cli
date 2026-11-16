@@ -31,3 +31,30 @@ MCH-18); the Markdown writer does not. Make each escape of EWD-16 read different
 # Resources
 * `crates/forewarn/src/early_warning.rs` (`push_escaped`), `crates/forewarn/src/escape.rs`.
 * `issues/done/widen_the_escaping_of_the_writers.md` (how the reports settled the same ambiguity).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+A backslash of a value is written `\\\\` in the draft, rendered `\\`, as the reports print it (CHK-14): the text
+`\u{202e}` then reads `\\u{202e}`, a real U+202E `\u{202e}`. Candidates 2 and 3 of the issue (code span, named marker)
+are left out: they would make the draft and the reports disagree.
+
+## Plan
+1. [x] Double the backslash of a value in the draft: `early_warning::push_escaped` writes a literal backslash as
+   `\\\\`; verified by a test of `tests/drafts.rs` on a component named with the text `\u{202e}` and a real U+202E;
+   makes true EWD-16 (amended). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- 1 a: a backslash doubled, as CHK-14.
+- Base commit: 57c0d889cc605d29adbf20549cccd0110e199d9c
+
+## Summary of deliverable 1
+- done: a backslash of a value is written `\\\\` in the draft (read `\\`), so the text `\u{202e}` reads apart from a
+  real U+202E; EWD-16 and its scenario amended, the spec `accepted` again; ADR 0013 says so.
+- red: EWD-16: the draft held `a\\u\{202e\}b\\u\{202e\}c`, the text typed and the escape alike.
+- Code review: no findings (low).
+- not verified: none.
+- decisions needed: none.

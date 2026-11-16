@@ -25,8 +25,9 @@ render the same draft, but no such consumer exists yet.
   ticket.
 - **Every value from the SBOM or a feed is escaped**: each ASCII punctuation character is preceded by a backslash
   (CommonMark allows it before any of them), each control character and each bidirectional or invisible formatting
-  character is written as its escape, and a leading space as `&#32;`, so a component name cannot open a list item, a
-  heading, a code block, a link or HTML, nor reorder or hide the text a person copies into the form.
+  character is written as its escape, a backslash of the value is doubled (read `\\`, as in the reports), and a
+  leading space as `&#32;`, so a component name cannot open a list item, a heading, a code block, a link or HTML, nor
+  reorder or hide the text a person copies into the form, nor pass for an escape.
 - **No JSON form**: no reader of it was found; the JSON report of `forewarn match` already serves a machine.
 
 ## Consequences

@@ -85,8 +85,9 @@ document a person copies into the ENISA Single Reporting Platform form.
   available, with no date (RDL-4).
 - **EWD-16** (deterministic) A value of the SBOM or of a list written into a draft must have each ASCII punctuation
   character preceded by a backslash, each control character written as its escape (`\n`, `\u{1b}`), each character
-  that hides or reorders text as its Unicode escape (`\u{202e}`) and each leading space as `&#32;`, so that it reads
-  as its text and forges no line, list item, code block, emphasis, link or HTML. The characters that hide or reorder
+  that hides or reorders text as its Unicode escape (`\u{202e}`), each backslash of the value read as `\\`, and each
+  leading space as `&#32;`, so that it reads as its text, each escape reads back to one value as CHK-14 does, and it
+  forges no line, list item, code block, emphasis, link or HTML. The characters that hide or reorder
   text are, in Unicode 16.0, the Default_Ignorable_Code_Point characters (the bidi controls, the joiners U+200C and
   U+200D, the Hangul fillers, the variation selectors and the tag characters among them), the White_Space characters
   other than the space U+0020 (U+00A0, U+2000 to U+200A, U+2028, U+2029, U+3000 among them), the characters whose
@@ -162,6 +163,8 @@ document a person copies into the ENISA Single Reporting Platform form.
   is written, then its version shows `\u{e0041}` and `\u{3164}`, escaped.
 - (EWD-16) Given a component whose name holds U+3000 IDEOGRAPHIC SPACE and U+2800 BRAILLE PATTERN BLANK, when the draft
   is written, then its name shows `\u{3000}` and `\u{2800}`, escaped.
+- (EWD-16) Given a component whose name holds the text `\u{202e}`, a backslash followed by `u{202e}`, when the draft is
+  written, then it reads `\\u{202e}` once rendered, unlike a name holding a real U+202E, which reads `\u{202e}`.
 - (EWD-16) Given a component named `log4j` U+13441 EGYPTIAN HIEROGLYPH FULL BLANK `-core`, when the draft is written,
   then its name shows `\u{13441}`, escaped.
 - (EWD-16) Given a component named `log4j` U+1D159 MUSICAL SYMBOL NULL NOTEHEAD `-core`, when the draft is written,

@@ -180,8 +180,9 @@ fn push_component(text: &mut String, affected: &AffectedComponent) {
 
 /// Pushes a value of the SBOM or of a feed so that Markdown reads it as its text (EWD-16): a backslash before each
 /// ASCII punctuation character, each control character written as its escape (`\n`, `\u{1b}`) and each character
-/// that hides or reorders text as its Unicode escape (`\u{202e}`), those escapes themselves escaped, and each
-/// leading space as `&#32;`, which no list item reads as an indented code block.
+/// that hides or reorders text as its Unicode escape (`\u{202e}`), those escapes themselves escaped, each backslash
+/// of the value as `\\\\` (read `\\`, so that each escape reads back to one value) and each leading space as `&#32;`,
+/// which no list item reads as an indented code block.
 fn push_escaped(text: &mut String, value: &str) {
     let trimmed = value.trim_start_matches(' ');
     for _ in 0..value.len() - trimmed.len() {
@@ -194,7 +195,13 @@ fn push_escaped(text: &mut String, value: &str) {
         text.push(c);
     };
     for c in trimmed.chars() {
-        escape::escape_char(c, &mut push);
+        if c == '\\' {
+            // Pushed twice, written `\\\\` and read `\\`: apart from the backslash opening an escape.
+            push(c);
+            push(c);
+        } else {
+            escape::escape_char(c, &mut push);
+        }
     }
 }
 
