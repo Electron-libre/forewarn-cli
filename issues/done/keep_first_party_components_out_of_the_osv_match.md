@@ -34,7 +34,7 @@ at least out of the OSV API queries.
 
 # Resources
 * `crates/forewarn-cyclonedx/src/lib.rs` (`flatten`, `purl_base`), `specs/sbom-reading.md` (SBR-11, SBR-13).
-* ADR [0006](../docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md): what the OSV API sends out.
+* ADR [0006](../../docs/adr/0006-query-the-osv-api-as-an-opt-in-source.md): what the OSV API sends out.
 
 # Hints
 * A first-party component still belongs in the completeness check: the CRA asks a supplier and a hash of it too.
@@ -91,3 +91,5 @@ its purl; `syft` lists it with no purl (already not evaluated); `cargo-cyclonedx
 - checks: project-check green; specs accepted, traced; docs: README, CLAUDE.md.
 - red: SBR-14: `left: [] right: ["encoded"]`, `left: ["nested", "blank"] right: []` (product without purl).
 - Code review: 1 findings: a nested crate of a namespace-less product (Cargo) is flagged first-party; kept, the non-goal of SBR-14 validated with decision 1a.
+
+Done: every deliverable committed; the user agreed to close on 2026-11-16.
