@@ -467,7 +467,7 @@ fn a_component_name_that_hides_text_or_forges_markdown_is_written_escaped() {
 #[test]
 fn a_backslash_typed_in_the_sbom_reads_apart_from_an_escaped_character() {
     let mut bom: Value = serde_json::from_slice(&shop()).expect("JSON");
-    bom["components"][0]["name"] = json!("a\\u{202e}b\u{202e}c");
+    bom["components"][0]["name"] = json!("a\\u{202e}b\u{202e}c\\*");
     let bom = serde_json::to_vec(&bom).expect("the SBOM serializes");
     let out = TempDir::new().expect("a temporary directory");
 
@@ -475,9 +475,9 @@ fn a_backslash_typed_in_the_sbom_reads_apart_from_an_escaped_character() {
 
     assert_eq!(run.code, 6, "{}", run.stderr);
     let draft = fs::read_to_string(out.path().join(DRAFT)).expect("the draft is written");
-    // Rendered: `a\\u{202e}b\u{202e}c`, the text typed apart from the escape.
+    // Rendered: `a\\u{202e}b\u{202e}c\\*`, the text typed apart from the escape, no emphasis opened.
     assert!(
-        draft.contains("\n  - a\\\\\\\\u\\{202e\\}b\\\\u\\{202e\\}c 2\\.14\\.1, "),
+        draft.contains("\n  - a\\\\\\\\u\\{202e\\}b\\\\u\\{202e\\}c\\\\\\\\\\* 2\\.14\\.1, "),
         "{draft}"
     );
 }

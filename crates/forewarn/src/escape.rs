@@ -3,9 +3,12 @@
 
 /// Passes `c` to `push`, or its escape when it is a control character (`\n`, `\u{1b}`) or a character that hides or
 /// reorders text (`\u{202e}`), so that it cannot forge a line or a terminal sequence, nor reorder or hide the text
-/// around it. The backslash passes: the reports escape it (`push_escaped`), the draft as Markdown punctuation (EWD-16).
+/// around it, and a backslash twice, so that each escape reads back to one value (CHK-14, MCH-18, EWD-16).
 pub fn escape_char(c: char, mut push: impl FnMut(char)) {
-    if c.is_control() {
+    if c == '\\' {
+        push(c);
+        push(c);
+    } else if c.is_control() {
         c.escape_default().for_each(push);
     } else if hides_text(c) {
         c.escape_unicode().for_each(push);
@@ -14,15 +17,10 @@ pub fn escape_char(c: char, mut push: impl FnMut(char)) {
     }
 }
 
-/// Pushes `value` with each of its characters escaped as `escape_char` does and each backslash as `\\`, so that each
-/// escape reads back to one value (CHK-14, MCH-18).
+/// Pushes `value` with each of its characters escaped as `escape_char` does.
 pub fn push_escaped(text: &mut String, value: &str) {
     for c in value.chars() {
-        if c == '\\' {
-            text.push_str("\\\\");
-        } else {
-            escape_char(c, |e| text.push(e));
-        }
+        escape_char(c, |e| text.push(e));
     }
 }
 

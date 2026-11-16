@@ -45,6 +45,9 @@ are left out: they would make the draft and the reports disagree.
 1. [x] Double the backslash of a value in the draft: `early_warning::push_escaped` writes a literal backslash as
    `\\\\`; verified by a test of `tests/drafts.rs` on a component named with the text `\u{202e}` and a real U+202E;
    makes true EWD-16 (amended). (autonomous)
+2. [x] Fixes of the `high` review: `escape::escape_char` doubles the backslash for the reports and the draft alike,
+   its doc no longer says the draft treats it as punctuation only; the binary test also sends `\*`; verified by
+   `cargo test`; makes true EWD-16, CHK-14, MCH-18. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -56,5 +59,14 @@ are left out: they would make the draft and the reports disagree.
   real U+202E; EWD-16 and its scenario amended, the spec `accepted` again; ADR 0013 says so.
 - red: EWD-16: the draft held `a\\u\{202e\}b\\u\{202e\}c`, the text typed and the escape alike.
 - Code review: no findings (low).
+- not verified: none.
+- decisions needed: none.
+
+## Summary of deliverable 2
+- done: the doubling of the backslash moved into `escape::escape_char`, shared by the reports and the draft; the
+  binary test of EWD-16 also sends a backslash before `*`.
+- red: none (a refactor under the green tests, a stronger assertion).
+- Code review: no findings (low). Of the 4 findings of the `high` review, 3 fixed here; the one that a copied
+  backslash reads `\\` in the form is the decision 1 a, as in the reports: not changed.
 - not verified: none.
 - decisions needed: none.

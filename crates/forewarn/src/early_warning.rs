@@ -195,13 +195,7 @@ fn push_escaped(text: &mut String, value: &str) {
         text.push(c);
     };
     for c in trimmed.chars() {
-        if c == '\\' {
-            // Pushed twice, written `\\\\` and read `\\`: apart from the backslash opening an escape.
-            push(c);
-            push(c);
-        } else {
-            escape::escape_char(c, &mut push);
-        }
+        escape::escape_char(c, &mut push);
     }
 }
 
