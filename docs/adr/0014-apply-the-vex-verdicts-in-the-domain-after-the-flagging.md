@@ -1,6 +1,6 @@
 # 0014. Apply the VEX verdicts in the domain, after the flagging, components known by their `bom-ref`
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-16
 
 ## Context
@@ -17,8 +17,10 @@ vulnerabilities names, then computes deadlines and drafts early warnings from th
 - **The adapter reads the verdicts into domain types** (`forewarn_domain::vex::Verdict`: ids, targets, state,
   justification, detail), from the SBOM (`read_json` returns them beside the components) and from a VEX document
   (`read_vex_json`). The `cyclonedx-bom` types stay in the adapter.
-- **A component carries its `bom-ref`** into the domain (`Component`, `ComponentRef`), the only key a verdict names a
-  component by. A BOM-Link target is reduced to its `bom-ref` by the adapter.
+- **A component carries its `bom-ref`** into the domain (`Component`, `ComponentRef`), the key a verdict names a
+  component by. The domain reduces a BOM-Link target to its `bom-ref`, whatever its serial number, and lets a target
+  that is no component's `bom-ref` name a component by its package URL, for a VEX written by hand against the opaque
+  `bom-ref`s of `syft`.
 - **The domain applies the verdicts to the flagged report**, after `flag_exploited`: the matches set aside keep their
   evidence, so the report says when a vendor set aside an actively exploited vulnerability, and the deadlines and the
   drafts, built from the matches left, need no change.
@@ -28,5 +30,5 @@ vulnerabilities names, then computes deadlines and drafts early warnings from th
 
 - A rule on verdicts (a new state, CSAF VEX or OpenVEX read by another adapter) touches the domain module `vex` and an
   adapter, never the matching, the flagging, the deadlines or the drafts.
-- A verdict can name a component only when the SBOM gives it a `bom-ref`; the tools named in SBR-4 all write one.
+- A verdict names a component by its `bom-ref` or its package URL; the tools named in SBR-4 all write a `bom-ref`.
 - The flagged report grows a list of matches set aside, which the report formats print.

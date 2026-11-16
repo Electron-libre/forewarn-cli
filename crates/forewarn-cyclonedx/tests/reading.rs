@@ -73,6 +73,7 @@ fn maps_the_fields_of_a_component() {
         "1.6",
         &json!([{
             "type": "library",
+            "bom-ref": "serde-ref",
             "name": "serde",
             "version": "1.0.228",
             "purl": "pkg:cargo/serde@1.0.228",
@@ -97,6 +98,7 @@ fn maps_the_fields_of_a_component() {
                 name: "serde".into(),
                 version: Some("1.0.228".into()),
                 purl: Some("pkg:cargo/serde@1.0.228".into()),
+                bom_ref: Some("serde-ref".into()),
                 supplier: Some("Serde Team".into()),
                 manufacturer: Some("Serde Foundry".into()),
                 authors: vec![

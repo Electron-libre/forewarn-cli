@@ -229,6 +229,7 @@ mod tests {
                     name: "log4j-core".to_owned(),
                     version: Some("2.14.1".to_owned()),
                     purl: Some("pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1".to_owned()),
+                    bom_ref: None,
                 },
                 vulnerability: "GHSA-jfh8-c2jp-5v3q".to_owned(),
             }],

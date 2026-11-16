@@ -14,6 +14,17 @@ fn read_fixture(name: &str) -> Sbom {
     read_json(file).unwrap_or_else(|e| panic!("{name}: {e}"))
 }
 
+/// The components, their `bom-ref` left out: the tests of SBR-16 check it.
+fn without_bom_refs(sbom: &Sbom) -> Vec<Component> {
+    sbom.components
+        .iter()
+        .map(|c| Component {
+            bom_ref: None,
+            ..c.clone()
+        })
+        .collect()
+}
+
 fn sha256(value: &str) -> Hash {
     Hash {
         algorithm: "SHA-256".into(),
@@ -40,7 +51,7 @@ fn reads_the_sbom_of_syft() {
     assert_eq!(sbom.spec_version, SpecVersion::new(1, 6));
     assert!(!sbom.spec_version.is_below_bsi_minimum());
     assert_eq!(
-        sbom.components,
+        without_bom_refs(&sbom),
         vec![
             crate_component("itoa", "1.0.19"),
             Component {
@@ -119,7 +130,7 @@ fn reads_the_sbom_of_cargo_cyclonedx_without_the_target_nested_in_its_product() 
         ..crate_component(name, version)
     };
     assert_eq!(
-        sbom.components,
+        without_bom_refs(&sbom),
         vec![
             dependency("itoa", "1.0.19", ITOA_SHA256),
             dependency("semver", "1.0.28", SEMVER_SHA256),
@@ -133,7 +144,7 @@ fn reads_the_sbom_of_cdxgen() {
     let sbom = read_fixture("cdxgen.cdx.json");
     assert_eq!(sbom.spec_version, SpecVersion::new(1, 7));
     assert_eq!(
-        sbom.components,
+        without_bom_refs(&sbom),
         vec![
             Component {
                 hashes: vec![sha256(ITOA_SHA256)],
@@ -173,7 +184,7 @@ fn reads_the_modules_cdxgen_nests_in_the_product_of_a_maven_project() {
         ..c
     };
     assert_eq!(
-        sbom.components,
+        without_bom_refs(&sbom),
         vec![
             apache(maven_component("commons-io", "commons-io", "2.7")),
             apache(maven_component("commons-io", "commons-io", "2.6")),
@@ -187,4 +198,28 @@ fn reads_the_modules_cdxgen_nests_in_the_product_of_a_maven_project() {
             "pkg:maven/org.example.forewarn/parent@1.0?type=pom".into()
         ))
     );
+}
+
+// spec: SBR-16, SBR-4
+#[test]
+fn reads_the_bom_ref_each_tool_writes() {
+    for (fixture, bom_ref) in [
+        (
+            "syft.cdx.json",
+            "pkg:cargo/itoa@1.0.19?package-id=18c5dfbc30629021",
+        ),
+        ("cdxgen.cdx.json", "pkg:cargo/itoa@1.0.19"),
+        (
+            "cargo-cyclonedx.cdx.json",
+            "registry+https://github.com/rust-lang/crates.io-index#itoa@1.0.19",
+        ),
+    ] {
+        let sbom = read_fixture(fixture);
+        assert_eq!(sbom.components[0].name, "itoa", "{fixture}");
+        assert_eq!(
+            sbom.components[0].bom_ref.as_deref(),
+            Some(bom_ref),
+            "{fixture}"
+        );
+    }
 }

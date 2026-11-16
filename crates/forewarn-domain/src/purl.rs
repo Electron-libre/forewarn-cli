@@ -81,7 +81,7 @@ fn is_valid_type(purl_type: &str) -> bool {
 }
 
 /// Percent-decodes a segment into UTF-8.
-fn decode(segment: &str) -> Result<String, InvalidPackageUrl> {
+pub(crate) fn decode(segment: &str) -> Result<String, InvalidPackageUrl> {
     let bytes = segment.as_bytes();
     let mut decoded = Vec::with_capacity(bytes.len());
     let mut i = 0;

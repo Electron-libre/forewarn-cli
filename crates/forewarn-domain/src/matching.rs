@@ -84,6 +84,8 @@ pub struct ComponentRef {
     pub name: String,
     pub version: Option<String>,
     pub purl: Option<String>,
+    /// The `bom-ref`, by which a VEX verdict names the component (`specs/vex-verdicts.md`, VEX-7).
+    pub bom_ref: Option<String>,
 }
 
 impl From<&Component> for ComponentRef {
@@ -92,6 +94,7 @@ impl From<&Component> for ComponentRef {
             name: component.name.clone(),
             version: component.version.clone(),
             purl: component.purl.clone(),
+            bom_ref: component.bom_ref.clone(),
         }
     }
 }

@@ -120,6 +120,7 @@ fn reports_a_crate_in_a_vulnerable_range() {
                 name: "time".into(),
                 version: None,
                 purl: Some("pkg:cargo/time@0.1.43".into()),
+                bom_ref: None,
             },
             id: "CVE-2020-26235".into(),
             aliases: vec!["GHSA-wcg3-cvx6-7396".into(), "RUSTSEC-2020-0071".into()],
@@ -149,6 +150,7 @@ fn reports_nothing_affected_and_a_component_it_could_not_evaluate() {
                 name: "vendored".into(),
                 version: Some("1.0.0".into()),
                 purl: None,
+                bom_ref: None,
             },
             reason: Reason::Component(ComponentReason::NoPackageUrl),
         }]
@@ -601,6 +603,7 @@ fn reports_a_vulnerability_known_under_several_records_once() {
                 name: "time".into(),
                 version: None,
                 purl: Some("pkg:cargo/time@0.1.43".into()),
+                bom_ref: None,
             },
             id: "CVE-2020-26235".into(),
             aliases: vec!["GHSA-wcg3-cvx6-7396".into(), "RUSTSEC-2020-0071".into()],

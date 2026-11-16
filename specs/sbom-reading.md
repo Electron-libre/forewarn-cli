@@ -1,6 +1,6 @@
 ---
 id: SBR
-status: draft
+status: accepted
 adrs: [0001, 0002, 0014]
 ---
 

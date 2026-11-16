@@ -3,6 +3,8 @@
 
 use std::fmt;
 
+use crate::vex::Verdict;
+
 /// An SBOM read by an adapter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sbom {
@@ -13,6 +15,8 @@ pub struct Sbom {
     pub product: Option<Product>,
     /// Every component of the document, the nested ones included, in document order.
     pub components: Vec<Component>,
+    /// The VEX verdicts of the document (`specs/vex-verdicts.md`, VEX-1), in document order.
+    pub verdicts: Vec<Verdict>,
 }
 
 /// The product with digital elements an SBOM describes, with who makes it and who supplies it.
@@ -65,6 +69,9 @@ pub struct Component {
     pub version: Option<String>,
     /// The package URL, as written in the SBOM.
     pub purl: Option<String>,
+    /// The `bom-ref`, as written in the SBOM, by which a VEX verdict names the component (`specs/sbom-reading.md`,
+    /// SBR-16).
+    pub bom_ref: Option<String>,
     /// The supplier organisation: its name, else a contact email or a URL.
     pub supplier: Option<String>,
     /// The manufacturer organisation (CycloneDX 1.6): its name, else a contact email or a URL.

@@ -11,6 +11,7 @@ use cyclonedx_bom::models::metadata::Metadata;
 use cyclonedx_bom::models::organization::{OrganizationalContact, OrganizationalEntity};
 use forewarn_domain::purl::PackageUrl;
 use forewarn_domain::sbom::{Component, Hash, Product, Sbom, SpecVersion};
+use forewarn_domain::vex::Verdict;
 use serde_json::Value;
 
 /// Why an input is not a readable CycloneDX JSON SBOM (`specs/sbom-reading.md`, SBR-7).
@@ -62,7 +63,41 @@ impl std::error::Error for ReadError {}
 ///
 /// A [`ReadError`] naming why the input is not a readable CycloneDX JSON SBOM, the first that applies in the order
 /// of its variants.
-pub fn read_json(mut reader: impl Read) -> Result<Sbom, ReadError> {
+pub fn read_json(reader: impl Read) -> Result<Sbom, ReadError> {
+    let (bom, spec_version) = parse(reader)?;
+    let in_product = bom.metadata.as_ref().and_then(|m| m.component.as_ref());
+    let product_package = in_product.and_then(|product| package(product.purl.as_ref()));
+    let product_purl = product_package.as_ref();
+    let mut components = Vec::new();
+    let mut read_refs = HashSet::new();
+    if let Some(top) = &bom.components {
+        let (into, refs) = (&mut components, &mut read_refs);
+        flatten(&top.0, into, refs, Place::TopLevel, product_purl);
+    }
+    if let Some(nested) = in_product.and_then(|product| product.components.as_ref()) {
+        let (into, refs) = (&mut components, &mut read_refs);
+        flatten(&nested.0, into, refs, Place::InProduct, product_purl);
+    }
+    Ok(Sbom {
+        spec_version,
+        product: bom.metadata.as_ref().and_then(product),
+        components,
+        verdicts: verdicts(&bom),
+    })
+}
+
+/// Reads the VEX verdicts of a CycloneDX JSON document, with or without components (`specs/vex-verdicts.md`,
+/// VEX-2, VEX-12).
+///
+/// # Errors
+///
+/// A [`ReadError`], as [`read_json`] refuses a document.
+pub fn read_vex_json(reader: impl Read) -> Result<Vec<Verdict>, ReadError> {
+    parse(reader).map(|(bom, _)| verdicts(&bom))
+}
+
+/// Parses a CycloneDX JSON document of a version this reader parses (SBR-7).
+fn parse(mut reader: impl Read) -> Result<(Bom, SpecVersion), ReadError> {
     let mut bytes = Vec::new();
     reader
         .read_to_end(&mut bytes)
@@ -81,24 +116,49 @@ pub fn read_json(mut reader: impl Read) -> Result<Sbom, ReadError> {
     let (cdx_version, spec_version) = spec_version(text)?;
     let bom = Bom::parse_json_value_with_version(document, cdx_version)
         .map_err(|e| ReadError::Invalid(e.to_string()))?;
-    let in_product = bom.metadata.as_ref().and_then(|m| m.component.as_ref());
-    let product_package = in_product.and_then(|product| package(product.purl.as_ref()));
-    let product_purl = product_package.as_ref();
-    let mut components = Vec::new();
-    let mut read_refs = HashSet::new();
-    if let Some(top) = &bom.components {
-        let (into, refs) = (&mut components, &mut read_refs);
-        flatten(&top.0, into, refs, Place::TopLevel, product_purl);
-    }
-    if let Some(nested) = in_product.and_then(|product| product.components.as_ref()) {
-        let (into, refs) = (&mut components, &mut read_refs);
-        flatten(&nested.0, into, refs, Place::InProduct, product_purl);
-    }
-    Ok(Sbom {
-        spec_version,
-        product: bom.metadata.as_ref().and_then(product),
-        components,
-    })
+    Ok((bom, spec_version))
+}
+
+/// The verdicts of the vulnerabilities that have an analysis state, in document order, blank values skipped
+/// (VEX-5, VEX-11).
+fn verdicts(bom: &Bom) -> Vec<Verdict> {
+    let filled = |value: String| (!value.trim().is_empty()).then_some(value);
+    bom.vulnerabilities
+        .iter()
+        .flat_map(|v| &v.0)
+        .filter_map(|vulnerability| {
+            let analysis = vulnerability.vulnerability_analysis.as_ref()?;
+            let state = analysis.state.as_ref()?.to_string();
+            let references = vulnerability
+                .vulnerability_references
+                .iter()
+                .flat_map(|r| &r.0)
+                .map(|reference| reference.id.to_string());
+            Some(Verdict {
+                ids: vulnerability
+                    .id
+                    .iter()
+                    .map(ToString::to_string)
+                    .chain(references)
+                    .filter_map(filled)
+                    .collect(),
+                targets: vulnerability
+                    .vulnerability_targets
+                    .iter()
+                    .flat_map(|t| &t.0)
+                    .map(|target| target.bom_ref.clone())
+                    .filter_map(filled)
+                    .collect(),
+                state,
+                justification: analysis
+                    .justification
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .and_then(filled),
+                detail: analysis.detail.clone().and_then(filled),
+            })
+        })
+        .collect()
 }
 
 /// The byte-order mark some Windows tools write before UTF-8 JSON.
@@ -210,6 +270,7 @@ fn to_domain(component: &CdxComponent, first_party: bool) -> Component {
         name: component.name.to_string(),
         version: component.version.as_ref().map(ToString::to_string),
         purl: component.purl.as_ref().map(ToString::to_string),
+        bom_ref: component.bom_ref.clone(),
         supplier: component.supplier.as_ref().and_then(organization),
         manufacturer: component.manufacturer.as_ref().and_then(organization),
         authors: component
