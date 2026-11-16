@@ -78,3 +78,10 @@ cache. Out of scope: `cargo deny` (its own issue), publishing, releases.
 - Code review: no findings
 - not verified: the macOS job (temporary directories under a symlinked `/var`) and `actionlint`: the first run on
   GitHub tells.
+
+## Summary of deliverable 3
+- done: `tests/directory.rs` (OSR-7) uses `b.json`, `C.json`, `a.json`; the macOS job runs every test binary.
+- checks: project check; the test passes locally.
+- red: OSR-7: `left: ["A-1", "B-2"] right: ["B-2", "A-1", "B-1"]` on macos-latest.
+- Code review: no findings
+- not verified: the other test binaries on macOS (the run stopped at the first red one): the next run tells.

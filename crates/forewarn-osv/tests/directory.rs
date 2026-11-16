@@ -58,11 +58,12 @@ fn subdirectories_are_not_read() {
 #[test]
 fn file_names_are_ordered_by_bytes() {
     let dir = TempDir::new().expect("a temporary directory");
-    for (file, id) in [("b.json", "B-1"), ("B.json", "B-2"), ("a.json", "A-1")] {
+    // No two names differ only by case: a case-insensitive file system (macOS) would keep one.
+    for (file, id) in [("b.json", "B-1"), ("C.json", "C-1"), ("a.json", "A-1")] {
         fs::write(dir.path().join(file), format!(r#"{{"id":"{id}"}}"#)).expect("written");
     }
 
-    assert_eq!(ids(dir.path()), ["B-2", "A-1", "B-1"]);
+    assert_eq!(ids(dir.path()), ["C-1", "A-1", "B-1"]);
 }
 
 // spec: OSR-2
