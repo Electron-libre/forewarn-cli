@@ -20,8 +20,8 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 
 ## Upload from CI
 
-- Goal: `forewarn` uploads the SBOM and AI-BOM with product, version and date to a Forewarn service, whose URL is set
-  by `--endpoint` or an environment variable.
+- Goal: `forewarn` uploads the SBOM with product, version and date to a Forewarn service, whose URL is set
+  by `--endpoint` or an environment variable. The AI-BOM upload waits for the service's full registry, after the beta.
 - Why: keeps a vendor's inventory up to date without manual work; only inventories leave the CI, never source code.
 - State: idea
 
