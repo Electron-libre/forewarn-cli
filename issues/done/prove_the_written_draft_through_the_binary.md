@@ -63,7 +63,7 @@ and no production code change.
 
 ## Summary of deliverable 2
 - done: the `high` review's findings on the test and the reasons fixed; the ambiguity of an escape and its literal
-  text (outside EWD-16 as written) became `issues/tell_an_escape_from_its_literal_text_in_a_draft.md`.
+  text (outside EWD-16 as written) became `issues/done/tell_an_escape_from_its_literal_text_in_a_draft.md`.
 - red: none (stronger assertions of a passing test, comments).
 - Code review: no findings (low).
 - not verified: none.
