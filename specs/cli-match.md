@@ -99,9 +99,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"first-party"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
-- **MCH-18** (deterministic) The human report must print each control character and each bidirectional or invisible
-  formatting character of a value read from the SBOM, the OSV records or an exploited list escaped (`\n`,
-  `\u{1b}`, `\u{202e}`), as CHK-14 does.
+- **MCH-18** (deterministic) The human report must print each control character, each character that hides or reorders
+  text (EWD-16) and each backslash of a value read from the SBOM, the OSV records or an exploited list escaped (`\n`,
+  `\u{1b}`, `\u{202e}`, `\\`), as CHK-14 does.
 - **MCH-19** (deterministic) `forewarn` with no subcommand must print its usage naming `match` beside `check`.
 - **MCH-21** (deterministic) A record whose id was already read, from another archive or another `--osv` path, must
   not be matched again, so that a component is reported once per vulnerability id.
@@ -111,9 +111,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   version of each component to the OSV API.
 - **MCH-22** (deterministic) Each source of MCH-4 must be printed with the number of records read from it, so that a
   source holding none is never read as "no vulnerability".
-- **MCH-23** (deterministic) The line of an error on standard error must print each control character and each
-  bidirectional or invisible formatting character of a value read from the SBOM, the OSV records, an archive, an
-  exploited list or the server escaped, as MCH-18 does.
+- **MCH-23** (deterministic) The line of an error on standard error must print each control character, each character
+  that hides or reorders text (EWD-16) and each backslash of a value read from the SBOM, the OSV records, an archive,
+  an exploited list or the server escaped, as MCH-18 does.
 - **MCH-42** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only
   first-party components (SBR-14) map to, nor, with `--osv-api`, send the ecosystem, name or version of a first-party
   component to the OSV API; each is printed not evaluated, first-party (VMT-10, VMT-11).
@@ -201,6 +201,8 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   error stays on one line.
 - (MCH-23) Given a directory holding a file that is not JSON and whose name holds U+202E, when it is read, then the
   error writes `\u{202e}` out.
+- (MCH-23) Given a directory holding a file that is not JSON and whose name holds a backslash, when it is read, then the
+  error writes the backslash as `\\`.
 
 ## Non-goals
 

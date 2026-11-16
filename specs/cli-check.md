@@ -61,9 +61,9 @@ job can act on.
   naming the cause, unless standard output is a closed pipe (`forewarn check sbom.json | head`), which is not an
   error.
 - **CHK-14** (deterministic) The human report must print each control character of a component's name, version or
-  package URL escaped (`\n`, `\u{1b}`) and each bidirectional or invisible formatting character of EWD-16 as its
-  Unicode escape (`\u{202e}`), so that an SBOM cannot forge report lines or terminal sequences, nor reorder or hide
-  the text a person reads.
+  package URL escaped (`\n`, `\u{1b}`), each character that hides or reorders text (EWD-16) as its Unicode escape
+  (`\u{202e}`) and each backslash as `\\`, so that an SBOM cannot forge report lines or terminal sequences, nor
+  reorder or hide the text a person reads, and each escape reads back to one value.
 
 ## Scenarios
 
@@ -90,6 +90,10 @@ job can act on.
   it, then it stays on one line with `\n` and `\u{1b}` written out.
 - (CHK-14) Given a component whose version holds U+202E (right-to-left override) and U+200B (zero-width space), when
   the human report prints it, then `\u{202e}` and `\u{200b}` are written out.
+- (CHK-14) Given a component whose version holds the tag character U+E0041 and the Hangul filler U+3164, when the
+  human report prints it, then `\u{e0041}` and `\u{3164}` are written out.
+- (CHK-14) Given a component whose name holds the text `\u{202e}`, a backslash followed by `u{202e}`, when the human
+  report prints it, then it reads `\\u{202e}`, unlike a name holding a real U+202E.
 - (CHK-4) Given a file named `-`, when the user means that file, then they write `./-`: `-` alone is standard input.
 - (CHK-7, CHK-11) Given `--format xml`, when the command runs, then it exits with 2 before reading the SBOM.
 - (CHK-3, CHK-10) Given a valid SBOM with no component, when it is checked, then it is complete with 0 components and

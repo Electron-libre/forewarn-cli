@@ -179,8 +179,8 @@ fn push_component(text: &mut String, affected: &AffectedComponent) {
 }
 
 /// Pushes a value of the SBOM or of a feed so that Markdown reads it as its text (EWD-16): a backslash before each
-/// ASCII punctuation character, each control character written as its escape (`\n`, `\u{1b}`) and each bidirectional
-/// or invisible formatting character as its Unicode escape (`\u{202e}`), those escapes themselves escaped, and each
+/// ASCII punctuation character, each control character written as its escape (`\n`, `\u{1b}`) and each character
+/// that hides or reorders text as its Unicode escape (`\u{202e}`), those escapes themselves escaped, and each
 /// leading space as `&#32;`, which no list item reads as an indented code block.
 fn push_escaped(text: &mut String, value: &str) {
     let trimmed = value.trim_start_matches(' ');
@@ -374,6 +374,18 @@ mod tests {
         let text = markdown(&draft);
         assert!(
             text.contains("\n  - &#32;&#32;&#32;&#32;rm 1\\.0\\\\u\\{202e\\}2\\\\u\\{200b\\}, "),
+            "{text}"
+        );
+    }
+
+    // spec: EWD-16 (internal: no command writes a draft before cli_draft_early_warnings)
+    #[test]
+    fn a_value_hides_no_text_behind_a_tag_character_or_a_filler() {
+        let mut draft = log4shell();
+        draft.components[0].component.version = Some("1\u{e0041}0\u{3164}".to_owned());
+        let text = markdown(&draft);
+        assert!(
+            text.contains(" 1\\\\u\\{e0041\\}0\\\\u\\{3164\\}, "),
             "{text}"
         );
     }

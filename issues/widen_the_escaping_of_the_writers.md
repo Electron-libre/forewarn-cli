@@ -36,3 +36,33 @@ are escaped. The writers should escape every character that hides text, in a for
 # Resources
 * `crates/forewarn/src/escape.rs`, `crates/forewarn/src/report.rs`, `crates/forewarn/src/early_warning.rs`.
 * `crates/forewarn/tests/formatting_characters.rs`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-16
+
+## Understanding
+Escape every character that hides or reorders text (Cf, U+2028/U+2029, Default_Ignorable_Code_Point of Unicode 16.0)
+in the reports, the error lines and the draft, and the backslash as `\\` in the reports and the error lines. Means: a
+range table transcribed from the UCD in `escape.rs`, its Unicode version cited, rather than a dependency
+(`unicode-properties` gives the category, not Default_Ignorable, so the fillers and selectors would stay by hand).
+
+## Plan
+1. [x] Widen and make reversible: `escape.rs` escapes the Cf ∪ Default_Ignorable set and the backslash (the draft
+   keeps its own backslash before the ASCII punctuation); verified by `tests/formatting_characters.rs` and the unit
+   tests of `early_warning.rs`; makes true CHK-14, MCH-18, MCH-23, EWD-16 as amended. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 4cf2acaba61db670cffeffc1059ce9d0c74a01e1
+- 1 a: a range table of Cf ∪ Default_Ignorable_Code_Point (Unicode 16.0) in `escape.rs`, no dependency.
+- 2 a: U+200C and U+200D stay escaped.
+
+## Deliverable 1
+- done: `escape.rs` escapes Cf ∪ U+2028/U+2029 ∪ Default_Ignorable_Code_Point (Unicode 16.0) and, in the reports and
+  the error lines, the backslash as `\\`; the draft keeps its Markdown escape of the backslash.
+- red: CHK-14, MCH-18, MCH-23, EWD-16: `left: "  evil 1\u{e0041}0\u{3164}\u{fe0f}\u{ad}: …"` (tag, filler, selector
+  and soft hyphen printed raw) and the literal `a\u{202e}` / `EVIL\n-1` / `a\nb.json` printed without `\\`.
+- Code review: no findings
+- not verified: the table against the UCD files themselves (transcribed, no network check); decisions needed: none.
+- Docs: n/a (README and CLAUDE.md do not list the escaped characters; the specs carry them).
