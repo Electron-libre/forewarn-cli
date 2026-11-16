@@ -101,6 +101,8 @@ this repository (matching logic, CycloneDX handling, API types shared with the s
 Dual-licensed `MIT OR Apache-2.0` (the Rust ecosystem default, the easiest to integrate). Every crate declares it,
 inherited from `[workspace.package] license = "MIT OR Apache-2.0"` with `license.workspace = true`. Dependencies must
 be compatible with both: no copyleft (GPL, AGPL, LGPL-only) crate.
+Vendored data follows the same rule and keeps its license next to it: the Unicode 16.0 extracts of
+`crates/forewarn/data/ucd-16.0.0` (Unicode License v3), test data only.
 
 ## Lint policy (requirement)
 
