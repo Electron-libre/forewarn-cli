@@ -11,7 +11,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   as not affecting its product, on code that CI builds and tests at each change.
 - Why: the proof of concept works for its author; a beta tester needs a version to report against, an install without
   a clone, and a way out of a false positive.
-- State: in issues
+- State: done
 - Issues:
   - [set_the_version_of_the_binary_on_release](issues/done/set_the_version_of_the_binary_on_release.md)
   - [run_the_project_check_in_ci](issues/done/run_the_project_check_in_ci.md)
@@ -20,7 +20,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [remove_stale_draft_early_warnings](issues/done/remove_stale_draft_early_warnings.md)
   - [support_windows_paths](issues/done/support_windows_paths.md)
   - [check_the_licenses_and_advisories_of_the_dependencies](issues/done/check_the_licenses_and_advisories_of_the_dependencies.md)
-  - [complete_the_sbom_of_the_release_binaries](issues/complete_the_sbom_of_the_release_binaries.md)
+  - [complete_the_sbom_of_the_release_binaries](issues/done/complete_the_sbom_of_the_release_binaries.md)
 
 ## Upload from CI
 
