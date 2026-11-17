@@ -85,7 +85,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-osv` | OSV adapter: vulnerability records, read, fetched into a cache or queried from the OSV API, into domain types | `feeds` |
 | `forewarn-cache` | the cache of the downloads: refresh policy, freshness and the files of each download (ADR 0010), a file lock per entry (ADR 0008), one `GET` or the download of the source (ADR 0009) | `feeds` |
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read or paged into a cache, into the domain's exploited lists | `feeds` |
-| `forewarn` | the CLI binary: arguments (module `args`), wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`) | `cli` |
+| `forewarn` | the CLI binary: arguments (module `args`), wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`), the error lines naming a file (module `error_line`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`
 crates. `publish = false` stays until the first publication is decided (the path dependencies then need a `version`).

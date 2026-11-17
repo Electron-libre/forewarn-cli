@@ -4,13 +4,13 @@
 mod args;
 mod drafts;
 mod early_warning;
+mod error_line;
 mod escape;
 mod report;
 mod vex;
 
 use std::collections::HashSet;
 use std::env;
-use std::fmt::Display;
 use std::fs::File;
 use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
@@ -33,6 +33,7 @@ use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
 use args::{CheckArgs, Cli, Command, Format, GivenMoment, MatchArgs, moment};
+use error_line::ErrorLine;
 use report::{Awareness, ExploitedSource, Origin, Source};
 
 /// The exit codes of CHK-7 and MCH-10; a usage error exits with 2, through `clap`.
@@ -201,7 +202,7 @@ fn write_drafts(
     .expect("the deadlines of the moments given were checked before the SBOM was read");
     let product = sbom.product.as_ref().map(|product| product.name.as_str());
     drafts::write(directory, product, &drafted).map_err(|error| {
-        eprintln!("error: {}", escape::escaped(&error.to_string()));
+        eprintln!("error: {}", error.line());
         DRAFT_UNWRITABLE
     })
 }
@@ -482,8 +483,8 @@ impl Records {
 }
 
 /// Prints why the OSV records or the KEV catalog cannot be read or fetched (MCH-14).
-fn no_records(error: &dyn Display) -> u8 {
-    eprintln!("error: {}", escape::escaped(&error.to_string()));
+fn no_records(error: &dyn ErrorLine) -> u8 {
+    eprintln!("error: {}", error.line());
     NO_RECORDS
 }
 
@@ -510,8 +511,7 @@ fn read_sbom(path: &Path) -> Result<Sbom, u8> {
 
 /// Prints why the CycloneDX document of `path` cannot be read and returns the code 3 (MCH-14, MVX-7).
 fn unreadable(path: &Path, error: &ReadError) -> u8 {
-    let error = format!("{}: {error}", path.display());
-    eprintln!("error: {}", escape::escaped(&error));
+    eprintln!("error: {}", error_line::path_and_cause(path, error));
     UNREADABLE
 }
 

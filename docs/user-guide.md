@@ -81,6 +81,10 @@ What is checked:
 
 It exits with 1 when a component is incomplete. To report the gaps without failing a job, add `--allow-incomplete`.
 
+The human reports and the error lines of both commands print a control character, a character that hides text and a
+backslash escaped (`\n`, `\u{202e}`, `\\`), so that a value cannot forge a line. A path keeps its backslashes on
+Windows, where they separate its parts: `C:\sboms\shop.json` prints as written.
+
 ## Match against vulnerabilities
 
 ```console

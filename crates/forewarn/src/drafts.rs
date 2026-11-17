@@ -2,7 +2,6 @@
 //! the CVE, written whole or not at all, and the stale drafts of the product the run no longer writes, left in place
 //! (`specs/cli-match-exploited.md`, MXL-27 to MXL-34, MXL-36 to MXL-40).
 
-use std::fmt;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -11,6 +10,8 @@ use forewarn_domain::early_warning::EarlyWarning;
 use forewarn_domain::is_cve;
 
 use crate::early_warning;
+use crate::error_line::ErrorLine;
+use crate::escape::{escaped, escaped_path};
 
 /// The characters of the product name kept in a file name (MXL-31).
 const PRODUCT_NAME_LENGTH: usize = 100;
@@ -40,21 +41,17 @@ enum Failure {
     List,
 }
 
-impl fmt::Display for WriteError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.kind {
-            Failure::Write => write!(
-                f,
-                "cannot write the draft early warning {}",
-                self.path.display()
-            )?,
-            Failure::List => write!(
-                f,
-                "cannot list the draft early warnings of {}",
-                self.path.display()
-            )?,
-        }
-        write!(f, ": {}", self.error)
+impl ErrorLine for WriteError {
+    fn line(&self) -> String {
+        let what = match self.kind {
+            Failure::Write => "cannot write the draft early warning ",
+            Failure::List => "cannot list the draft early warnings of ",
+        };
+        format!(
+            "{what}{}: {}",
+            escaped_path(&self.path),
+            escaped(&self.error.to_string())
+        )
     }
 }
 

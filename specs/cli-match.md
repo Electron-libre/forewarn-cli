@@ -122,6 +122,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - **MCH-42** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only
   first-party components (SBR-14) map to, nor, with `--osv-api`, send the ecosystem, name or version of a first-party
   component to the OSV API; each is printed not evaluated, first-party (VMT-10, VMT-11).
+- **MCH-43** (deterministic) Each path the human report or an error line prints (an `--osv` path, a `--vex` file, a
+  draft, the file of an error) must be printed as CHK-16 says: escaped as MCH-18 says, except each backslash of a
+  path on Windows, printed as it is.
 - **MCH-34** (deterministic) withdrawn: moved to MXL-10 (`specs/cli-match-exploited.md`).
 - **MCH-35** (deterministic) withdrawn: moved to MXL-11 (`specs/cli-match-exploited.md`).
 - **MCH-40** (deterministic) withdrawn: moved to MXL-12 (`specs/cli-match-exploited.md`).
@@ -212,8 +215,12 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   error stays on one line.
 - (MCH-23) Given a directory holding a file that is not JSON and whose name holds U+202E, when it is read, then the
   error writes `\u{202e}` out.
-- (MCH-23) Given a directory holding a file that is not JSON and whose name holds a backslash, when it is read, then the
-  error writes the backslash as `\\`.
+- (MCH-23, MCH-43) Given, on a Unix system, a directory holding a file that is not JSON and whose name holds a
+  backslash, when it is read, then the error writes the backslash as `\\`.
+- (MCH-43) Given, on Windows, `--osv C:\feeds\osv` and `--vex C:\feeds\vex.json`, when the human report names them,
+  then each backslash is printed once.
+- (MCH-43) Given, on Windows, a directory holding a file that is not JSON and whose name holds U+202E, when it is
+  read, then the error prints each separator once and writes `\u{202e}` out.
 
 ## Non-goals
 

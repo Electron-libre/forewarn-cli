@@ -9,7 +9,7 @@ use forewarn_domain::sbom::Sbom;
 use forewarn_domain::vex::Verdict;
 use serde_json::{Map, Value, json};
 
-use crate::escape::push_escaped;
+use crate::escape::{push_escaped, push_escaped_path};
 use crate::report::{Awareness, match_json, push_evidence, push_match_header};
 
 /// Where a verdict was read.
@@ -128,7 +128,7 @@ pub fn push_set_aside(text: &mut String, verdicts: &Verdicts, matching: &Flagged
 fn push_origin(text: &mut String, origin: Origin) {
     match origin {
         Origin::Sbom => text.push_str("the SBOM"),
-        Origin::File(path) => push_escaped(text, &path.to_string_lossy()),
+        Origin::File(path) => push_escaped_path(text, path),
     }
 }
 

@@ -20,7 +20,7 @@ use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
 
 use crate::drafts::{DraftFile, Drafts};
-use crate::escape::push_escaped;
+use crate::escape::{push_escaped, push_escaped_path};
 use crate::vex::{self, Verdicts};
 use time::OffsetDateTime;
 use time::macros::format_description;
@@ -371,7 +371,7 @@ fn push_source(text: &mut String, source: &Source) {
             records: count,
         } => {
             text.push_str("  ");
-            push_escaped(text, &path.to_string_lossy());
+            push_escaped_path(text, path);
             let _ = writeln!(text, ": {count} {}, local", records(*count));
         }
     }
@@ -393,7 +393,7 @@ fn push_exploited_source(text: &mut String, source: &ExploitedSource) {
     match source.origin {
         Origin::Local(path) => {
             text.push_str("local ");
-            push_escaped(text, &path.to_string_lossy());
+            push_escaped_path(text, path);
         }
         Origin::Fetched(freshness) => push_download(text, freshness),
     }
@@ -558,13 +558,13 @@ fn push_component_ref(text: &mut String, component: &ComponentRef) {
     );
 }
 
-/// A line per draft file, its CVE id then its path, both escaped (MXL-35, MXL-39).
+/// A line per draft file, its CVE id escaped, then its path as `push_escaped_path` prints it (MXL-35, MXL-39, MCH-43).
 fn push_draft_files(text: &mut String, files: &[DraftFile]) {
     for draft in files {
         text.push_str("  ");
         push_escaped(text, &draft.cve);
         text.push_str(": ");
-        push_escaped(text, &draft.path.to_string_lossy());
+        push_escaped_path(text, &draft.path);
         text.push('\n');
     }
 }

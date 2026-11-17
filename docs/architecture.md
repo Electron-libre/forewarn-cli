@@ -44,7 +44,7 @@ flowchart TD
 | `forewarn-osv` | Reads OSV records, fetches ecosystem archives into the cache, queries the OSV API | `lib` (read), `fetch`, `api` |
 | `forewarn-exploited` | Reads or fetches the exploited lists into `ExploitedList` | `kev`, `euvd` |
 | `forewarn-cache` | Refresh policy, freshness, the files of each download, a file lock per entry | single module |
-| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` |
+| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` (the characters both writers escape, a path's own way), `error_line` (the error lines naming a file) |
 
 The dependency direction is enforced: `crates/forewarn/tests/workspace_policy.rs` fails when the domain depends on
 another crate of the workspace, or when a crate does not inherit the workspace license and lints.

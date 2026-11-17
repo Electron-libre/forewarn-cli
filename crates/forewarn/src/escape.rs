@@ -1,6 +1,8 @@
 //! The escaping of a value read from the SBOM or a feed, shared by the reports and the error lines (`report`, `main`,
 //! CHK-14, MCH-18, MCH-23) and the early warning draft (`early_warning`, EWD-16) so that the writers cannot drift.
 
+use std::path::Path;
+
 /// Passes `c` to `push`, or its escape when it is a control character (`\n`, `\u{1b}`) or a character that hides or
 /// reorders text (`\u{202e}`), so that it cannot forge a line or a terminal sequence, nor reorder or hide the text
 /// around it, and a backslash twice, so that each escape reads back to one value (CHK-14, MCH-18, EWD-16).
@@ -29,6 +31,30 @@ pub fn escaped(value: &str) -> String {
     let mut text = String::with_capacity(value.len());
     push_escaped(&mut text, value);
     text
+}
+
+/// Pushes `path` escaped as `push_escaped` does, but on Windows each backslash, the separator a Windows file name
+/// cannot hold, as it is, so that the path reads as the user wrote it (CHK-16, MCH-43).
+pub fn push_escaped_path(text: &mut String, path: &Path) {
+    push_path(text, &path.to_string_lossy(), cfg!(windows));
+}
+
+/// `path` escaped as `push_escaped_path` does, for a line of standard error (CHK-16, MCH-43).
+pub fn escaped_path(path: &Path) -> String {
+    let mut text = String::new();
+    push_escaped_path(&mut text, path);
+    text
+}
+
+/// Pushes `path` escaped, each backslash as it is when `backslash_separates`.
+fn push_path(text: &mut String, path: &str, backslash_separates: bool) {
+    for c in path.chars() {
+        if backslash_separates && c == '\\' {
+            text.push(c);
+        } else {
+            escape_char(c, |e| text.push(e));
+        }
+    }
 }
 
 /// Whether `c` hides or reorders text (EWD-16): a `Default_Ignorable_Code_Point`, a `White_Space` character other than
@@ -72,7 +98,7 @@ fn hides_text(c: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{escaped, hides_text};
+    use super::{escaped, hides_text, push_path};
     use std::collections::BTreeSet;
 
     /// The code points of a verbatim extract of the Unicode 16.0 data (`data/ucd-16.0.0`), checked against the version
@@ -228,5 +254,18 @@ mod tests {
         ] {
             assert_eq!(escaped(&c.to_string()), c.to_string());
         }
+    }
+
+    // spec: CHK-16, MCH-43 (internal: the rule of both platforms, of which a run on one platform shows only one)
+    #[test]
+    fn a_backslash_of_a_path_prints_as_it_is_on_windows_only() {
+        let printed = |path: &str, windows: bool| {
+            let mut text = String::new();
+            push_path(&mut text, path, windows);
+            text
+        };
+        let path = "C:\\feeds\\a\u{202e}\n.json";
+        assert_eq!(printed(path, true), "C:\\feeds\\a\\u{202e}\\n.json");
+        assert_eq!(printed(path, false), "C:\\\\feeds\\\\a\\u{202e}\\n.json");
     }
 }

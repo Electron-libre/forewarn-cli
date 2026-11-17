@@ -42,3 +42,39 @@ Beta
 # Resources
 * `crates/forewarn/src/escape.rs`, `.github/workflows/check.yml`.
 * ADRs 0005 and 0007 (the file lock of the cache, which differs on Windows).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-17
+
+## Understanding
+A path the human report or an error line prints keeps the escape of the other characters, but on Windows its
+backslashes, the separators, print as they are (CHK-16, MCH-43); the tests run on `windows-latest` in CI. Out of
+scope: the JSON report (JSON escaping), the file lock of the cache unless the Windows run shows a failure there.
+
+## Plan
+1. [x] Paths printed as written on Windows: `escape::push_escaped_path` (backslash kept on Windows only), used for the
+   paths of `report`, `vex`, `drafts::WriteError`, `unreadable` and the `ReadError`s of the OSV, KEV and EUVD adapters
+   (the CLI prints their path and their cause apart); verified by an internal test of both platforms' rule, `#[cfg(windows)]`
+   tests through the binary and a Unix one; makes true CHK-16, MCH-43, MXL-35, MXL-39. (autonomous)
+2. [ ] Portable tests: `#[cfg(unix)]` on `tests/drafts.rs:378` and `tests/formatting_characters.rs:203`, the path tests
+   (`tests/vex.rs`, `tests/matching.rs`, `tests/exploited.rs`) build their expected text with a helper printing a path
+   as the CLI does; verified by `cargo test` on Linux and the Windows CI run.
+3. [ ] `windows-latest` back in the matrix of `.github/workflows/check.yml`, `git config --global core.autocrlf false`
+   before the checkout; verified by the Windows CI run.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 7411a7edb9f2ffef599dc8b40674237375dace9f
+- Windows paths: their backslashes, the separators, print as they are, the other characters escaped (1 a).
+- Verification on Windows: the agent pushes a branch to run the CI on Windows before the `high` review (2 a).
+
+## Deliverable 1 summary
+- done: paths printed by `escape::push_escaped_path` (backslashes as they are on Windows only) in the report, the VEX
+  sources and the drafts; error lines naming a file built by the module `error_line` (path and cause apart, the
+  adapters' `Cause` now `Display`); CHK-16, MCH-43 written, MXL-35 and MXL-39 point to MCH-43.
+- red: CHK-16, MCH-43: `assertion left == right failed, left: "C:\\\\feeds\\\\a\\u{202e}\\n.json", right: "C:\\feeds\\a\\u{202e}\\n.json"`
+- Code review: no findings
+- not verified: the `#[cfg(windows)]` tests of `tests/paths.rs` (run once with `cfg(unix)` and `/` separators on
+  Linux: pass), until the Windows CI run.
+

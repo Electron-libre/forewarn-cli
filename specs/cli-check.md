@@ -68,6 +68,9 @@ job can act on.
   package URL escaped (`\n`, `\u{1b}`), each character that hides or reorders text (EWD-16) as its Unicode escape
   (`\u{202e}`) and each backslash as `\\`, so that an SBOM cannot forge report lines or terminal sequences, nor
   reorder or hide the text a person reads, and each escape reads back to one value.
+- **CHK-16** (deterministic) The path an error line names must be escaped as CHK-14 escapes a value, except on
+  Windows, where each backslash of the path, its separator, is printed as it is: a Windows file name holds no
+  backslash nor control character, so the path reads as the user wrote it.
 
 ## Scenarios
 
@@ -101,6 +104,10 @@ job can act on.
   human report prints it, then `\u{e0041}` and `\u{3164}` are written out.
 - (CHK-14) Given a component whose name holds the text `\u{202e}`, a backslash followed by `u{202e}`, when the human
   report prints it, then it reads `\\u{202e}`, unlike a name holding a real U+202E.
+- (CHK-16) Given, on Windows, a path `C:\sboms\shop.json` that does not exist, when it is checked, then standard error
+  names `C:\sboms\shop.json`, each backslash printed once.
+- (CHK-16) Given, on a Unix system, a path whose file name holds a backslash, when it is checked and cannot be read,
+  then standard error writes the backslash as `\\`.
 - (CHK-4) Given a file named `-`, when the user means that file, then they write `./-`: `-` alone is standard input.
 - (CHK-7, CHK-11) Given `--format xml`, when the command runs, then it exits with 2 before reading the SBOM.
 - (CHK-3, CHK-10) Given a valid SBOM with no component, when it is checked, then it is complete with 0 components and
@@ -118,6 +125,8 @@ job can act on.
 - The exact layout of the human report beyond what CHK-1 to CHK-3 state: it may change without notice; scripts read
   the JSON report.
 - Escaping the formatting characters in the JSON report: it escapes what JSON requires, and a program reads it.
+- Telling apart, on Windows, a directory named `u{202e}` from a U+202E after a separator: both print `\u{202e}`; the
+  characters that hide text are still printed escaped, never as themselves.
 - A versioned JSON schema: the members of CHK-10 are the contract until a later issue versions it.
 - Checking several SBOMs in one run, or a directory.
 - Colours, or a `--quiet` option.
