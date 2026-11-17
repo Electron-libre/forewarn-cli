@@ -60,8 +60,8 @@ scope: the JSON report (JSON escaping), the file lock of the cache unless the Wi
 2. [x] Portable tests: `#[cfg(unix)]` on `tests/drafts.rs:378` and `tests/formatting_characters.rs:203`, the path tests
    (`tests/vex.rs`, `tests/matching.rs`, `tests/exploited.rs`) build their expected text with a helper printing a path
    as the CLI does; verified by `cargo test` on Linux and the Windows CI run. (autonomous)
-3. [ ] `windows-latest` back in the matrix of `.github/workflows/check.yml`, `git config --global core.autocrlf false`
-   before the checkout; verified by the Windows CI run.
+3. [x] `windows-latest` back in the matrix of `.github/workflows/check.yml`, `git config --global core.autocrlf false`
+   before the checkout; verified by the Windows CI run. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -85,4 +85,11 @@ scope: the JSON report (JSON escaping), the file lock of the cache unless the Wi
 - red: none (test gating only)
 - Code review: no findings
 - not verified: a Windows build here (`ring` needs a MinGW compiler, absent), until the Windows CI run.
+
+## Deliverable 3 summary
+- done: `windows-latest` in the test matrix of `.github/workflows/check.yml`, `core.autocrlf false` before the
+  checkout; `CLAUDE.md` names the Windows run.
+- red: none (CI configuration)
+- Code review: no findings
+- not verified: the Windows run itself, until the branch is pushed (decision 2 a).
 

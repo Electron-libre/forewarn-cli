@@ -56,7 +56,7 @@ that cannot be read exits with 3.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`. The workflow
 `.github/workflows/check.yml` runs that command on every push to `main` and every pull request, builds on the toolchain
-of `rust-version` (read from `Cargo.toml`), runs the tests on macOS and runs `cargo deny check` against `deny.toml`
+of `rust-version` (read from `Cargo.toml`), runs the tests on macOS and Windows and runs `cargo deny check` against `deny.toml`
 (licenses, RustSec advisories, yanked crates, sources), the latter also each day.
 `cardinal run release <version>` writes the `CHANGELOG.md` section, then runs the `release_version_command` of
 `.claude/cardinal.toml`, `just set-version <version>`, which writes `[workspace.package] version` and `Cargo.lock`:

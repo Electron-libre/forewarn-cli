@@ -65,10 +65,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows waits for issues/support_windows_paths.md.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      # The fixtures and the expected reports are compared byte for byte: no CRLF in the checkout.
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
