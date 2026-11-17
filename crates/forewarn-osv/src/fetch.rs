@@ -197,7 +197,10 @@ fn extract(archive: &Path, directory: &Path) -> Result<(), FetchCause> {
         let mut entry = zip
             .by_index(index)
             .map_err(|e| FetchCause::NotZip(e.to_string()))?;
-        let name = entry.name().to_owned();
+        let name = entry
+            .name()
+            .map_err(|e| FetchCause::NotZip(e.to_string()))?
+            .into_owned();
         if entry.enclosed_name().is_none()
             || name.starts_with('/')
             || name.contains('\\')
