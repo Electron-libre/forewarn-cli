@@ -62,6 +62,9 @@ scope: the JSON report (JSON escaping), the file lock of the cache unless the Wi
    as the CLI does; verified by `cargo test` on Linux and the Windows CI run. (autonomous)
 3. [x] `windows-latest` back in the matrix of `.github/workflows/check.yml`, `git config --global core.autocrlf false`
    before the checkout; verified by the Windows CI run. (autonomous)
+4. [x] Fixes of the `high` review: the error lines keep the adapters' wording (no copied prefix nor layout), the doc
+   comments of `escape.rs` name the Windows rule of a path and its ambiguity, the draft tests that run on Windows cite
+   MCH-43; verified by the tests on Linux and on Windows. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -92,4 +95,21 @@ scope: the JSON report (JSON escaping), the file lock of the cache unless the Wi
 - red: none (CI configuration)
 - Code review: no findings
 - not verified: the Windows run itself, until the branch is pushed (decision 2 a).
+
+## Windows CI run
+Draft pull request #1 (branch `windows-ci-check`, at `c142be9`): `tests on windows-latest` pass, the three
+`#[cfg(windows)]` tests of `tests/paths.rs` among them.
+
+## Deliverable 4 summary
+- done: `error_line` prints the path or the inner error inside the adapter's own `Display` text (no copied prefix or
+  layout); the adapters' `Cause` back to their original `Display`; `escape.rs` doc comments name the users and the
+  Windows ambiguity; two draft tests that run on Windows cite MCH-43.
+- red: none (refactor under the green tests)
+- `high` review: 6 findings. 1 (a Windows path escape reads back to two values): kept, decision 1 a and a non-goal of
+  CHK-16, now said in the doc comment. 2, 5 (copied prefixes and layouts): fixed. 3 (no Windows test of the draft
+  paths): already covered by two tests of `tests/drafts.rs` that ran on Windows, now citing MCH-43. 4 (stale doc
+  comments): fixed. 6 (CHK-16 Unix test repeats an MCH-23 one): kept, `check` and `match` print the error through
+  different code.
+- Code review: no findings
+- not verified: the refactor of `error_line` on Windows until the next CI run of the pull request.
 

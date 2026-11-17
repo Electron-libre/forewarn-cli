@@ -16,24 +16,44 @@ pub trait ErrorLine {
     fn line(&self) -> String;
 }
 
-/// `path`, then `: ` and `cause`, each escaped its own way.
+/// `path`, then `: ` and `cause`, each escaped its own way: the line of an error the CLI words itself.
 pub fn path_and_cause(path: &Path, cause: &impl ToString) -> String {
     format!("{}: {}", escaped_path(path), escaped(&cause.to_string()))
 }
 
+/// `whole`, the text of an error, its first `part` printed as `part_line` and the rest escaped, so that the wording
+/// stays the adapter's.
+fn around(whole: &str, part: &str, part_line: &str) -> String {
+    match whole.split_once(part) {
+        Some((before, after)) => escaped(before) + part_line + &escaped(after),
+        None => escaped(whole),
+    }
+}
+
+/// The line of an adapter's error that opens on the path of its file.
+fn naming(error: &impl ToString, path: &Path) -> String {
+    around(
+        &error.to_string(),
+        &path.display().to_string(),
+        &escaped_path(path),
+    )
+}
+
+/// The line of an error whose text holds the text of `inner`, printed as its own line.
+fn holding(error: &impl ToString, inner: &(impl ToString + ErrorLine)) -> String {
+    around(&error.to_string(), &inner.to_string(), &inner.line())
+}
+
 impl ErrorLine for OsvReadError {
     fn line(&self) -> String {
-        path_and_cause(&self.path, &self.cause)
+        naming(self, &self.path)
     }
 }
 
 impl ErrorLine for FetchError {
     fn line(&self) -> String {
         match &self.cause {
-            // The prefix of `FetchError`'s `Display`, then the record's path its own way.
-            FetchCause::Record(error) => {
-                escaped(&format!("\"{}\": ", self.ecosystem)) + &error.line()
-            }
+            FetchCause::Record(error) => holding(self, error),
             _ => escaped(&self.to_string()),
         }
     }
@@ -48,14 +68,14 @@ impl ErrorLine for QueryError {
 
 impl ErrorLine for kev::ReadError {
     fn line(&self) -> String {
-        path_and_cause(&self.path, &self.cause)
+        naming(self, &self.path)
     }
 }
 
 impl ErrorLine for kev::FetchError {
     fn line(&self) -> String {
         match self {
-            Self::Catalog(error) => escaped(&format!("{}: ", kev::LIST_NAME)) + &error.line(),
+            Self::Catalog(error) => holding(self, error),
             _ => escaped(&self.to_string()),
         }
     }
@@ -63,14 +83,14 @@ impl ErrorLine for kev::FetchError {
 
 impl ErrorLine for euvd::ReadError {
     fn line(&self) -> String {
-        path_and_cause(&self.path, &self.cause)
+        naming(self, &self.path)
     }
 }
 
 impl ErrorLine for euvd::FetchError {
     fn line(&self) -> String {
         match self {
-            Self::List(error) => escaped(&format!("{}: ", euvd::LIST_NAME)) + &error.line(),
+            Self::List(error) => holding(self, error),
             _ => escaped(&self.to_string()),
         }
     }

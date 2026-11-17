@@ -1,5 +1,6 @@
-//! The escaping of a value read from the SBOM or a feed, shared by the reports and the error lines (`report`, `main`,
-//! CHK-14, MCH-18, MCH-23) and the early warning draft (`early_warning`, EWD-16) so that the writers cannot drift.
+//! The escaping of a value read from the SBOM or a feed, shared by the reports and the error lines (`report`, `vex`,
+//! `drafts`, `error_line`, CHK-14, MCH-18, MCH-23) and the early warning draft (`early_warning`, EWD-16) so that the
+//! writers cannot drift; a path has its own rule on Windows (`push_escaped_path`, CHK-16, MCH-43).
 
 use std::path::Path;
 
@@ -34,7 +35,9 @@ pub fn escaped(value: &str) -> String {
 }
 
 /// Pushes `path` escaped as `push_escaped` does, but on Windows each backslash, the separator a Windows file name
-/// cannot hold, as it is, so that the path reads as the user wrote it (CHK-16, MCH-43).
+/// cannot hold, as it is, so that the path reads as the user wrote it (CHK-16, MCH-43). There, an escape of a path
+/// no longer reads back to one value: a directory named `u{202e}` prints as a U+202E would (a non-goal of CHK-16);
+/// a character that hides text still prints escaped.
 pub fn push_escaped_path(text: &mut String, path: &Path) {
     push_path(text, &path.to_string_lossy(), cfg!(windows));
 }

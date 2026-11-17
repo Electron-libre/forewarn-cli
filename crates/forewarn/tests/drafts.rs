@@ -251,7 +251,7 @@ fn the_directory_is_created_with_its_parents_and_other_files_are_left_untouched(
     );
 }
 
-// spec: MXL-33, MCH-10
+// spec: MXL-33, MCH-10, MCH-43
 #[test]
 fn a_draft_directory_that_is_a_file_exits_with_7_and_prints_no_report() {
     let parent = TempDir::new().expect("a temporary directory");
@@ -278,7 +278,7 @@ fn a_draft_that_cannot_be_renamed_exits_with_7_and_leaves_no_temporary_file() {
     assert_eq!(entries(out.path()), [DRAFT]);
 }
 
-// spec: MXL-H6, MXL-28, MXL-35
+// spec: MXL-H6, MXL-28, MXL-35, MCH-43
 #[test]
 fn the_report_names_the_draft_written_and_a_rerun_with_the_measure_replaces_it() {
     let out = TempDir::new().expect("a temporary directory");
