@@ -32,7 +32,7 @@ Beta
 
 # Resources
 * `.github/workflows/release.yml` (job `notices`), ADR 0015, `specs/sbom-completeness.md`.
-* `issues/distribute_the_binary.md` (Deliverable 3 summary, follow-up).
+* `issues/done/distribute_the_binary.md` (Deliverable 3 summary, follow-up).
 
 # Hints
 * `cargo-cyclonedx` writes the SBOM of every workspace member; only that of `forewarn` is shipped.
