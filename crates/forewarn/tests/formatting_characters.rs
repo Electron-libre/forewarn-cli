@@ -197,6 +197,8 @@ fn match_escapes_the_backslash_of_a_component_and_of_a_record() {
 }
 
 // spec: MCH-23
+// A Windows file name holds neither a newline nor a backslash.
+#[cfg(unix)]
 #[test]
 fn an_error_escapes_the_backslash_of_a_file_name() {
     let osv = TempDir::new().expect("a temporary directory");

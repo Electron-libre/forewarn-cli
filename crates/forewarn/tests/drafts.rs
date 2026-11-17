@@ -372,6 +372,8 @@ fn without_the_option_the_reports_say_nothing_of_drafts() {
 }
 
 // spec: MXL-35, MCH-18
+// A Windows file name holds neither a newline nor a backslash.
+#[cfg(unix)]
 #[test]
 fn the_path_of_a_draft_is_printed_with_its_control_characters_escaped() {
     let parent = TempDir::new().expect("a temporary directory");

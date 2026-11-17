@@ -57,9 +57,9 @@ scope: the JSON report (JSON escaping), the file lock of the cache unless the Wi
    paths of `report`, `vex`, `drafts::WriteError`, `unreadable` and the `ReadError`s of the OSV, KEV and EUVD adapters
    (the CLI prints their path and their cause apart); verified by an internal test of both platforms' rule, `#[cfg(windows)]`
    tests through the binary and a Unix one; makes true CHK-16, MCH-43, MXL-35, MXL-39. (autonomous)
-2. [ ] Portable tests: `#[cfg(unix)]` on `tests/drafts.rs:378` and `tests/formatting_characters.rs:203`, the path tests
+2. [x] Portable tests: `#[cfg(unix)]` on `tests/drafts.rs:378` and `tests/formatting_characters.rs:203`, the path tests
    (`tests/vex.rs`, `tests/matching.rs`, `tests/exploited.rs`) build their expected text with a helper printing a path
-   as the CLI does; verified by `cargo test` on Linux and the Windows CI run.
+   as the CLI does; verified by `cargo test` on Linux and the Windows CI run. (autonomous)
 3. [ ] `windows-latest` back in the matrix of `.github/workflows/check.yml`, `git config --global core.autocrlf false`
    before the checkout; verified by the Windows CI run.
 
@@ -77,4 +77,12 @@ scope: the JSON report (JSON escaping), the file lock of the cache unless the Wi
 - Code review: no findings
 - not verified: the `#[cfg(windows)]` tests of `tests/paths.rs` (run once with `cfg(unix)` and `/` separators on
   Linux: pass), until the Windows CI run.
+
+## Deliverable 2 summary
+- done: the two tests on names Windows refuses (`tests/drafts.rs`, `tests/formatting_characters.rs`) gated
+  `#[cfg(unix)]`; the path tests already build their expected text with `display()`, which the CLI now prints as is
+  on Windows: no helper needed.
+- red: none (test gating only)
+- Code review: no findings
+- not verified: a Windows build here (`ring` needs a MinGW compiler, absent), until the Windows CI run.
 
