@@ -111,5 +111,6 @@ Draft pull request #1 (branch `windows-ci-check`, at `c142be9`): `tests on windo
   comments): fixed. 6 (CHK-16 Unix test repeats an MCH-23 one): kept, `check` and `match` print the error through
   different code.
 - Code review: no findings
-- not verified: the refactor of `error_line` on Windows until the next CI run of the pull request.
+- not verified: none: the CI of the pull request passes on Windows at `f9c5476`.
 
+Done: every deliverable committed, the CI passes on Windows; nothing left.
