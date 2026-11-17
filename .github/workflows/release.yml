@@ -83,26 +83,30 @@ jobs:
       # cargo-cyclonedx writes the SBOM of every member of the workspace; only that of forewarn is kept. It leaves the
       # supplier and the hash of the workspace crates and the supplier of some crates.io crates empty:
       # .github/sbom-complete.jq fills them (ADR 0016), and forewarn fails the release on an SBOM still incomplete.
-      # The hash of a workspace crate is that of its source tree, the mtime and the umask fixed so that anyone
-      # recomputes it from the tag (docs/user-guide.md).
+      # The hash of a workspace crate is that of the tar of its source tree, keyed by the package name; the mtime, the
+      # umask and the line endings are fixed so that anyone recomputes it from the tag (docs/user-guide.md). Each
+      # command runs on its own line, outside a pipe, so that a failure fails the step.
       - name: Write the SBOM of each target, complete it and check it with forewarn
         env:
           MANUFACTURER: Electron-libre
           MANUFACTURER_URL: https://github.com/Electron-libre
         run: |
           mkdir sbom
-          hashes=$(for dir in crates/*/; do
+          hashes='{}'
+          for dir in crates/*/; do
             crate=$(basename "$dir")
-            digest=$(git -c tar.umask=0022 archive --format=tar --mtime='1970-01-01 00:00:00 +0000' "HEAD:crates/$crate" | sha256sum | cut -d ' ' -f 1)
-            jq -n --arg crate "$crate" --arg digest "$digest" '{($crate): $digest}'
-          done | jq -s add)
+            name=$(python3 -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb"))["package"]["name"])' "$dir/Cargo.toml")
+            git -c tar.umask=0022 -c core.autocrlf=false archive --format=tar \
+              --mtime='1970-01-01 00:00:00 +0000' -o "$RUNNER_TEMP/$crate.tar" "HEAD:crates/$crate"
+            digest=$(sha256sum "$RUNNER_TEMP/$crate.tar")
+            hashes=$(jq -n --argjson hashes "$hashes" --arg name "$name" --arg digest "${digest%% *}" '$hashes + {($name): $digest}')
+          done
           targets=$(python3 -c 'import tomllib; print(" ".join(tomllib.load(open("about.toml", "rb"))["targets"]))')
           for target in $targets; do
             cargo cyclonedx -q --manifest-path crates/forewarn/Cargo.toml -f json --spec-version 1.6 \
               --target "$target" --no-build-deps --override-filename "forewarn-$target.cdx"
-            jq -f .github/sbom-complete.jq --arg manufacturer "$MANUFACTURER" \
-              --arg manufacturer_url "$MANUFACTURER_URL" --argjson hashes "$hashes" \
-              "crates/forewarn/forewarn-$target.cdx.json" > "sbom/forewarn-$target.cdx.json"
+            jq -f .github/sbom-complete.jq --arg manufacturer "$MANUFACTURER" --arg manufacturer_url "$MANUFACTURER_URL" \
+              --argjson hashes "$hashes" "crates/forewarn/forewarn-$target.cdx.json" > "sbom/forewarn-$target.cdx.json"
             cargo run -q --locked -p forewarn -- check "sbom/forewarn-$target.cdx.json"
           done
       - uses: actions/upload-artifact@v4

@@ -47,11 +47,12 @@ The archive also holds the licenses of `forewarn`, the notices of the crates its
 release workflow of this repository.
 
 The SBOM is complete for `forewarn check`: each crates.io crate has crates.io as supplier and the hash crates.io
-serves; each `forewarn-*` crate, built from source, has `Electron-libre` as supplier and the SHA-256 of its source
-tree at the tag, which you recompute from a clone:
+serves; `forewarn` and each `forewarn-*` crate, built from source, have `Electron-libre` as manufacturer or supplier
+and the SHA-256 of their source tree at the tag, which you recompute from a clone (Git 2.42 or later):
 
 ```sh
-git -c tar.umask=0022 archive --format=tar --mtime='1970-01-01 00:00:00 +0000' v<version>:crates/forewarn-domain | sha256sum
+git -c tar.umask=0022 -c core.autocrlf=false archive --format=tar --mtime='1970-01-01 00:00:00 +0000' \
+  v<version>:crates/forewarn-domain | sha256sum
 ```
 
 A CI job pins a version with `base=https://github.com/Electron-libre/forewarn-cli/releases/download/v<version>`.

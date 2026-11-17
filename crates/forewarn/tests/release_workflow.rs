@@ -118,7 +118,30 @@ const CARGO_CYCLONEDX_SBOM: &str = r#"{
   ]
 }"#;
 
-/// The SBOM completed by the program of the workflow, run with `jq` as the workflow runs it.
+/// The value of the variable `name` the release workflow sets: the line `<name>: <value>`.
+fn workflow_env(name: &str) -> String {
+    let workflow = read(".github/workflows/release.yml");
+    let prefix = format!("{name}:");
+    workflow
+        .lines()
+        .find_map(|line| line.trim().strip_prefix(prefix.as_str()))
+        .unwrap_or_else(|| panic!("the release workflow sets no {name}"))
+        .trim()
+        .to_owned()
+}
+
+/// The manufacturer the release workflow names: `{ name, url: [url] }`.
+fn manufacturer() -> serde_json::Value {
+    serde_json::json!({
+        "name": workflow_env("MANUFACTURER"),
+        "url": [workflow_env("MANUFACTURER_URL")],
+    })
+}
+
+/// The hashes of the workspace crates the workflow gives the program: the product and `forewarn-domain`.
+const HASHES: &str = r#"{"forewarn": "c5a60f", "forewarn-domain": "fd53c1"}"#;
+
+/// The SBOM completed by the program of the workflow, run with `jq` and the manufacturer of the workflow.
 fn complete(sbom: &str, hashes: &str) -> serde_json::Value {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let input = dir.path().join("sbom.cdx.json");
@@ -126,11 +149,11 @@ fn complete(sbom: &str, hashes: &str) -> serde_json::Value {
     let output = Command::new("jq")
         .arg("-f")
         .arg(workspace_root().join(COMPLETE_SBOM))
-        .args(["--arg", "manufacturer", "Electron-libre"])
+        .args(["--arg", "manufacturer", &workflow_env("MANUFACTURER")])
         .args([
             "--arg",
             "manufacturer_url",
-            "https://github.com/Electron-libre",
+            &workflow_env("MANUFACTURER_URL"),
         ])
         .args(["--argjson", "hashes", hashes])
         .arg(&input)
@@ -150,16 +173,23 @@ fn component<'a>(sbom: &'a serde_json::Value, pointer: &str) -> &'a serde_json::
 }
 
 #[test]
-fn the_completed_sbom_names_the_manufacturer_supplier_of_the_workspace_crates_with_their_hash() {
-    let sbom = complete(CARGO_CYCLONEDX_SBOM, r#"{"forewarn-domain": "fd53c1"}"#);
-    let manufacturer = serde_json::json!({ "name": "Electron-libre", "url": ["https://github.com/Electron-libre"] });
+fn the_completed_sbom_names_the_manufacturer_of_the_product_with_its_hash() {
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, HASHES);
 
+    let product = component(&sbom, "/metadata/component");
+    assert_eq!(product["manufacturer"], manufacturer());
     assert_eq!(
-        component(&sbom, "/metadata/component/manufacturer"),
-        &manufacturer
+        product["hashes"],
+        serde_json::json!([{ "alg": "SHA-256", "content": "c5a60f" }])
     );
+}
+
+#[test]
+fn the_completed_sbom_names_the_manufacturer_supplier_of_the_workspace_crates_with_their_hash() {
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, HASHES);
+
     let domain = component(&sbom, "/components/0");
-    assert_eq!(domain["supplier"], manufacturer);
+    assert_eq!(domain["supplier"], manufacturer());
     assert_eq!(
         domain["hashes"],
         serde_json::json!([{ "alg": "SHA-256", "content": "fd53c1" }])
@@ -168,7 +198,7 @@ fn the_completed_sbom_names_the_manufacturer_supplier_of_the_workspace_crates_wi
 
 #[test]
 fn the_completed_sbom_names_crates_io_supplier_of_each_registry_crate_nested_or_not() {
-    let sbom = complete(CARGO_CYCLONEDX_SBOM, r#"{"forewarn-domain": "fd53c1"}"#);
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, HASHES);
     let crates_io = serde_json::json!({ "name": "crates.io", "url": ["https://crates.io"] });
 
     let serde = component(&sbom, "/components/1");
@@ -187,7 +217,7 @@ fn the_completed_sbom_names_crates_io_supplier_of_each_registry_crate_nested_or_
 fn forewarn_finds_the_completed_sbom_complete() {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let path = dir.path().join("forewarn.cdx.json");
-    let sbom = complete(CARGO_CYCLONEDX_SBOM, r#"{"forewarn-domain": "fd53c1"}"#);
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, HASHES);
     fs::write(&path, sbom.to_string()).expect("the completed SBOM is written");
 
     let check = Command::new(env!("CARGO_BIN_EXE_forewarn"))
@@ -204,17 +234,19 @@ fn forewarn_finds_the_completed_sbom_complete() {
 }
 
 #[test]
-fn a_workspace_crate_with_no_hash_given_stays_without_one() {
-    let sbom = complete(CARGO_CYCLONEDX_SBOM, "{}");
+fn a_path_crate_outside_the_workspace_keeps_no_supplier_nor_hash() {
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, r#"{"forewarn": "c5a60f"}"#);
 
-    assert!(component(&sbom, "/components/0").get("hashes").is_none());
+    let vendored = component(&sbom, "/components/0");
+    assert!(vendored.get("supplier").is_none(), "{vendored}");
+    assert!(vendored.get("hashes").is_none(), "{vendored}");
 }
 
 #[test]
 fn the_release_checks_each_sbom_complete_once_completed() {
     let workflow = read(".github/workflows/release.yml");
     let completed = workflow
-        .find(COMPLETE_SBOM)
+        .find(&format!("jq -f {COMPLETE_SBOM}"))
         .expect("the release workflow completes the SBOMs");
     let checked = workflow
         .find("-p forewarn -- check")
@@ -228,4 +260,11 @@ fn the_release_checks_each_sbom_complete_once_completed() {
         !workflow.contains("--allow-incomplete"),
         "the release accepts an incomplete SBOM"
     );
+}
+
+#[test]
+fn the_user_guide_names_the_manufacturer_the_release_sboms_name() {
+    let guide = read("docs/user-guide.md");
+
+    assert!(guide.contains(&format!("`{}`", workflow_env("MANUFACTURER"))));
 }

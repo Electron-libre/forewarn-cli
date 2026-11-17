@@ -57,6 +57,10 @@ and names crates.io the supplier of the registry crates (ADR 0016 draft). No cha
    ADR 0016, user guide (how to recompute a crate hash); verified by `release_workflow.rs` (the check step passes no
    `--allow-incomplete`, the completion step runs before it) and by the step run locally on the four targets,
    `forewarn check` exiting 0 on each. (autonomous)
+2. [x] Fixes of the `high` review of the issue: `git archive` outside a pipe so a failure fails the step, the hashes
+   keyed by package name, only the hashed path crates named the manufacturer's, the product hashed, `core.autocrlf`
+   fixed and Git 2.42 named, the test of the order searching the `jq` call, the manufacturer read from the
+   workflow; verified by `release_workflow.rs` and the step rerun on the four targets. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -78,3 +82,11 @@ and names crates.io the supplier of the registry crates (ADR 0016 draft). No cha
   `.github/sbom-complete.jq`, and the workflow still passed `--allow-incomplete`.
 - not verified: the step on the GitHub runners (the pull request runs it, the workflow file changed); `jq` on the
   Windows test runner (listed in the image).
+
+## Summary of deliverable 2
+- done: the 9 findings of the `high` review fixed (see the plan line).
+- checks: project-check passes; the step extracted from `release.yml` and run locally on the four targets, each SBOM
+  `Complete: 98 components checked`, the product with its manufacturer and hash.
+- red: none (no spec); `a_path_crate_outside_the_workspace_keeps_no_supplier_nor_hash` written against the former
+  program, which named any path crate the manufacturer's.
+- not verified: the step on the GitHub runners (the pull request or the next tag runs it).
