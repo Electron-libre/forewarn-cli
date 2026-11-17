@@ -2,9 +2,12 @@
 //! root, and the domain crate depends on no other crate of the workspace. Also the version of the last release:
 //! `cardinal run release <version>` writes the `CHANGELOG.md` section and, through the `release_version_command` of
 //! `.claude/cardinal.toml` (`just set-version`), the `[workspace.package] version` that `forewarn --version` prints.
+//! And one license policy: the licenses `deny.toml` allows every dependency are those `about.toml` accepts in the
+//! release binaries.
 
 mod common;
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -163,4 +166,29 @@ fn the_binary_prints_the_workspace_version() {
 
     assert_eq!(run.code, 0, "{}", run.stderr);
     assert_eq!(run.stdout, format!("forewarn {}\n", workspace_version()));
+}
+
+/// The strings of the array at `keys` of a TOML file of the workspace root.
+fn string_set(file: &str, keys: &[&str]) -> BTreeSet<String> {
+    let table = read_manifest(&workspace_root().join(file));
+    lookup(&table, keys)
+        .and_then(toml::Value::as_array)
+        .unwrap_or_else(|| panic!("{file} has no array {}", keys.join(".")))
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .unwrap_or_else(|| panic!("{file}: {value} is not a string"))
+                .to_owned()
+        })
+        .collect()
+}
+
+#[test]
+fn deny_toml_allows_the_licenses_about_toml_accepts() {
+    let accepted = string_set("about.toml", &["accepted"]);
+    let allowed = string_set("deny.toml", &["licenses", "allow"]);
+
+    assert!(!accepted.is_empty(), "about.toml accepts no license");
+    assert_eq!(allowed, accepted);
 }

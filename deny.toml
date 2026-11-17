@@ -1,0 +1,38 @@
+# The dependency policy `cargo deny check` enforces in `.github/workflows/check.yml`: the licenses of `CLAUDE.md` (no
+# copyleft), no crate a RustSec advisory names or its author yanked, crates.io as the only source.
+
+[graph]
+# Every feature and every target: a dependency only some build pulls in is checked all the same.
+all-features = true
+
+[advisories]
+yanked = "deny"
+# An advisory left unfixed is ignored here with its id and its reason, never silently.
+ignore = []
+
+[licenses]
+# The licenses `about.toml` accepts in the release binaries: `workspace_policy.rs` keeps the two lists equal. A crate
+# under several licenses passes when one of them is allowed.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "Unicode-3.0",
+    "Zlib",
+]
+confidence-threshold = 0.93
+
+[bans]
+# Two versions of a crate cost build time, not compliance: not a failure.
+multiple-versions = "allow"
+wildcards = "deny"
+# The path dependencies between the workspace crates name no version while `publish = false` holds.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

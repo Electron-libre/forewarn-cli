@@ -1,12 +1,16 @@
 name: Check
 
-# The project check (format, lint, tests) of every push to main and every pull request. A file of its own:
+# The project check (format, lint, tests) of every push to main and every pull request, and the dependency policy of
+# `deny.toml`, also run each day so that a new advisory turns main red without a push. A file of its own:
 # `cardinal.yml` is synced by Cardinal and must not be edited.
 
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # The scheduled run checks the dependencies alone: the code has not changed since the last push.
+    - cron: '23 5 * * *'
 
 concurrency:
   group: check-${{ github.ref }}
@@ -22,6 +26,7 @@ env:
 jobs:
   check:
     name: project check
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +44,7 @@ jobs:
 
   msrv:
     name: build on the rust-version
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +60,7 @@ jobs:
 
   test:
     name: tests on ${{ matrix.os }}
+    if: github.event_name != 'schedule'
     strategy:
       fail-fast: false
       matrix:
@@ -66,3 +73,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Every test binary runs: one red run shows all the failures of the platform.
       - run: cargo test --locked --no-fail-fast
+
+  dependencies:
+    name: licenses, advisories, bans and sources of the dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The policy of deny.toml: the licenses about.toml accepts, no RustSec advisory nor yanked crate, crates.io only.
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses advisories bans sources
+          arguments: --locked

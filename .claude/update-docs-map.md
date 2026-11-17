@@ -9,3 +9,4 @@ Read by `skill:update-docs`. Owned by the project: one row per kind of change, w
 | New ADR | its row in the Decisions table of `docs/architecture.md` |
 | Third-party data vendored or its version changed | its license file next to it, the License section of `CLAUDE.md` |
 | Release process or version handling (`set-version`, `release_version_command`) | `CLAUDE.md` (the project check paragraph); `docs/user-guide.md` (Install) when what `--version` prints changes |
+| Dependency policy (`deny.toml`, an allowed license, an ignored advisory) | the License section of `CLAUDE.md`; `about.toml` for a license (a test keeps the two lists equal) |

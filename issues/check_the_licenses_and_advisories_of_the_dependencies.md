@@ -43,12 +43,12 @@ Found while preparing: the tree fails today, `time 0.3.45` (RUSTSEC-2026-0009) a
 1. [x] Upgrade the vulnerable dependencies: `zip` 7 → 9 (`ZipFile::name` now returns a `Result`, in
    `forewarn-osv/src/fetch.rs`), `time` ≥ 0.3.47 in `Cargo.lock`; verified by the existing tests (the archive
    extraction and its unsafe-entry refusals) and `cargo deny check advisories` clean; ~100 lines (mostly `Cargo.lock`).
-2. [ ] `deny.toml` (licenses = the `accepted` of `about.toml`, advisories, yanked denied, wildcard paths allowed for
+2. [x] `deny.toml` (licenses = the `accepted` of `about.toml`, advisories, yanked denied, wildcard paths allowed for
    the unpublished workspace crates, crates.io only) and a job `dependencies` in `.github/workflows/check.yml`
    running `cargo deny --locked check licenses advisories bans sources` (`EmbarkStudios/cargo-deny-action`, pinned),
    plus a daily `schedule` running that job alone; verified by a test of `workspace_policy.rs` that the licenses
    `deny.toml` allows are those `about.toml` accepts, a local `cargo deny check` green, CLAUDE.md (License) and
-   `docs/architecture.md` updated; ~150 lines.
+   `docs/architecture.md` updated; ~150 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -61,4 +61,14 @@ Found while preparing: the tree fails today, `time 0.3.45` (RUSTSEC-2026-0009) a
 - checks: project-check green, `cargo +1.89 check --all-targets --locked` green, `cargo deny check advisories` ok
   (5 advisories before).
 - red: none (no new test: the extraction tests of `forewarn-osv/tests/fetching.rs` cover the change).
+- Code review: no findings
+
+## Deliverable 2
+- done: `deny.toml`, the job `dependencies` of `check.yml` (`cargo-deny-action@v2`, `--locked`), a daily schedule that
+  skips the other jobs, the test `deny_toml_allows_the_licenses_about_toml_accepts`; CLAUDE.md (project check,
+  License) and `.claude/update-docs-map.md` (a row for the dependency policy). `docs/architecture.md`: n/a, it
+  describes no workflow.
+- checks: project-check green, `cargo deny --locked check licenses advisories bans sources` ok, no warning.
+- red: none traced (no spec); the test failed first on `deny.toml: No such file or directory`.
+- not verified: the job on GitHub Actions (runs on the next push), the scheduled trigger.
 - Code review: no findings

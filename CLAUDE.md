@@ -56,7 +56,8 @@ that cannot be read exits with 3.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`. The workflow
 `.github/workflows/check.yml` runs that command on every push to `main` and every pull request, builds on the toolchain
-of `rust-version` (read from `Cargo.toml`) and runs the tests on macOS.
+of `rust-version` (read from `Cargo.toml`), runs the tests on macOS and runs `cargo deny check` against `deny.toml`
+(licenses, RustSec advisories, yanked crates, sources), the latter also each day.
 `cardinal run release <version>` writes the `CHANGELOG.md` section, then runs the `release_version_command` of
 `.claude/cardinal.toml`, `just set-version <version>`, which writes `[workspace.package] version` and `Cargo.lock`:
 `forewarn --version` prints it, and `crates/forewarn/tests/workspace_policy.rs` checks it is the newest release of the
@@ -127,7 +128,8 @@ this repository (matching logic, CycloneDX handling, API types shared with the s
 Dual-licensed `MIT OR Apache-2.0` (the Rust ecosystem default, the easiest to integrate). Every crate declares it,
 inherited from `[workspace.package] license = "MIT OR Apache-2.0"` with `license.workspace = true`. Dependencies must
 be compatible with both: no copyleft (GPL, AGPL, LGPL-only) crate. The `accepted` licenses of `about.toml` are those the
-release binaries may include.
+release binaries may include; `deny.toml` allows the same ones to every dependency (`cargo deny check` in CI,
+`workspace_policy.rs` keeps the two lists equal). Adding a license changes both files.
 Vendored data follows the same rule and keeps its license next to it: the Unicode 16.0 extracts of
 `crates/forewarn/data/ucd-16.0.0` (Unicode License v3), test data only.
 
