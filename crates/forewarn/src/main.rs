@@ -153,7 +153,7 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         exploited: &exploited,
         awareness: &awareness,
         matching: &matching,
-        drafts: drafts.as_deref(),
+        drafts: drafts.as_ref(),
         verdicts: &verdicts,
     };
     write_report(&match args.format {
@@ -184,14 +184,14 @@ fn matched(
     )
 }
 
-/// Writes the draft early warning of each actively exploited CVE into `directory` (MXL-27), or prints why one cannot
-/// be written and returns the code 7 (MXL-33).
+/// Writes the draft early warning of each actively exploited CVE into `directory` (MXL-27) and lists the stale ones
+/// (MXL-36), or prints why a draft cannot be written or the directory listed and returns the code 7 (MXL-33, MXL-40).
 fn write_drafts(
     directory: &Path,
     sbom: &Sbom,
     awareness: &Awareness,
     matching: &FlaggedReport,
-) -> Result<Vec<drafts::Written>, u8> {
+) -> Result<drafts::Drafts, u8> {
     let drafted = draft_early_warnings(
         matching,
         sbom.product.as_ref(),
@@ -199,7 +199,8 @@ fn write_drafts(
         awareness.measure_available,
     )
     .expect("the deadlines of the moments given were checked before the SBOM was read");
-    drafts::write(directory, &drafted).map_err(|error| {
+    let product = sbom.product.as_ref().map(|product| product.name.as_str());
+    drafts::write(directory, product, &drafted).map_err(|error| {
         eprintln!("error: {}", escape::escaped(&error.to_string()));
         DRAFT_UNWRITABLE
     })

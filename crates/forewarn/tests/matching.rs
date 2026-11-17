@@ -138,6 +138,7 @@ fn prints_the_same_result_as_json() {
                 "deadlines": null,
             }],
             "drafts": [],
+            "staleDrafts": [],
             "vex": [{"kind": "sbom", "verdictCount": 0}],
             "setAsideCount": 0,
             "setAside": [],

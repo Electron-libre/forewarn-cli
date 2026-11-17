@@ -48,7 +48,8 @@ into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-s
 run) and `--measure-available`, each with the time left before it or how long it is overdue at `--now` (by default the
 moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`); with `--drafts <dir>`, it
 writes the draft early warning of each such CVE into `<dir>/<product>-<CVE>.md` (module `drafts`), names the files in
-the report, and exits with 7 when one cannot be written. It applies the VEX verdicts of the SBOM and of each
+the report, names apart the stale drafts of the product it no longer writes, left in place, and exits with 7 when one
+cannot be written or the directory listed. It applies the VEX verdicts of the SBOM and of each
 `--vex <file>`, listing the matches set aside with their verdict and evidence apart, out of the exit codes, the
 deadlines and the drafts, and the verdicts that name no match (`specs/cli-match-vex.md`, module `vex`); a `--vex` file
 that cannot be read exits with 3.

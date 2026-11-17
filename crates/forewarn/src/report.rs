@@ -19,7 +19,7 @@ use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
 
-use crate::drafts::Written;
+use crate::drafts::{Drafts, Written};
 use crate::escape::push_escaped;
 use crate::vex::{self, Verdicts};
 use time::OffsetDateTime;
@@ -244,8 +244,8 @@ pub struct MatchReport<'a> {
     pub exploited: &'a [ExploitedSource<'a>],
     pub awareness: &'a Awareness,
     pub matching: &'a FlaggedReport,
-    /// The draft early warnings written, `None` without `--drafts` (MXL-28).
-    pub drafts: Option<&'a [Written]>,
+    /// The draft early warnings written and the stale ones, `None` without `--drafts` (MXL-28, MXL-36).
+    pub drafts: Option<&'a Drafts>,
     /// The VEX verdicts applied to the matches (MVX-1).
     pub verdicts: &'a Verdicts<'a>,
 }
@@ -306,13 +306,15 @@ pub fn matching_human(report: &MatchReport) -> String {
         }
     }
     if let Some(drafts) = drafts {
-        let _ = writeln!(text, "Draft early warnings ({}):", drafts.len());
-        for draft in drafts {
-            text.push_str("  ");
-            push_escaped(&mut text, &draft.cve);
-            text.push_str(": ");
-            push_escaped(&mut text, &draft.path.to_string_lossy());
-            text.push('\n');
+        let _ = writeln!(text, "Draft early warnings ({}):", drafts.written.len());
+        push_draft_files(&mut text, &drafts.written);
+        if !drafts.stale.is_empty() {
+            let _ = writeln!(
+                text,
+                "Stale draft early warnings, no longer drafted, left in place ({}):",
+                drafts.stale.len()
+            );
+            push_draft_files(&mut text, &drafts.stale);
         }
     }
     vex::push_set_aside(&mut text, verdicts, matching);
@@ -556,6 +558,25 @@ fn push_component_ref(text: &mut String, component: &ComponentRef) {
     );
 }
 
+/// A line per draft file, its CVE id then its path, both escaped (MXL-35, MXL-39).
+fn push_draft_files(text: &mut String, files: &[Written]) {
+    for draft in files {
+        text.push_str("  ");
+        push_escaped(text, &draft.cve);
+        text.push_str(": ");
+        push_escaped(text, &draft.path.to_string_lossy());
+        text.push('\n');
+    }
+}
+
+/// The objects `{"cve", "path"}` of the draft files of MCH-16.
+fn draft_files_json(files: &[Written]) -> Vec<Value> {
+    files
+        .iter()
+        .map(|draft| json!({"cve": draft.cve, "path": draft.path.to_string_lossy()}))
+        .collect()
+}
+
 /// The JSON report of `forewarn match` for a machine: one object whose members MCH-16 lists, ending with a newline.
 pub fn matching_json(report: &MatchReport) -> String {
     let MatchReport {
@@ -628,11 +649,8 @@ pub fn matching_json(report: &MatchReport) -> String {
             .filter(|_| exploited_any)
             .map(|moment| moment.to_string()),
         "affected": affected,
-        "drafts": drafts
-            .unwrap_or_default()
-            .iter()
-            .map(|draft| json!({"cve": draft.cve, "path": draft.path.to_string_lossy()}))
-            .collect::<Vec<_>>(),
+        "drafts": drafts.map_or_else(Vec::new, |drafts| draft_files_json(&drafts.written)),
+        "staleDrafts": drafts.map_or_else(Vec::new, |drafts| draft_files_json(&drafts.stale)),
         "notEvaluated": not_evaluated,
     });
     if let Value::Object(members) = &mut report {

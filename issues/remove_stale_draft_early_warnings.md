@@ -37,3 +37,43 @@ Beta
 
 # Hints
 * A draft may hold the fields a person completed: removing it loses their work.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-17
+
+## Understanding
+A rerun with `--drafts` names, in the human and JSON reports, the drafts of the same product it no longer writes
+(stale), with their CVE, and leaves them in place: approach 2, since a draft may hold fields a person completed.
+Out of scope: removing them, a new exit code, other products sharing the directory.
+
+## Plan
+1. [x] Stale drafts: `drafts` lists the files of the directory named `<product>-CVE-….md` (MXL-31) the run did not
+   write, `main` lists them also with no exploited match, the human report and `staleDrafts` of the JSON report name
+   them, a directory that cannot be listed exits with 7; verified by tests of `crates/forewarn/tests/drafts.rs` through
+   the binary; makes true MXL-36 to MXL-40, MCH-16 (`staleDrafts`), MCH-10 (row 7). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 53a5194e36fa55d8dc70c686db3e05365779407c
+- Stale drafts are listed, never removed; no exit code for them (a CI job reads `staleDrafts`); sorted by file name.
+
+## Summary of deliverable 1
+done: `forewarn match --drafts` lists the stale drafts of the product (human report and `staleDrafts`), leaves them in
+place, exits with 7 on a directory it cannot list; specs back to `accepted`.
+
+| check | result |
+|---|---|
+| tests | `cargo test` green (7 new tests in `crates/forewarn/tests/drafts.rs`) |
+| lint | `cargo clippy --all-targets -- -D warnings` clean |
+| specs | `check-specs` clean, MXL-36 to MXL-40 traced |
+| docs | user guide, architecture, CLAUDE.md |
+| code review | `low`, no findings |
+
+red: MXL-H7, MXL-36, MXL-37, MXL-38, MXL-39, MXL-40: `staleDrafts` was `null`, the human report had no stale heading, and a draft directory that is a file exited with 0.
+
+Code review: no findings
+
+not verified: a directory unreadable through its permissions (the test uses a regular file, portable to a root CI).
+
+decisions needed: none

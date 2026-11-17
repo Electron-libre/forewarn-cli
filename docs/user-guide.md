@@ -245,7 +245,10 @@ To complete before entering it into the ENISA Single Reporting Platform: 2. Titl
   components, CVE, EUVD id, evidence, deadlines.
 - Marked `**TO COMPLETE**`: what only you know (title, summary, Member States).
 - Values from the SBOM and the feeds are escaped, so they render as written and cannot inject Markdown or HTML.
-- A rerun replaces a draft whole; drafts of a CVE no longer exploited stay in the directory.
+- A rerun replaces a draft whole. A draft of the same product it no longer writes (the CVE set aside by a VEX
+  verdict, no longer exploited, or the component upgraded) is left in place, since you may have completed it, and the
+  report lists it under `Stale draft early warnings` (`staleDrafts` in JSON): remove it yourself before publishing the
+  directory. A directory of `--drafts` that exists but cannot be listed exits with 7.
 
 A draft is a starting point: you submit the early warning yourself, on the ENISA Single Reporting Platform.
 
@@ -306,6 +309,7 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
 | `notEvaluated` | each component not evaluated, with its reason (`first-party`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
 | `drafts` | each draft written: `cve`, `path` |
+| `staleDrafts` | each draft of the product left from an earlier run that this run no longer writes: `cve`, `path` |
 | `vex` | each source of verdicts: `kind` (`sbom`, `file`), `verdictCount`, and the `path` of a file |
 | `setAsideCount`, `setAside` | each match a VEX verdict set aside, as in `affected` without `deadlines`, with its `verdict` (`state`, `justification`, `detail`, `source`: `sbom` or the path) |
 | `unusedVerdicts` | each verdict that names no match: `ids`, `targets`, `source` |
@@ -321,4 +325,4 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | 4 | the report cannot be written | the report cannot be written |
 | 5 | | the OSV records, the KEV catalog or the EUVD list cannot be read, fetched or queried |
 | 6 | | a match is actively exploited, even with `--allow-affected` |
-| 7 | | a draft cannot be written; nothing is printed on standard output |
+| 7 | | a draft cannot be written, or the directory of the drafts listed; nothing is printed on standard output |

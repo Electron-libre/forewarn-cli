@@ -481,3 +481,182 @@ fn a_backslash_typed_in_the_sbom_reads_apart_from_an_escaped_character() {
         "{draft}"
     );
 }
+
+/// The SBOM of `shop` with `log4j-core` 2.14.1, whose `vulnerabilities` say `CVE-2021-44228` does not affect it.
+fn shop_not_affected() -> Vec<u8> {
+    let mut bom: Value = serde_json::from_slice(&shop()).expect("JSON");
+    bom["components"][0]["bom-ref"] = json!("log4j");
+    bom["vulnerabilities"] = json!([{
+        "id": "CVE-2021-44228",
+        "analysis": {"state": "not_affected", "justification": "code_not_reachable"},
+        "affects": [{"ref": "log4j"}],
+    }]);
+    serde_json::to_vec(&bom).expect("the SBOM serializes")
+}
+
+/// The heading of the stale drafts of the human report, with their number.
+fn stale_heading(count: usize) -> String {
+    format!("Stale draft early warnings, no longer drafted, left in place ({count}):\n")
+}
+
+// spec: MXL-H7, MXL-36, MXL-37, MXL-39
+#[test]
+fn a_draft_the_rerun_no_longer_writes_is_named_stale_and_keeps_what_a_person_completed() {
+    let out = TempDir::new().expect("a temporary directory");
+    let draft = out.path().join(DRAFT);
+    assert_eq!(matched(&["--drafts", path(out.path())], &shop()).code, 6);
+    let completed = format!(
+        "{}\nCompleted by the vendor.\n",
+        fs::read_to_string(&draft).expect("the draft")
+    );
+    fs::write(&draft, &completed).expect("the vendor completes the draft");
+
+    let rerun = matched(&["--drafts", path(out.path())], &shop_not_affected());
+    assert_eq!(rerun.code, 0, "{}", rerun.stderr);
+    let expected = format!(
+        "Draft early warnings (0):\n{}  CVE-2021-44228: {}\n",
+        stale_heading(1),
+        path(&draft)
+    );
+    assert!(rerun.stdout.contains(&expected), "{}", rerun.stdout);
+    assert_eq!(entries(out.path()), [DRAFT]);
+    assert_eq!(fs::read_to_string(&draft).expect("the draft"), completed);
+}
+
+// spec: MXL-36, MXL-38, MCH-16
+#[test]
+fn only_the_drafts_of_the_product_the_run_did_not_write_are_stale() {
+    let out = TempDir::new().expect("a temporary directory");
+    let files = [
+        DRAFT,
+        "shop-CVE-2023-4966.md",
+        "shop-CVE-2023-4966.md.bak",
+        "shop-notes.md",
+        "shop-cve-2020-1234.md",
+        "shop-CVE-20-1234.md",
+        "shop-CVE-2020-123.md",
+        "other-CVE-2022-1234.md",
+        "CVE-2022-1234.md",
+    ];
+    for file in files {
+        fs::write(out.path().join(file), "a file").expect("a file");
+    }
+    fs::create_dir(out.path().join("old")).expect("a subdirectory");
+    fs::write(out.path().join("old/shop-CVE-2022-1234.md"), "").expect("a file");
+    fs::create_dir(out.path().join("shop-CVE-2022-9999.md")).expect("a directory named as a draft");
+
+    let run = matched(&["--drafts", path(out.path()), "--format", "json"], &shop());
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let report = json_report(&run);
+    assert_eq!(
+        report["staleDrafts"],
+        json!([{"cve": "CVE-2023-4966", "path": path(&out.path().join("shop-CVE-2023-4966.md"))}])
+    );
+    assert_ne!(
+        fs::read_to_string(out.path().join(DRAFT)).expect("the draft"),
+        "a file",
+        "the draft of the run is replaced"
+    );
+    for file in &files[1..] {
+        assert_eq!(
+            fs::read_to_string(out.path().join(file)).expect("left in place"),
+            "a file"
+        );
+    }
+}
+
+// spec: MXL-38
+#[test]
+fn the_stale_drafts_of_an_sbom_naming_no_product_or_a_product_ending_like_a_cve() {
+    let out = TempDir::new().expect("a temporary directory");
+    for file in [
+        "CVE-2022-1234.md",
+        "shop-CVE-2022-1234.md",
+        "shop-CVE-2022-CVE-2023-4966.md",
+    ] {
+        fs::write(out.path().join(file), "").expect("a file");
+    }
+    let stale = |sbom: &[u8]| {
+        let run = matched(&["--drafts", path(out.path()), "--format", "json"], sbom);
+        assert_eq!(run.code, 0, "{}", run.stderr);
+        json_report(&run)["staleDrafts"].clone()
+    };
+    assert_eq!(
+        stale(&sbom(None, false)),
+        json!([{"cve": "CVE-2022-1234", "path": path(&out.path().join("CVE-2022-1234.md"))}])
+    );
+    let product = json!({"type": "application", "name": "shop-CVE-2022"});
+    assert_eq!(
+        stale(&sbom(Some(product), false)),
+        json!([{"cve": "CVE-2023-4966",
+                "path": path(&out.path().join("shop-CVE-2022-CVE-2023-4966.md"))}])
+    );
+}
+
+// spec: MXL-39
+#[test]
+fn the_stale_drafts_are_listed_by_file_name_and_not_at_all_when_there_is_none() {
+    let out = TempDir::new().expect("a temporary directory");
+    let no_exploited = sbom(Some(json!({"type": "application", "name": "shop"})), false);
+    let run = matched(&["--drafts", path(out.path())], &no_exploited);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert!(!run.stdout.contains("Stale"), "{}", run.stdout);
+
+    for file in [
+        "shop-CVE-2023-4966.md",
+        "shop-CVE-2021-5000.md",
+        "shop-CVE-2021-44228.md",
+    ] {
+        fs::write(out.path().join(file), "").expect("a file");
+    }
+    let run = matched(&["--drafts", path(out.path())], &no_exploited);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let line = |cve: &str| {
+        format!(
+            "  {cve}: {}\n",
+            path(&out.path().join(format!("shop-{cve}.md")))
+        )
+    };
+    let expected = format!(
+        "{}{}{}{}",
+        stale_heading(3),
+        line("CVE-2021-44228"),
+        line("CVE-2021-5000"),
+        line("CVE-2023-4966")
+    );
+    assert!(run.stdout.contains(&expected), "{}", run.stdout);
+}
+
+// spec: MXL-40, MXL-30, MCH-16
+#[test]
+fn a_missing_directory_holds_no_stale_draft_and_is_not_created() {
+    let parent = TempDir::new().expect("a temporary directory");
+    let out = parent.path().join("drafts");
+    let run = matched(
+        &["--drafts", path(&out), "--format", "json"],
+        &sbom(None, false),
+    );
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(json_report(&run)["staleDrafts"], json!([]));
+    assert!(!out.exists());
+}
+
+// spec: MXL-40, MCH-10
+#[test]
+fn a_draft_directory_that_cannot_be_listed_exits_with_7_and_prints_no_report() {
+    let parent = TempDir::new().expect("a temporary directory");
+    let file = parent.path().join("drafts");
+    fs::write(&file, "").expect("a regular file");
+    let run = matched(&["--drafts", path(&file)], &sbom(None, false));
+    assert_eq!(run.code, 7, "{}", run.stderr);
+    assert_eq!(run.stdout, "");
+    assert_eq!(run.stderr.lines().count(), 1, "{}", run.stderr);
+    assert!(run.stderr.contains(path(&file)), "{}", run.stderr);
+}
+
+// spec: MCH-16
+#[test]
+fn without_the_option_the_json_report_names_no_stale_draft() {
+    let json = matched(&["--format", "json"], &shop());
+    assert_eq!(json_report(&json)["staleDrafts"], json!([]));
+}
