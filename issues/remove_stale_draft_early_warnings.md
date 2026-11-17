@@ -52,6 +52,10 @@ Out of scope: removing them, a new exit code, other products sharing the directo
    write, `main` lists them also with no exploited match, the human report and `staleDrafts` of the JSON report name
    them, a directory that cannot be listed exits with 7; verified by tests of `crates/forewarn/tests/drafts.rs` through
    the binary; makes true MXL-36 to MXL-40, MCH-16 (`staleDrafts`), MCH-10 (row 7). (autonomous)
+2. [x] Fixes of the `high` review: list before writing (a listing failure writes no draft), a path naming a file or
+   under one holds no stale draft, entries filtered by name before their type, one prefix for the names written and
+   listed, the CVE grammar of the domain (`forewarn_domain::is_cve`), `Written` renamed `DraftFile`; verified by the
+   tests of MXL-40 in `crates/forewarn/tests/drafts.rs`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -75,5 +79,29 @@ red: MXL-H7, MXL-36, MXL-37, MXL-38, MXL-39, MXL-40: `staleDrafts` was `null`, t
 Code review: no findings
 
 not verified: a directory unreadable through its permissions (the test uses a regular file, portable to a root CI).
+
+decisions needed: none
+
+## Summary of deliverable 2
+done: the 8 findings of the `high` review fixed; MXL-40 reworded (exit 7 before any draft; a path naming a file holds no
+stale draft).
+
+| check | result |
+|---|---|
+| tests | `cargo test` green; MXL-40 tested on a directory of mode 0300 and on a path naming a file |
+| lint | clean |
+| specs | `check-specs` clean |
+| docs | user guide (exit 7 writes no draft), architecture (order of the output) |
+| code review | `low`, no findings |
+
+red: MXL-40: the earlier run wrote the draft before failing on the listing, and exited with 7 on a path naming a file with no exploited match (the high review's findings 1 and 5).
+
+Code review: 0 findings
+
+High review of the issue: 8 findings, all fixed in this deliverable (ENOTDIR read as absent, `file_type` after the name
+filter and `NotFound` skipped, one prefix for both lists, listing before writing, the 0300 test, the domain's
+`is_cve`, `DraftFile`, the prefix computed once).
+
+not verified: the 0300 test on macOS CI and as root (it returns early when the directory can still be listed).
 
 decisions needed: none

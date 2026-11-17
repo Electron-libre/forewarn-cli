@@ -14,3 +14,5 @@ pub mod sbom;
 mod version;
 pub mod vex;
 pub mod vulnerability;
+
+pub use cve::is_cve;

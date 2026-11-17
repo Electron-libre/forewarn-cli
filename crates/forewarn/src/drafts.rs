@@ -8,21 +8,22 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use forewarn_domain::early_warning::EarlyWarning;
+use forewarn_domain::is_cve;
 
 use crate::early_warning;
 
 /// The characters of the product name kept in a file name (MXL-31).
 const PRODUCT_NAME_LENGTH: usize = 100;
 
-/// The drafts of a run: those written (MXL-28) and the stale ones (MXL-36).
+/// The draft files of a run: those it wrote (MXL-28) and the stale ones (MXL-36).
 pub struct Drafts {
-    pub written: Vec<Written>,
+    pub written: Vec<DraftFile>,
     /// Sorted by file name (MXL-39).
-    pub stale: Vec<Written>,
+    pub stale: Vec<DraftFile>,
 }
 
-/// A draft file and its CVE: written by the run (MXL-28), or stale (MXL-36).
-pub struct Written {
+/// A draft file and its CVE, which the report names.
+pub struct DraftFile {
     pub cve: String,
     pub path: PathBuf,
 }
@@ -57,17 +58,28 @@ impl fmt::Display for WriteError {
     }
 }
 
-/// Writes each draft in Markdown into `directory`, created with its parents when there is a draft (MXL-30, MXL-32),
-/// then lists the stale drafts of `product` it holds, a directory that does not exist holding none (MXL-36, MXL-40).
+/// Lists the stale drafts of `product` that `directory` holds, a path naming no directory holding none (MXL-36,
+/// MXL-40), then writes each draft in Markdown into `directory`, created with its parents when there is a draft (MXL-30,
+/// MXL-32): a directory that cannot be listed leaves no draft written.
 ///
 /// # Errors
-/// [`WriteError`] naming the directory or the file that could not be written, at the first one, or the directory that
-/// could not be listed.
+/// [`WriteError`] naming the directory that could not be listed, or the directory or the file that could not be
+/// written, at the first one.
 pub fn write(
     directory: &Path,
     product: Option<&str>,
     drafts: &[EarlyWarning],
 ) -> Result<Drafts, WriteError> {
+    let prefix = product_prefix(product);
+    let names: Vec<String> = drafts
+        .iter()
+        .map(|draft| format!("{prefix}{}.md", safe(draft.cve.chars())))
+        .collect();
+    let stale = stale(directory, &prefix, &names).map_err(|error| WriteError {
+        kind: Failure::List,
+        path: directory.to_owned(),
+        error,
+    })?;
     if !drafts.is_empty() {
         fs::create_dir_all(directory).map_err(|error| WriteError {
             kind: Failure::Write,
@@ -77,81 +89,70 @@ pub fn write(
     }
     let written = drafts
         .iter()
-        .map(|draft| {
-            let path = directory.join(file_name(draft.product_name.as_deref(), &draft.cve));
+        .zip(names)
+        .map(|(draft, name)| {
+            let path = directory.join(name);
             replace(&path, &early_warning::markdown(draft))
                 .map_err(|error| WriteError {
                     kind: Failure::Write,
                     path: path.clone(),
                     error,
                 })
-                .map(|()| Written {
+                .map(|()| DraftFile {
                     cve: draft.cve.clone(),
                     path,
                 })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let stale = stale(directory, product, &written).map_err(|error| WriteError {
-        kind: Failure::List,
-        path: directory.to_owned(),
-        error,
-    })?;
     Ok(Drafts { written, stale })
 }
 
-/// The files of `directory` named as a draft of `product` that the run did not write, sorted by file name (MXL-38,
-/// MXL-39); none when the directory does not exist.
-fn stale(directory: &Path, product: Option<&str>, written: &[Written]) -> io::Result<Vec<Written>> {
+/// The files of `directory` named `<prefix><CVE id>.md` (MXL-38) other than the `names` the run writes, sorted by file
+/// name (MXL-39); none when `directory` names no directory, and no file removed while it is listed.
+fn stale(directory: &Path, prefix: &str, names: &[String]) -> io::Result<Vec<DraftFile>> {
     let entries = match fs::read_dir(directory) {
         Ok(entries) => entries,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) if absent(&error) => return Ok(Vec::new()),
         Err(error) => return Err(error),
     };
-    let prefix = product_prefix(product);
     let mut stale = Vec::new();
     for entry in entries {
         let entry = entry?;
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
         let name = entry.file_name();
         let Some(cve) = name
             .to_str()
-            .and_then(|name| name.strip_prefix(&prefix))
+            .filter(|name| !names.iter().any(|written| written == name))
+            .and_then(|name| name.strip_prefix(prefix))
             .and_then(|rest| rest.strip_suffix(".md"))
-            .filter(|cve| is_cve_id(cve))
+            .filter(|cve| cve.starts_with("CVE-") && is_cve(cve))
         else {
             continue;
         };
-        if written.iter().all(|draft| draft.cve != cve) {
-            stale.push(Written {
+        match entry.file_type() {
+            Ok(kind) if kind.is_file() => stale.push(DraftFile {
                 cve: cve.to_owned(),
                 path: directory.join(&name),
-            });
+            }),
+            Ok(_) => {}
+            Err(error) if absent(&error) => {}
+            Err(error) => return Err(error),
         }
     }
     stale.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(stale)
 }
 
-/// `CVE-`, four digits, `-`, four digits or more, in capitals (MXL-38).
-fn is_cve_id(text: &str) -> bool {
-    let all_digits = |part: &str| part.bytes().all(|byte| byte.is_ascii_digit());
-    text.strip_prefix("CVE-")
-        .and_then(|rest| rest.split_once('-'))
-        .is_some_and(|(year, number)| {
-            year.len() == 4 && all_digits(year) && number.len() >= 4 && all_digits(number)
-        })
-}
-
-/// `<product>-<CVE id>.md`, or `<CVE id>.md` with no product name (MXL-31). The CVE id, read as `CVE-<year>-<digits>`
-/// (EXF-7), is kept to the same characters as the product name, so that no id names a path out of the directory.
-fn file_name(product: Option<&str>, cve: &str) -> String {
-    format!("{}{}.md", product_prefix(product), safe(cve.chars()))
+/// Whether `error` says the path names nothing, or lies under a file (MXL-40).
+fn absent(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+    )
 }
 
 /// What the file name of a draft of `product` holds before its CVE id: `<product>-`, or nothing with no product name
-/// or one made only of white space (MXL-31).
+/// or one made only of white space (MXL-31). The CVE id that follows, read as `CVE-<year>-<digits>` (EXF-7), is kept
+/// to the same characters as the product name, so that no id names a path out of the directory.
 fn product_prefix(product: Option<&str>) -> String {
     match product.map(str::trim).filter(|product| !product.is_empty()) {
         Some(product) => format!("{}-", safe(product.chars().take(PRODUCT_NAME_LENGTH))),

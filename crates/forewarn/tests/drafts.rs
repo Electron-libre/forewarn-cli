@@ -641,17 +641,46 @@ fn a_missing_directory_holds_no_stale_draft_and_is_not_created() {
     assert!(!out.exists());
 }
 
-// spec: MXL-40, MCH-10
+// spec: MXL-40, MXL-30
 #[test]
-fn a_draft_directory_that_cannot_be_listed_exits_with_7_and_prints_no_report() {
+fn a_draft_path_naming_a_file_holds_no_stale_draft_without_an_exploited_match() {
     let parent = TempDir::new().expect("a temporary directory");
     let file = parent.path().join("drafts");
     fs::write(&file, "").expect("a regular file");
-    let run = matched(&["--drafts", path(&file)], &sbom(None, false));
+    for out in [file.clone(), file.join("under")] {
+        let run = matched(
+            &["--drafts", path(&out), "--format", "json"],
+            &sbom(None, false),
+        );
+        assert_eq!(run.code, 0, "{}", run.stderr);
+        assert_eq!(json_report(&run)["staleDrafts"], json!([]));
+    }
+    assert_eq!(fs::read_to_string(&file).expect("left as it was"), "");
+}
+
+// spec: MXL-40, MCH-10
+#[cfg(unix)]
+#[test]
+fn a_draft_directory_that_cannot_be_listed_exits_with_7_writes_no_draft_and_prints_no_report() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let out = TempDir::new().expect("a temporary directory");
+    // Written to and searched, but not read: its entries cannot be listed.
+    fs::set_permissions(out.path(), fs::Permissions::from_mode(0o300)).expect("the mode is set");
+    let listable = fs::read_dir(out.path()).is_ok();
+    let run = matched(&["--drafts", path(out.path())], &shop());
+    fs::set_permissions(out.path(), fs::Permissions::from_mode(0o700))
+        .expect("the mode is restored");
+    if listable {
+        // A user the permissions do not bind, such as root, lists any directory.
+        return;
+    }
     assert_eq!(run.code, 7, "{}", run.stderr);
     assert_eq!(run.stdout, "");
     assert_eq!(run.stderr.lines().count(), 1, "{}", run.stderr);
-    assert!(run.stderr.contains(path(&file)), "{}", run.stderr);
+    assert!(run.stderr.contains(path(out.path())), "{}", run.stderr);
+    assert!(run.stderr.contains("cannot list"), "{}", run.stderr);
+    assert!(entries(out.path()).is_empty(), "no draft is written");
 }
 
 // spec: MCH-16

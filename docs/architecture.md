@@ -86,7 +86,7 @@ flowchart LR
    ([vex-verdicts](../specs/vex-verdicts.md), [ADR 0014](adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md)); its CRA article 14(2) deadlines are computed from the
    moment of awareness ([reporting-deadlines](../specs/reporting-deadlines.md)); the early warning's fields are filled
    or marked to complete ([early-warning-draft](../specs/early-warning-draft.md)).
-6. **Output.** The drafts are written first, then the stale ones of the directory listed, so that a failed write
+6. **Output.** The stale drafts of the directory are listed, then the drafts written, so that a failure
    leaves standard output empty; then the report; then the exit code ([cli-match](../specs/cli-match.md), [cli-match-exploited](../specs/cli-match-exploited.md)).
 
 `forewarn check` stops after step 2 and runs the completeness rules

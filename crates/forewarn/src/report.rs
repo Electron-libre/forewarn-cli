@@ -19,7 +19,7 @@ use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
 
-use crate::drafts::{Drafts, Written};
+use crate::drafts::{DraftFile, Drafts};
 use crate::escape::push_escaped;
 use crate::vex::{self, Verdicts};
 use time::OffsetDateTime;
@@ -559,7 +559,7 @@ fn push_component_ref(text: &mut String, component: &ComponentRef) {
 }
 
 /// A line per draft file, its CVE id then its path, both escaped (MXL-35, MXL-39).
-fn push_draft_files(text: &mut String, files: &[Written]) {
+fn push_draft_files(text: &mut String, files: &[DraftFile]) {
     for draft in files {
         text.push_str("  ");
         push_escaped(text, &draft.cve);
@@ -570,7 +570,7 @@ fn push_draft_files(text: &mut String, files: &[Written]) {
 }
 
 /// The objects `{"cve", "path"}` of the draft files of MCH-16.
-fn draft_files_json(files: &[Written]) -> Vec<Value> {
+fn draft_files_json(files: &[DraftFile]) -> Vec<Value> {
     files
         .iter()
         .map(|draft| json!({"cve": draft.cve, "path": draft.path.to_string_lossy()}))

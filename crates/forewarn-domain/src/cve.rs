@@ -3,7 +3,8 @@
 use std::borrow::Cow;
 
 /// Whether `id` is `CVE-YYYY-NNNN`, four digits or more after the year, the prefix in any ASCII case (EXF-7).
-pub(crate) fn is_cve(id: &str) -> bool {
+#[must_use]
+pub fn is_cve(id: &str) -> bool {
     let digits = |part: &str| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit());
     id.get(..4)
         .is_some_and(|prefix| prefix.eq_ignore_ascii_case("CVE-"))

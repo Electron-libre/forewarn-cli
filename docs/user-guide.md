@@ -248,7 +248,7 @@ To complete before entering it into the ENISA Single Reporting Platform: 2. Titl
 - A rerun replaces a draft whole. A draft of the same product it no longer writes (the CVE set aside by a VEX
   verdict, no longer exploited, or the component upgraded) is left in place, since you may have completed it, and the
   report lists it under `Stale draft early warnings` (`staleDrafts` in JSON): remove it yourself before publishing the
-  directory. A directory of `--drafts` that exists but cannot be listed exits with 7.
+  directory. A directory of `--drafts` that exists but cannot be listed exits with 7 and writes no draft.
 
 A draft is a starting point: you submit the early warning yourself, on the ENISA Single Reporting Platform.
 
