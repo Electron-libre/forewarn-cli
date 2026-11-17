@@ -5,6 +5,7 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -63,4 +64,168 @@ fn the_license_notices_cover_the_targets_the_release_workflow_builds() {
         .collect();
 
     assert_eq!(noticed, built);
+}
+
+/// The `jq` program the release workflow runs on each SBOM `cargo-cyclonedx` writes (ADR 0016).
+const COMPLETE_SBOM: &str = ".github/sbom-complete.jq";
+
+/// An SBOM shaped as `cargo-cyclonedx` writes it: a workspace crate and two crates.io crates, one with its `authors`,
+/// one without, the latter nested as a component may be. Supplier and hash missing where `cargo-cyclonedx` leaves
+/// them out.
+const CARGO_CYCLONEDX_SBOM: &str = r#"{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "path+file:///work/crates/forewarn#0.2.0",
+      "name": "forewarn",
+      "version": "0.2.0",
+      "purl": "pkg:cargo/forewarn@0.2.0?download_url=file://."
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "path+file:///work/crates/forewarn-domain#0.2.0",
+      "name": "forewarn-domain",
+      "version": "0.2.0",
+      "licenses": [{ "expression": "MIT OR Apache-2.0" }],
+      "purl": "pkg:cargo/forewarn-domain@0.2.0?download_url=file://../forewarn-domain"
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229",
+      "name": "serde",
+      "version": "1.0.229",
+      "hashes": [{ "alg": "SHA-256", "content": "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba" }],
+      "licenses": [{ "expression": "MIT OR Apache-2.0" }],
+      "purl": "pkg:cargo/serde@1.0.229",
+      "authors": [{ "name": "David Tolnay" }],
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#clap@4.6.7",
+          "name": "clap",
+          "version": "4.6.7",
+          "hashes": [{ "alg": "SHA-256", "content": "aa8876b300ab35ba921adea3dfd70157a46249b33f95c9084ae5709785478946" }],
+          "licenses": [{ "expression": "MIT OR Apache-2.0" }],
+          "purl": "pkg:cargo/clap@4.6.7"
+        }
+      ]
+    }
+  ]
+}"#;
+
+/// The SBOM completed by the program of the workflow, run with `jq` as the workflow runs it.
+fn complete(sbom: &str, hashes: &str) -> serde_json::Value {
+    let dir = tempfile::tempdir().expect("a temporary directory");
+    let input = dir.path().join("sbom.cdx.json");
+    fs::write(&input, sbom).expect("the SBOM is written");
+    let output = Command::new("jq")
+        .arg("-f")
+        .arg(workspace_root().join(COMPLETE_SBOM))
+        .args(["--arg", "manufacturer", "Electron-libre"])
+        .args([
+            "--arg",
+            "manufacturer_url",
+            "https://github.com/Electron-libre",
+        ])
+        .args(["--argjson", "hashes", hashes])
+        .arg(&input)
+        .output()
+        .expect("jq runs (present on the GitHub-hosted runners)");
+    assert!(
+        output.status.success(),
+        "jq: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("jq writes JSON")
+}
+
+fn component<'a>(sbom: &'a serde_json::Value, pointer: &str) -> &'a serde_json::Value {
+    sbom.pointer(pointer)
+        .unwrap_or_else(|| panic!("no {pointer} in {sbom}"))
+}
+
+#[test]
+fn the_completed_sbom_names_the_manufacturer_supplier_of_the_workspace_crates_with_their_hash() {
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, r#"{"forewarn-domain": "fd53c1"}"#);
+    let manufacturer = serde_json::json!({ "name": "Electron-libre", "url": ["https://github.com/Electron-libre"] });
+
+    assert_eq!(
+        component(&sbom, "/metadata/component/manufacturer"),
+        &manufacturer
+    );
+    let domain = component(&sbom, "/components/0");
+    assert_eq!(domain["supplier"], manufacturer);
+    assert_eq!(
+        domain["hashes"],
+        serde_json::json!([{ "alg": "SHA-256", "content": "fd53c1" }])
+    );
+}
+
+#[test]
+fn the_completed_sbom_names_crates_io_supplier_of_each_registry_crate_nested_or_not() {
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, r#"{"forewarn-domain": "fd53c1"}"#);
+    let crates_io = serde_json::json!({ "name": "crates.io", "url": ["https://crates.io"] });
+
+    let serde = component(&sbom, "/components/1");
+    assert_eq!(serde["supplier"], crates_io);
+    assert_eq!(
+        serde["authors"],
+        serde_json::json!([{ "name": "David Tolnay" }])
+    );
+    assert_eq!(
+        component(&sbom, "/components/1/components/0/supplier"),
+        &crates_io
+    );
+}
+
+#[test]
+fn forewarn_finds_the_completed_sbom_complete() {
+    let dir = tempfile::tempdir().expect("a temporary directory");
+    let path = dir.path().join("forewarn.cdx.json");
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, r#"{"forewarn-domain": "fd53c1"}"#);
+    fs::write(&path, sbom.to_string()).expect("the completed SBOM is written");
+
+    let check = Command::new(env!("CARGO_BIN_EXE_forewarn"))
+        .arg("check")
+        .arg(&path)
+        .output()
+        .expect("forewarn runs");
+
+    assert!(
+        check.status.success(),
+        "{}",
+        String::from_utf8_lossy(&check.stdout)
+    );
+}
+
+#[test]
+fn a_workspace_crate_with_no_hash_given_stays_without_one() {
+    let sbom = complete(CARGO_CYCLONEDX_SBOM, "{}");
+
+    assert!(component(&sbom, "/components/0").get("hashes").is_none());
+}
+
+#[test]
+fn the_release_checks_each_sbom_complete_once_completed() {
+    let workflow = read(".github/workflows/release.yml");
+    let completed = workflow
+        .find(COMPLETE_SBOM)
+        .expect("the release workflow completes the SBOMs");
+    let checked = workflow
+        .find("-p forewarn -- check")
+        .expect("the release workflow checks the SBOMs");
+
+    assert!(
+        completed < checked,
+        "the SBOM is checked before it is completed"
+    );
+    assert!(
+        !workflow.contains("--allow-incomplete"),
+        "the release accepts an incomplete SBOM"
+    );
 }

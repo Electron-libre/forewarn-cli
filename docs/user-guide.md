@@ -46,6 +46,14 @@ The archive also holds the licenses of `forewarn`, the notices of the crates its
 `gh attestation verify "forewarn-$target.tar.gz" --repo Electron-libre/forewarn-cli` checks it was built by the
 release workflow of this repository.
 
+The SBOM is complete for `forewarn check`: each crates.io crate has crates.io as supplier and the hash crates.io
+serves; each `forewarn-*` crate, built from source, has `Electron-libre` as supplier and the SHA-256 of its source
+tree at the tag, which you recompute from a clone:
+
+```sh
+git -c tar.umask=0022 archive --format=tar --mtime='1970-01-01 00:00:00 +0000' v<version>:crates/forewarn-domain | sha256sum
+```
+
 A CI job pins a version with `base=https://github.com/Electron-libre/forewarn-cli/releases/download/v<version>`.
 No Windows binary yet; on another platform, build it from a clone (Rust stable): `cargo install --path crates/forewarn`.
 

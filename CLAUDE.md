@@ -65,10 +65,13 @@ changelog.
 Pushing the tag `v<version>` (X.Y.Z) runs `.github/workflows/release.yml` (ADR
 [0015](docs/adr/0015-distribute-release-binaries-on-github-before-crates-io.md)): it refuses a tag that is not the
 workspace version, builds `forewarn-<target>.tar.gz` for Linux (musl, x86_64 and aarch64) and macOS, each with the
-third-party license notices `cargo-about` writes (`about.toml`, `about.hbs`) and the SBOM `cargo-cyclonedx` writes, and
+third-party license notices `cargo-about` writes (`about.toml`, `about.hbs`) and the SBOM `cargo-cyclonedx` writes,
+completed by `.github/sbom-complete.jq` (supplier, manufacturer, source hash of the workspace crates) and refused when
+`forewarn check` finds it incomplete (ADR [0016](docs/adr/0016-complete-the-sbom-of-the-release-binaries-after-cargo-cyclonedx.md)), and
 attaches them with the SBOMs and `SHA256SUMS`, their build provenance attested, to a GitHub release whose notes are the
 changelog section; `crates/forewarn/tests/release_workflow.rs` checks the user guide and `about.toml` name the targets
-it builds; a pull request changing a manifest, `Cargo.lock` or the notices builds without publishing. crates.io waits
+it builds and runs that `jq` program (`jq` needed by `cargo test`); a pull request changing a manifest, `Cargo.lock`,
+the notices or that program builds without publishing. crates.io waits
 for its own decision.
 
 ## Layout

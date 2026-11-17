@@ -11,7 +11,7 @@ on:
     # A release version only, X.Y.Z: `just set-version` refuses a pre-release.
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
   pull_request:
-    paths: [.github/workflows/release.yml, Cargo.lock, '**/Cargo.toml', about.toml, about.hbs]
+    paths: [.github/workflows/release.yml, .github/sbom-complete.jq, Cargo.lock, '**/Cargo.toml', about.toml, about.hbs]
 
 permissions:
   contents: read
@@ -80,16 +80,30 @@ jobs:
           cargo install --locked cargo-cyclonedx@0.5.10
       - name: Write the license notices of the targets of about.toml
         run: cargo about generate --locked --fail -c about.toml -m crates/forewarn/Cargo.toml about.hbs -o THIRD-PARTY-LICENSES
-      # cargo-cyclonedx writes the SBOM of every member of the workspace; only that of forewarn is kept.
-      - name: Write the SBOM of each target and check it with forewarn
+      # cargo-cyclonedx writes the SBOM of every member of the workspace; only that of forewarn is kept. It leaves the
+      # supplier and the hash of the workspace crates and the supplier of some crates.io crates empty:
+      # .github/sbom-complete.jq fills them (ADR 0016), and forewarn fails the release on an SBOM still incomplete.
+      # The hash of a workspace crate is that of its source tree, the mtime and the umask fixed so that anyone
+      # recomputes it from the tag (docs/user-guide.md).
+      - name: Write the SBOM of each target, complete it and check it with forewarn
+        env:
+          MANUFACTURER: Electron-libre
+          MANUFACTURER_URL: https://github.com/Electron-libre
         run: |
           mkdir sbom
+          hashes=$(for dir in crates/*/; do
+            crate=$(basename "$dir")
+            digest=$(git -c tar.umask=0022 archive --format=tar --mtime='1970-01-01 00:00:00 +0000' "HEAD:crates/$crate" | sha256sum | cut -d ' ' -f 1)
+            jq -n --arg crate "$crate" --arg digest "$digest" '{($crate): $digest}'
+          done | jq -s add)
           targets=$(python3 -c 'import tomllib; print(" ".join(tomllib.load(open("about.toml", "rb"))["targets"]))')
           for target in $targets; do
             cargo cyclonedx -q --manifest-path crates/forewarn/Cargo.toml -f json --spec-version 1.6 \
               --target "$target" --no-build-deps --override-filename "forewarn-$target.cdx"
-            mv "crates/forewarn/forewarn-$target.cdx.json" sbom/
-            cargo run -q --locked -p forewarn -- check --allow-incomplete "sbom/forewarn-$target.cdx.json"
+            jq -f .github/sbom-complete.jq --arg manufacturer "$MANUFACTURER" \
+              --arg manufacturer_url "$MANUFACTURER_URL" --argjson hashes "$hashes" \
+              "crates/forewarn/forewarn-$target.cdx.json" > "sbom/forewarn-$target.cdx.json"
+            cargo run -q --locked -p forewarn -- check "sbom/forewarn-$target.cdx.json"
           done
       - uses: actions/upload-artifact@v4
         with:
