@@ -94,3 +94,21 @@ The released milestones, moved out of the roadmap by `release`, oldest first.
   - [choose_a_distinct_product_name](issues/done/choose_a_distinct_product_name.md)
   - [tell_each_record_status_apart_in_the_match_report](issues/done/tell_each_record_status_apart_in_the_match_report.md)
   - [tell_file_components_apart_in_the_completeness_check](issues/done/tell_file_components_apart_in_the_completeness_check.md)
+
+## Beta
+
+- Goal: an outside vendor installs a released `forewarn`, runs it in CI on its SBOM, and silences a match it analysed
+  as not affecting its product, on code that CI builds and tests at each change.
+- Why: the proof of concept works for its author; a beta tester needs a version to report against, an install without
+  a clone, and a way out of a false positive.
+- State: done
+- Released: v0.3.0
+- Issues:
+  - [set_the_version_of_the_binary_on_release](issues/done/set_the_version_of_the_binary_on_release.md)
+  - [run_the_project_check_in_ci](issues/done/run_the_project_check_in_ci.md)
+  - [distribute_the_binary](issues/done/distribute_the_binary.md)
+  - [read_vex_verdicts](issues/done/read_vex_verdicts.md)
+  - [remove_stale_draft_early_warnings](issues/done/remove_stale_draft_early_warnings.md)
+  - [support_windows_paths](issues/done/support_windows_paths.md)
+  - [check_the_licenses_and_advisories_of_the_dependencies](issues/done/check_the_licenses_and_advisories_of_the_dependencies.md)
+  - [complete_the_sbom_of_the_release_binaries](issues/done/complete_the_sbom_of_the_release_binaries.md)

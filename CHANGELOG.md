@@ -4,6 +4,29 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.3.0] - 2026-11-17
+
+### Milestones
+
+- Beta
+
+### Added
+
+- release binaries for Linux (musl, x86_64 and aarch64) and macOS on GitHub, each with its license notices and an
+  SBOM `forewarn check` finds complete
+- set aside the matches a VEX verdict says do not affect
+- apply the VEX verdicts of the SBOM and of --vex files
+- print the version of the last release
+- name the stale drafts a rerun no longer writes
+- print the backslashes of a Windows path as written
+
+### Fixed
+
+- apply the fixes of the review of the VEX verdicts
+- apply the fixes of the review of the release version
+- list the stale drafts before writing any draft
+- upgrade zip to 9 and time to 0.3.55 past their advisories
+
 ## [0.2.0] - 2026-11-16
 
 ### Milestones
