@@ -18,7 +18,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [distribute_the_binary](issues/done/distribute_the_binary.md)
   - [read_vex_verdicts](issues/done/read_vex_verdicts.md)
   - [remove_stale_draft_early_warnings](issues/done/remove_stale_draft_early_warnings.md)
-  - [support_windows_paths](issues/support_windows_paths.md)
+  - [support_windows_paths](issues/done/support_windows_paths.md)
   - [check_the_licenses_and_advisories_of_the_dependencies](issues/done/check_the_licenses_and_advisories_of_the_dependencies.md)
   - [complete_the_sbom_of_the_release_binaries](issues/complete_the_sbom_of_the_release_binaries.md)
 

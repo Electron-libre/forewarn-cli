@@ -16,7 +16,7 @@ tags `v0.1.0` and `v0.2.0` exist, none with a binary.
 
 The crate depends on `ring` (through `rustls`), which builds natively on each target but needs a C compiler for the
 target when cross-built. The tests run on Linux and macOS only: Windows waits for
-`issues/support_windows_paths.md`.
+`issues/done/support_windows_paths.md`.
 
 ## Decision
 
@@ -51,5 +51,5 @@ target when cross-built. The tests run on Linux and macOS only: Windows waits fo
 - One command installs a release: download the archive of the target, check it against `SHA256SUMS`, extract it. A CI
   job pins the version in the URL (`releases/download/v<version>/`).
 - The library crates stay private to the repository; publishing them later is a new ADR, the GitHub releases staying.
-- A Windows binary is added when `issues/support_windows_paths.md` is done, a container image when a user asks for it.
+- A Windows binary is added when `issues/done/support_windows_paths.md` is done, a container image when a user asks for it.
 - The workflow only runs on a pushed tag; `cardinal run release --tag` creates it, the maintainer pushes it.

@@ -105,7 +105,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows waits for issues/support_windows_paths.md. `run`: the runner can execute the binary.
+        # Windows waits for issues/done/support_windows_paths.md. `run`: the runner can execute the binary.
         include:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
