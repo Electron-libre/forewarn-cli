@@ -49,6 +49,9 @@ Found while preparing: the tree fails today, `time 0.3.45` (RUSTSEC-2026-0009) a
    plus a daily `schedule` running that job alone; verified by a test of `workspace_policy.rs` that the licenses
    `deny.toml` allows are those `about.toml` accepts, a local `cargo deny check` green, CLAUDE.md (License) and
    `docs/architecture.md` updated; ~150 lines. (autonomous)
+3. [x] Fixes of the `high` review of the issue: the daily run in a concurrency group of its own, `time` required at
+   0.3.47 at least, `cargo-deny-action` pinned at v2.1.2 (cargo-deny 0.21.0), a test that `[[licenses.exceptions]]`
+   of `deny.toml` allow no license `about.toml` does not accept. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,4 +74,20 @@ Found while preparing: the tree fails today, `time 0.3.45` (RUSTSEC-2026-0009) a
 - checks: project-check green, `cargo deny --locked check licenses advisories bans sources` ok, no warning.
 - red: none traced (no spec); the test failed first on `deny.toml: No such file or directory`.
 - not verified: the job on GitHub Actions (runs on the next push), the scheduled trigger.
+- Code review: no findings
+
+## Review of the issue (`high`, e8f9d57..811ac10)
+- Code review: 6 findings
+  - fixed: the scheduled run shared the concurrency group of the pushes and could replace a pending push run.
+  - fixed: `time = "0.3"` let a resolution pick a version RUSTSEC-2026-0009 names: now `0.3.47`.
+  - fixed: the license test missed `[[licenses.exceptions]]`: a test of its own (seen red with an `MPL-2.0` exception).
+  - fixed: `cargo-deny-action@v2` took any cargo-deny release: pinned at `v2.1.2`.
+  - not fixed: an advisory published after a pull request opened turns it red; the goal asks every pull request to
+    fail on an advisory.
+  - not fixed: a workflow of its own instead of the `if` of three jobs: decision 1 a.
+
+## Deliverable 3
+- done: the four fixes above.
+- checks: project-check green, `cargo deny --locked check` ok.
+- red: none traced (no spec); the exception test failed on a temporary `MPL-2.0` exception.
 - Code review: no findings

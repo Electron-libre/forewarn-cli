@@ -192,3 +192,26 @@ fn deny_toml_allows_the_licenses_about_toml_accepts() {
     assert!(!accepted.is_empty(), "about.toml accepts no license");
     assert_eq!(allowed, accepted);
 }
+
+#[test]
+fn deny_toml_allows_no_other_license_to_a_single_crate() {
+    let accepted = string_set("about.toml", &["accepted"]);
+    let deny = read_manifest(&workspace_root().join("deny.toml"));
+    let exceptions = lookup(&deny, &["licenses", "exceptions"])
+        .and_then(toml::Value::as_array)
+        .map_or(&[][..], Vec::as_slice);
+
+    for exception in exceptions {
+        let licenses = exception
+            .get("allow")
+            .and_then(toml::Value::as_array)
+            .expect("an exception of deny.toml lists the licenses it allows");
+        for license in licenses {
+            let license = license.as_str().expect("a license is a string");
+            assert!(
+                accepted.contains(license),
+                "deny.toml allows {license} to {exception}, about.toml does not accept it"
+            );
+        }
+    }
+}

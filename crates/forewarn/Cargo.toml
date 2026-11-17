@@ -16,7 +16,7 @@ forewarn-exploited = { path = "../forewarn-exploited" }
 forewarn-osv = { path = "../forewarn-osv" }
 serde_json = "1"
 tempfile = "3"
-time = { version = "0.3", features = ["formatting", "macros", "parsing"] }
+time = { version = "0.3.47", features = ["formatting", "macros", "parsing"] }
 
 [dev-dependencies]
 tempfile = "3"
