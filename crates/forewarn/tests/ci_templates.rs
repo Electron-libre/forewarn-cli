@@ -274,7 +274,10 @@ fn the_watch_workflow_downloads_files_the_release_publishes() {
             "--pattern 'forewarn-*.cdx.json'",
             "--override-filename \"forewarn-$target.cdx\"",
         ),
-        ("--pattern 'forewarn-*.cdx.json'", "cp notices/sbom/*.cdx.json dist/"),
+        (
+            "--pattern 'forewarn-*.cdx.json'",
+            "cp notices/sbom/*.cdx.json dist/",
+        ),
         ("--pattern SHA256SUMS", "> SHA256SUMS"),
     ] {
         assert!(
