@@ -76,7 +76,7 @@ the archive URL and the cache directory. Ubuntu and other distributions, and cod
 - 2026-11-19: the ordering and the mapping make one deliverable (planned as 1 and 2): the ordering is only
   observable through the matching of a `deb` component, which needs the mapping.
 - 2026-11-19, `high` review findings left out (the user's answer `1 a, 2 a`): Trivy SBOMs go to
-  `issues/match_the_debian_packages_of_a_trivy_sbom.md`, a release with no OSV archive to
+  `issues/done/match_the_debian_packages_of_a_trivy_sbom.md`, a release with no OSV archive to
   `issues/done/keep_a_debian_release_without_an_osv_archive_out.md`.
 - No ADR: the mapping extends the VMT-4 table, no new boundary.
 
