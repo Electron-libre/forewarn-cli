@@ -101,4 +101,4 @@ Out of scope: sending the request (next issue).
 ## Status
 
 Done: every deliverable committed, spec `upload-api` and ADR 0017 accepted. Follow-up for
-`issues/cli_upload_command.md`: its step 3 (a date sent with `--now`) no longer applies, the service dates the upload.
+`issues/done/cli_upload_command.md`: its step 3 (a date sent with `--now`) no longer applies, the service dates the upload.
