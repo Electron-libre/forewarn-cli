@@ -51,13 +51,13 @@ pub enum ComponentReason {
     NoPackageUrl,
     /// The package URL does not follow the specification, or lacks a namespace its type requires.
     InvalidPackageUrl,
-    /// The package URL points to a local path (VMT-31): a crate of the workspace, or a fork kept by path, which the
-    /// SBOM does not tell apart from the published package of the same name.
-    LocalPath,
     /// The package URL type maps to no OSV ecosystem matching knows.
     UnknownEcosystem,
     /// Neither the component nor its package URL has a version.
     NoVersion,
+    /// The package URL points to a local path (VMT-31): a crate of the workspace, or a fork kept by path, which the
+    /// SBOM does not tell apart from the published package of the same name.
+    LocalPath,
 }
 
 /// Why a pair of a component and a vulnerability naming its package cannot be evaluated (VMT-10).
@@ -575,12 +575,9 @@ impl ComponentPackage {
             .as_deref()
             .filter(|purl| !purl.trim().is_empty())
             .ok_or(ComponentReason::NoPackageUrl)?;
-        let parsed =
+        let local_path = points_to_local_path(purl.trim());
+        let purl =
             PackageUrl::parse(purl.trim()).map_err(|_| ComponentReason::InvalidPackageUrl)?;
-        if points_to_local_path(purl.trim()) {
-            return Err(ComponentReason::LocalPath);
-        }
-        let purl = parsed;
         let (_, ecosystem, form, scheme) = ECOSYSTEMS
             .iter()
             .find(|(purl_type, _, _, _)| *purl_type == purl.purl_type)
@@ -602,6 +599,9 @@ impl ComponentPackage {
             .find(|version| !version.is_empty())
             .ok_or(ComponentReason::NoVersion)?
             .to_owned();
+        if local_path {
+            return Err(ComponentReason::LocalPath);
+        }
         Ok(Self {
             ecosystem,
             scheme: *scheme,

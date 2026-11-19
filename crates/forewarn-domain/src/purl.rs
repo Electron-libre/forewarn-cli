@@ -1,7 +1,7 @@
 //! A package URL read by the package URL specification, the parts matching needs: type, namespace, name, version
 //! (`specs/vulnerability-matching.md`, VMT-5).
 
-/// The parts of a package URL; its qualifiers and subpath are dropped.
+/// The parts of a package URL; its qualifiers and subpath are dropped ([`points_to_local_path`] reads one qualifier).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PackageUrl {
     /// The type, in lower case (`cargo`, `npm`…).
@@ -70,7 +70,8 @@ impl PackageUrl {
 }
 
 /// Whether a package URL points to a local path: one of its qualifiers is `download_url`, its key in any ASCII case,
-/// and its value, percent-decoded, starts with `file:` in any ASCII case (`specs/vulnerability-matching.md`, VMT-31).
+/// and the first five characters of its value, percent-decoded, are `file:` in any ASCII case
+/// (`specs/vulnerability-matching.md`, VMT-31). An escape the specification refuses after them does not hide the path.
 #[must_use]
 pub fn points_to_local_path(purl: &str) -> bool {
     let purl = purl.split_once('#').map_or(purl, |(before, _)| before);
@@ -82,12 +83,28 @@ pub fn points_to_local_path(purl: &str) -> bool {
         .filter_map(|qualifier| qualifier.split_once('='))
         .any(|(key, value)| {
             key.eq_ignore_ascii_case("download_url")
-                && decode(value).is_ok_and(|value| {
-                    value
-                        .get(..5)
-                        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("file:"))
-                })
+                && decoded_prefix(value, 5).eq_ignore_ascii_case(b"file:")
         })
+}
+
+/// The first `length` bytes of a value, percent-decoded, a `%` not followed by two hexadecimal digits kept as it is.
+fn decoded_prefix(value: &str, length: usize) -> Vec<u8> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(length);
+    let mut i = 0;
+    while i < bytes.len() && decoded.len() < length {
+        match bytes.get(i + 1..i + 3) {
+            Some(hex) if bytes[i] == b'%' && hex.iter().all(u8::is_ascii_hexdigit) => {
+                decoded.push(hex_value(hex[0]) << 4 | hex_value(hex[1]));
+                i += 3;
+            }
+            _ => {
+                decoded.push(bytes[i]);
+                i += 1;
+            }
+        }
+    }
+    decoded
 }
 
 /// A type is ASCII letters, digits, `.`, `+` and `-`, and does not start with a digit.

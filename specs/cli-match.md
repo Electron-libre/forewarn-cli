@@ -123,12 +123,12 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - **MCH-42** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only
   first-party components (SBR-14) map to, nor, with `--osv-api`, send the ecosystem, name or version of a first-party
   component to the OSV API; each is printed not evaluated, first-party (VMT-10, VMT-11).
-- **MCH-44** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only components
-  pointing to a local path (VMT-31) map to, nor, with `--osv-api`, send the ecosystem, name or version of such a
-  component to the OSV API; each is printed not evaluated, local path (VMT-10, VMT-11).
 - **MCH-43** (deterministic) Each path the human report or an error line prints (an `--osv` path, a `--vex` file, a
   draft, the file of an error) must be printed as CHK-16 says: escaped as MCH-18 says, except each backslash of a
   path on Windows, printed as it is.
+- **MCH-44** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only components
+  pointing to a local path (VMT-31) map to, nor, with `--osv-api`, send the ecosystem, name or version of such a
+  component to the OSV API; each is printed not evaluated, local path (VMT-10, VMT-11).
 - **MCH-34** (deterministic) withdrawn: moved to MXL-10 (`specs/cli-match-exploited.md`).
 - **MCH-35** (deterministic) withdrawn: moved to MXL-11 (`specs/cli-match-exploited.md`).
 - **MCH-40** (deterministic) withdrawn: moved to MXL-12 (`specs/cli-match-exploited.md`).
@@ -163,6 +163,8 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - (MCH-44) Given the SBOM `cargo-cyclonedx` writes for a workspace whose binary depends on the crate `lib` of the
   workspace, written `pkg:cargo/lib@0.1.0?download_url=file://../lib` at the top level, and on `ryu`, when it is matched
   with `--osv-api`, then the `querybatch` request names `ryu` alone and `lib` is printed not evaluated, local path.
+- (MCH-44) Given an SBOM whose only component is a crate at a local path, an empty cache and `--refresh offline`, when it
+  is matched, then no archive is read and the command exits with 0.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.
 - (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no OSV archive

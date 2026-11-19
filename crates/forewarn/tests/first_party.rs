@@ -1,5 +1,5 @@
 //! `forewarn match` keeping the first-party components of an SBOM, the vendor's own code, out of the match
-//! (`specs/cli-match.md`, MCH-42).
+//! (`specs/cli-match.md`, MCH-42), and the components pointing to a local path (MCH-44).
 
 mod common;
 
@@ -168,4 +168,43 @@ fn a_first_party_module_listed_again_at_the_top_level_leaves_that_copy_clean() {
         [("mod-a".to_owned(), "first-party".to_owned())]
     );
     assert_eq!(report["cleanCount"], json!(1));
+}
+
+// spec: MCH-44
+#[test]
+fn fetches_no_archive_for_an_ecosystem_only_local_path_components_use() {
+    let cache = TempDir::new().expect("a temporary directory");
+    let sbom = bom(
+        "1.6",
+        &json!([{
+            "type": "library",
+            "name": "lib",
+            "version": "0.1.0",
+            "purl": "pkg:cargo/lib@0.1.0?download_url=file://../lib"
+        }]),
+    );
+
+    let run = run(
+        &[
+            "match",
+            "--no-kev",
+            "--no-euvd",
+            "--refresh",
+            "offline",
+            "--cache",
+            cache.path().to_str().expect("UTF-8 path"),
+            "--format",
+            "json",
+            "-",
+        ],
+        Some(&sbom),
+    );
+
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    let report = json_report(&run);
+    assert_eq!(report["osv"], json!([]));
+    assert_eq!(
+        reasons(&report),
+        [("lib".to_owned(), "local path".to_owned())]
+    );
 }

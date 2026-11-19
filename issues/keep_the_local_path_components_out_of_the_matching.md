@@ -70,6 +70,9 @@ by path, none for `cargo vendor`; `cdxgen` 13.2.0 nests the workspace crates in 
    the package URL reasons, `"local path"` in both reports, the user guide (`notEvaluated` reasons, what leaves the
    machine); verified by domain tests (VMT-31 scenarios) and a CLI test through `--osv-api` against a mirror (MCH-44);
    makes true VMT-10, VMT-31, MCH-44. (autonomous)
+2. [x] Fixes of the high review: the `file:` prefix read whatever escapes follow it, the local path after the other
+   component reasons, VMT-5 and the `PackageUrl` doc naming the qualifier read, the archive side of MCH-44 tested,
+   MCH-44 after MCH-43; verified by the project check. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -85,3 +88,13 @@ by path, none for `cargo vendor`; `cdxgen` 13.2.0 nests the workspace crates in 
   `https` one.
 - not verified: the release SBOM of forewarn itself, until the next release (the daily watch will list its seven
   workspace crates as `local path`).
+
+## Deliverable 2
+- done: fixes of the `high` review.
+- Code review: no findings.
+- red: none observed: the new tests (`50%off`, `fil%65:../caf%E9`, the order of the reasons, the offline archive) were
+  written with the fixes.
+- High review: 5 findings, all fixed. Important: a local `download_url` with an escape the specification refuses
+  (`file://../50%off`) was not seen as local, so the crate was sent to the OSV API; the prefix is now decoded leniently.
+  Nits: `local path` won over `unknown ecosystem`, `invalid package URL` and `no version` (now after them, the VMT-10
+  table moved); VMT-5 said every qualifier is ignored; MCH-44 had no test of the archive side; MCH-44 before MCH-43.

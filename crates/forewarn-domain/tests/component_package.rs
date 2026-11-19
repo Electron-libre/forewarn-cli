@@ -229,6 +229,8 @@ fn keeps_a_component_pointing_to_a_local_path_out() {
         "pkg:cargo/itoa@1.0.9?download_url=file://../forks/itoa",
         "pkg:cargo/lib@0.1.0?Download_URL=FILE%3A..%2Flib",
         "pkg:cargo/lib@0.1.0?checksum=sha256:00&download_url=file:///src/lib#src/lib.rs",
+        "pkg:cargo/lib@0.1.0?download_url=file://../50%off",
+        "pkg:cargo/lib@0.1.0?download_url=fil%65:../caf%E9",
     ] {
         assert_eq!(
             ComponentPackage::of(&component(purl, None)),
@@ -270,5 +272,25 @@ fn reports_an_invalid_package_url_before_a_local_path() {
     assert_eq!(
         ComponentPackage::of(&component("pkg:cargo/a%4?download_url=file://.", None)),
         Err(ComponentReason::InvalidPackageUrl)
+    );
+}
+
+// spec: VMT-10
+#[test]
+fn reports_the_component_reasons_before_a_local_path() {
+    assert_eq!(
+        ComponentPackage::of(&component("pkg:generic/x@1?download_url=file:.", None)),
+        Err(ComponentReason::UnknownEcosystem)
+    );
+    assert_eq!(
+        ComponentPackage::of(&component(
+            "pkg:maven/foo@1.0?download_url=file:../foo",
+            None
+        )),
+        Err(ComponentReason::InvalidPackageUrl)
+    );
+    assert_eq!(
+        ComponentPackage::of(&component("pkg:cargo/lib?download_url=file:../lib", None)),
+        Err(ComponentReason::NoVersion)
     );
 }
