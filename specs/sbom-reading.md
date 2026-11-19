@@ -1,6 +1,6 @@
 ---
 id: SBR
-status: accepted
+status: draft
 adrs: [0001, 0002, 0014]
 ---
 
@@ -22,7 +22,8 @@ check and the matching work on the components and a report names the product.
   with its spec version flagged as below the BSI TR-03183-2 minimum.
 - **SBR-3** (deterministic) Reading an input that is not a readable CycloneDX JSON SBOM must fail with an error that
   names the cause, from the table of SBR-7.
-- **SBR-4** (deterministic) The SBOMs produced by `cargo-cyclonedx`, `syft` and `cdxgen` must be read without error.
+- **SBR-4** (deterministic) The SBOMs produced by `cargo-cyclonedx`, `syft`, `cdxgen` and `trivy` must be read without
+  error.
 - **SBR-9** (deterministic) Reading a CycloneDX JSON SBOM must return the product it describes, its name, version,
   package URL, manufacturer and supplier, when the SBOM has a `metadata.component`, and no product, with no error,
   when it has none.
@@ -97,6 +98,12 @@ check and the matching work on the components and a report names the product.
   type, or of a type the enumeration does not list, is not a file.
 - **SBR-16** (deterministic) Each component read must carry its `bom-ref` as written, none when it has none, so that a
   verdict can name it (`specs/vex-verdicts.md`, VEX-7).
+- **SBR-17** (deterministic) Each component read must carry the source package it was built from, when its
+  properties name one as `trivy` writes them: the name the value of the property `aquasecurity:trivy:SrcName`, the
+  version `<epoch>:<version>-<release>` of the values of `aquasecurity:trivy:SrcEpoch`, `SrcVersion` and `SrcRelease`
+  (same prefix), `<epoch>:` left out when the epoch is absent or `0`, `-<release>` when the release is absent, and no
+  version when `SrcVersion` is absent; a value only whitespace counts as absent, each value is taken trimmed, the first
+  property of a name when it is repeated. A component without `SrcName` has no source package.
 
 ## Scenarios
 
@@ -113,6 +120,9 @@ check and the matching work on the components and a report names the product.
   libraries they depend on, so that they are checked and matched like them.
 - **SBR-H5** (happy; SBR-14, SBR-4) Given the SBOM `cdxgen` generated for a Maven project of two modules, when
   `forewarn` reads it, then the two modules are first-party and the libraries they depend on are not.
+- **SBR-H6** (happy; SBR-17, SBR-4) Given the SBOM `trivy` generated for the image `debian:bookworm-slim`, when
+  `forewarn` reads it, then `libc6` 2.36-9+deb12u14 carries the source package `glibc` 2.36-9+deb12u14 and `login`
+  1:4.13+dfsg1-1+deb12u2 the source package `shadow` 1:4.13+dfsg1-1+deb12u2.
 - (SBR-7) Given a CycloneDX 1.2 JSON file, when it is read, then it fails with "unsupported spec version" quoting `1.2`.
 - (SBR-7) Given a JSON file with `bomFormat` `CycloneDX` and no `specVersion`, when it is read, then it fails with
   "missing spec version".
@@ -177,6 +187,12 @@ check and the matching work on the components and a report names the product.
   not among its components; given one whose `components` also lists it (as `syft` and `cdxgen` do), it stays there
   once.
 
+- (SBR-17) Given a component whose properties are `aquasecurity:trivy:SrcName` `bash`, `SrcVersion` `5.2.15` and
+  `SrcEpoch` `0`, with no `SrcRelease`, when it is read, then it carries the source package `bash` 5.2.15.
+- (SBR-17) Given a component whose properties name `SrcName` `pam` and no `SrcVersion`, when it is read, then it
+  carries the source package `pam` with no version; given one with `SrcVersion` and no `SrcName`, or `SrcName` only
+  whitespace, it carries none.
+
 ## Non-goals
 
 - XML or Protobuf input.
@@ -200,3 +216,5 @@ check and the matching work on the components and a report names the product.
 - Telling a component bundled in the product from a module of it when their package URLs share the type and have no
   namespace (a Cargo product nesting a vendored crate): the SBOM gives nothing else to tell them apart.
 - Reading the file from disk or standard input: the command line does.
+- The source package other tools may write in their own properties, and the other properties of `trivy` (its layers,
+  its package id): only the source package the matching needs is read (SBR-17).

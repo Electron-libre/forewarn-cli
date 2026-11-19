@@ -300,7 +300,7 @@ fn reports_the_component_reasons_before_a_local_path() {
     );
 }
 
-// spec: VMT-32
+// spec: DEB-1
 #[test]
 fn maps_a_debian_package_to_the_release_of_its_distro_qualifier() {
     for (purl, ecosystem) in [
@@ -326,7 +326,7 @@ fn maps_a_debian_package_to_the_release_of_its_distro_qualifier() {
     }
 }
 
-// spec: VMT-10, VMT-32
+// spec: VMT-10, DEB-1
 #[test]
 fn reports_a_debian_package_without_a_release_as_unknown_release() {
     for purl in [
@@ -361,7 +361,7 @@ fn leaves_the_deb_packages_of_another_namespace_unmapped() {
     }
 }
 
-// spec: VMT-5, VMT-33
+// spec: VMT-5, DEB-2
 #[test]
 fn names_a_debian_package_by_its_source() {
     let without_upstream = package("pkg:deb/debian/zlib1g@1%3A1.3.dfsg-3?distro=debian-13");
@@ -394,7 +394,7 @@ fn names_a_debian_package_by_its_source() {
     }
 }
 
-// spec: VMT-7, VMT-34
+// spec: VMT-7, DEB-3
 #[test]
 fn matches_a_debian_package_at_the_version_of_its_source() {
     let purl = "pkg:deb/debian/libc6@2.41-12%2Bb1?distro=debian-13&upstream=glibc%402.41-12";
@@ -420,7 +420,7 @@ fn compares_debian_names_exactly() {
     assert!(!same_name("Debian:13", "glibc", "GLIBC"));
 }
 
-// spec: VMT-10, VMT-35
+// spec: VMT-10, DEB-4
 #[test]
 fn reports_a_debian_qualifier_that_does_not_decode_as_an_invalid_package_url() {
     for purl in [

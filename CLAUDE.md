@@ -15,7 +15,7 @@ keeping their evidence (`specs/vex-verdicts.md`, ADR
 [0014](docs/adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md)). The domain also matches components against OSV-shaped vulnerabilities by package
 URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems, NuGet, Composer,
 Debian) (`specs/version-ordering.md`), the Debian packages of an image under the release of their `distro` qualifier
-and their source package (module `debian`), grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
+and their source package (module `debian`, `specs/debian-matching.md`), grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
 and flags a match as actively exploited when a list of exploited vulnerabilities names its CVE, with the list and the
 date it gives as evidence (`specs/exploited-flagging.md`), and computes the CRA article 14(2) deadlines of such a
 vulnerability, 24 h and 72 h from the moment of awareness and 14 days from the moment a corrective measure is

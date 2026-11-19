@@ -1,5 +1,5 @@
 //! `forewarn match` on the Debian packages of a container image, as an image scanner lists them
-//! (`specs/vulnerability-matching.md`, VMT-H4, VMT-32 to VMT-34).
+//! (`specs/debian-matching.md`, DEB-H1, DEB-1 to DEB-3).
 
 mod common;
 
@@ -55,7 +55,7 @@ fn debian_record(id: &str, release: &str, name: &str, fixed: &str) -> Value {
     })
 }
 
-// spec: VMT-H4, VMT-4, VMT-32, VMT-33, VMT-9
+// spec: DEB-H1, VMT-4, DEB-1, DEB-2, VMT-9
 #[test]
 fn matches_the_debian_packages_of_an_image_against_the_advisories_of_their_release() {
     let osv = TempDir::new().expect("a temporary directory");

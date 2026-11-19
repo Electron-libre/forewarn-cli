@@ -56,7 +56,7 @@ pub enum ComponentReason {
     InvalidPackageUrl,
     /// The package URL type maps to no OSV ecosystem matching knows.
     UnknownEcosystem,
-    /// A Debian package URL names no release matching reads (VMT-32).
+    /// A Debian package URL names no release matching reads (`specs/debian-matching.md`, DEB-1).
     UnknownRelease,
     /// Neither the component nor its package URL has a version.
     NoVersion,

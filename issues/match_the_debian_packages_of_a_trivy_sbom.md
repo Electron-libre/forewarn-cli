@@ -35,3 +35,57 @@ source package and version.
 
 # Hints
 * Properties are vendor-specific: keep their names in the adapter, out of the domain.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+Match a `deb` component without `upstream` under the source package `trivy` writes in its properties
+(`aquasecurity:trivy:SrcName`, `SrcEpoch`, `SrcVersion`, `SrcRelease`), read by the CycloneDX adapter into a source
+package of the domain component; read the `epoch` qualifier into a version taken from the package URL. Measured on
+2026-11-19, `trivy` 0.76.2 on `debian:bookworm-slim` (CycloneDX 1.7): 88 `deb` components, none with `upstream`, 62
+named apart from their source, 11 with `epoch=` (their component `version` already carries `1:`). Other
+distributions and other tools' properties stay out.
+
+## Plan
+1. [x] Split the Debian requirements out of `specs/vulnerability-matching.md` (over `spec_max_bytes`) into a spec of
+   their own, ids moved as `write-spec` says, the tests re-cited, no change of behaviour; verified by
+   `cardinal run check-specs` and the tests unchanged; ~200 lines. (autonomous)
+2. [ ] Read the source package of a Trivy component (adapter module `trivy`, `Component::source` in the domain), match
+   a `deb` component under it when `upstream` gives no name, read `epoch`; a trimmed Trivy SBOM of
+   `debian:bookworm-slim` as fixture (`fixtures/trivy.cdx.json`, its command in the fixtures README); verified by
+   `forewarn-cyclonedx/tests/real_tools.rs`, `reading.rs`, `forewarn-domain/tests/component_package.rs` and a
+   `forewarn match --osv` test through the binary on a Trivy SBOM; makes true SBR-4, SBR-17, SBR-H6, VMT-33, VMT-34,
+   now DEB-2, DEB-3, DEB-5, DEB-H2; ~500 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 2b990ee2c31bb420b738ba07761c755920193503
+- 2026-11-19, the user's answer `ok`: the Debian requirements split into a spec of their own first (1 a), the
+  Trivy fixture trimmed (2 a).
+- `upstream` comes before the Trivy properties: the package URL is the standard field.
+- The fixture is trimmed (a few `deb` components, the `dependencies` dropped): the whole SBOM is 206 KB.
+
+## Deliverable 1: split the Debian requirements out
+
+done: VMT-32 to VMT-35 moved to `specs/debian-matching.md` (DEB-1 to DEB-4, VMT-H4 as DEB-H1), withdrawn in
+`specs/vulnerability-matching.md` (back to `accepted`); the amendments of this issue written there as DEB-2, DEB-3,
+DEB-5, DEB-H2 (`draft`), with SBR-4, SBR-17, SBR-H6 in `specs/sbom-reading.md` (`draft`); tests re-cited; no code
+change of behaviour.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean |
+| docs | `CLAUDE.md`, `docs/architecture.md` |
+| code review | see below |
+
+red: none (no new test: a move).
+
+Code review: no findings
+
+not verified: nothing.
+
+decisions needed: none.

@@ -1,6 +1,6 @@
 //! The packages of Debian, as image scanners write them (`pkg:deb/debian/<name>@<version>?distro=debian-<release>`),
 //! mapped to the `Debian:<release>` ecosystems of OSV, named by their source package
-//! (`specs/vulnerability-matching.md`, VMT-32 to VMT-34).
+//! (`specs/debian-matching.md`, DEB-1 to DEB-3).
 
 use crate::matching::ComponentReason;
 use crate::purl::{PackageUrl, qualifier};
@@ -49,7 +49,7 @@ impl DebianPackage {
 const FIRST_MAJOR_ONLY: u32 = 7;
 
 /// The release of a `distro` qualifier: the digits after `debian-`, their leading zeros dropped, then for a release
-/// before 7 `.` and the digits of its minor (VMT-32).
+/// before 7 `.` and the digits of its minor (DEB-1).
 fn release(distro: &str) -> Option<String> {
     let rest = distro.strip_prefix("debian-")?;
     let (major, rest) = leading_number(rest)?;
