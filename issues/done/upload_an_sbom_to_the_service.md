@@ -93,7 +93,7 @@ unreadable answer). Out of scope: the `upload` command, the environment variable
 3. Host and port read by hand, disagreeing with the URI `ureq` connects to: fixed, read from the parsed URI, a port
    that is not 0 to 65535 or an IPv6 host that is not an address refused.
 4. `401` answered before the whole body is read reported as unreachable: not fixed, needs a measure; filed as
-   `issues/tell_refused_credentials_answered_before_the_body.md`.
+   `issues/done/tell_refused_credentials_answered_before_the_body.md`.
 5. `MAX_SBOM_BYTES` not shared with the service: fixed, moved to `forewarn-api`, re-exported.
 6. Control characters of a refused endpoint written raw: fixed, the endpoint quoted with escapes.
 7. A `401`/`403` with a body that is not the contract's JSON is an unreadable answer: not fixed, the table of UPL-9

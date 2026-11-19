@@ -10,12 +10,12 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Goal: `forewarn` uploads the SBOM with product, version and date to a Forewarn service, whose URL is set
   by `--endpoint` or an environment variable. The AI-BOM upload waits for the service's full registry, after the beta.
 - Why: keeps a vendor's inventory up to date without manual work; only inventories leave the CI, never source code.
-- State: in issues
+- State: done
 - Issues:
   - [define_the_sbom_upload_api_types](issues/done/define_the_sbom_upload_api_types.md)
   - [upload_an_sbom_to_the_service](issues/done/upload_an_sbom_to_the_service.md)
   - [cli_upload_command](issues/done/cli_upload_command.md)
-  - [tell_refused_credentials_answered_before_the_body](issues/tell_refused_credentials_answered_before_the_body.md)
+  - [tell_refused_credentials_answered_before_the_body](issues/done/tell_refused_credentials_answered_before_the_body.md)
 
 ## CI integration templates
 
