@@ -63,7 +63,7 @@ VMT-10 and MCH-44 amended and accepted again; user guide, architecture, `CLAUDE.
 |---|---|
 | tests | pass (`cardinal run project-check`) |
 | lint | pass |
-| specs | pass; warning kept: `vulnerability-matching.md` over `spec_max_bytes`, filed as `issues/split_the_vulnerability_matching_spec.md` |
+| specs | pass; warning kept: `vulnerability-matching.md` over `spec_max_bytes`, filed as `issues/done/split_the_vulnerability_matching_spec.md` |
 | docs | updated |
 | code review | `/code-review low`: clean |
 
@@ -83,5 +83,5 @@ decisions needed: none.
 - Decision (Cedric Brancourt, 2026-11-19): option b. Deliverable 1 (`28f4a2a`) reverted; the non-goal of
   `specs/vulnerability-matching.md` states that a file component carrying a package URL is matched as a package.
   The other findings of the review applied to the reverted change and are moot. No release.
-- `issues/split_the_vulnerability_matching_spec.md` kept: the non-goal leaves the spec over `spec_max_bytes`.
+- `issues/done/split_the_vulnerability_matching_spec.md` kept: the non-goal leaves the spec over `spec_max_bytes`.
 - Revert, `low` review: Code review: 1 finding, the file guard removed: the purpose of the revert (option b), not fixed.
