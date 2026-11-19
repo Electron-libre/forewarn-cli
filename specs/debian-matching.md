@@ -1,6 +1,6 @@
 ---
 id: DEB
-status: draft
+status: accepted
 adrs: [0001]
 ---
 
@@ -30,7 +30,7 @@ package and version the advisories name, whichever image scanner wrote the SBOM.
   (`specs/vulnerability-matching.md`).
 - **DEB-4** (deterministic) A `deb` package URL of namespace `debian` whose `distro` or `upstream` qualifier does not
   percent-decode must carry the reason `invalid package URL` (`specs/vulnerability-matching.md`, VMT-10).
-- **DEB-5** (deterministic) A version of a `deb` package taken from its package URL
+- **DEB-5** (deterministic) A version of a `deb` package taken from the component or its package URL
   (`specs/vulnerability-matching.md`, VMT-7) must be preceded by `<epoch>:` when its `epoch` qualifier is not empty
   nor only whitespace and the version holds no `:`; an `epoch` qualifier that does not percent-decode gives the reason
   `invalid package URL` (`specs/vulnerability-matching.md`, VMT-10).
@@ -59,8 +59,9 @@ package and version the advisories name, whichever image scanner wrote the SBOM.
   matched, then its version is 5.2.15-2, that of the source; of source package `pam` with no version, the version of
   VMT-7.
 - (DEB-5) Given `pkg:deb/debian/login@4.13%2Bdfsg1-1?distro=debian-12&epoch=1` with no version of its own nor source
-  package, when it is matched, then its version is 1:4.13+dfsg1-1; with the component version 1:4.13+dfsg1-1, the
-  same; with `epoch=%G1`, it is reported as not evaluated, invalid package URL.
+  package, when it is matched, then its version is 1:4.13+dfsg1-1; with the component version 1:4.13+dfsg1-1 or
+  4.13+dfsg1-1, the same; of source package `shadow` 4.13+dfsg1-1, 4.13+dfsg1-1, the epoch the source gives; with
+  `epoch=%G1`, it is reported as not evaluated, invalid package URL.
 - (DEB-2) Given `pkg:deb/debian/zlib1g@1%3A1.3.dfsg-3?distro=debian-13`, with no `upstream`, when it is matched, then
   its name is `zlib1g` and its version `1:1.3.dfsg-3`.
 - (DEB-2, DEB-3) Given `pkg:deb/debian/libc6@2.41-12%2Bb1?distro=debian-13&upstream=glibc%402.41-12`, a binNMU, when

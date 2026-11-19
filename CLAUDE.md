@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project status
 
 Early proof of concept. The CycloneDX adapter reads a JSON SBOM, its components (those nested in the product included, flagged first-party when of the
-type and namespace of the product's package URL, as is a component naming the product's package) and the product it describes, into the
-domain types (`specs/sbom-reading.md`); the domain lists the components missing a supplier, a license or a hash,
+type and namespace of the product's package URL, as is a component naming the product's package, with the source package Trivy names in
+its properties, module `trivy`) and the product it describes, into the domain types (`specs/sbom-reading.md`); the domain lists the components missing a supplier, a license or a hash,
 the file components (CycloneDX type `file`, the manifests a tool read) left out and listed apart
 (`specs/sbom-completeness.md`); `forewarn check` prints both (`specs/cli-check.md`). The adapter also reads the VEX
 verdicts of the SBOM's `vulnerabilities` and of a VEX document apart (`read_vex_json`), and the domain sets aside the
@@ -15,7 +15,7 @@ keeping their evidence (`specs/vex-verdicts.md`, ADR
 [0014](docs/adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md)). The domain also matches components against OSV-shaped vulnerabilities by package
 URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems, NuGet, Composer,
 Debian) (`specs/version-ordering.md`), the Debian packages of an image under the release of their `distro` qualifier
-and their source package (module `debian`, `specs/debian-matching.md`), grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
+and their source package (`upstream`, else the one the SBOM names) (module `debian`, `specs/debian-matching.md`), grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
 and flags a match as actively exploited when a list of exploited vulnerabilities names its CVE, with the list and the
 date it gives as evidence (`specs/exploited-flagging.md`), and computes the CRA article 14(2) deadlines of such a
 vulnerability, 24 h and 72 h from the moment of awareness and 14 days from the moment a corrective measure is
@@ -124,7 +124,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | Crate | Role | Scope |
 |---|---|---|
 | `forewarn-domain` | domain types and rules, no I/O, depends on no adapter | `domain` |
-| `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types | `sbom` |
+| `forewarn-cyclonedx` | CycloneDX adapter: SBOM into domain types, the source package of the Trivy properties (module `trivy`) | `sbom` |
 | `forewarn-osv` | OSV adapter: vulnerability records, read, fetched into a cache or queried from the OSV API, into domain types | `feeds` |
 | `forewarn-cache` | the cache of the downloads: refresh policy, freshness and the files of each download (ADR 0010), a file lock per entry (ADR 0008), one `GET` or the download of the source (ADR 0009) | `feeds` |
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read or paged into a cache, into the domain's exploited lists | `feeds` |

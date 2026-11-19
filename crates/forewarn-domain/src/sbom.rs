@@ -89,6 +89,18 @@ pub struct Component {
     /// Whether the component is a file, of CycloneDX type `file`: a manifest or a lock file a tool read
     /// (`specs/sbom-reading.md`, SBR-15).
     pub file: bool,
+    /// The source package the component was built from, when the SBOM names one apart from its package URL
+    /// (`specs/sbom-reading.md`, SBR-17): the Debian matching names a package by it (`specs/debian-matching.md`,
+    /// DEB-2).
+    pub source: Option<SourcePackage>,
+}
+
+/// The source package a component was built from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourcePackage {
+    pub name: String,
+    /// Its version, when the SBOM gives it.
+    pub version: Option<String>,
 }
 
 /// A hash of a component.

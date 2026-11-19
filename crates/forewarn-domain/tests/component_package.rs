@@ -1,7 +1,7 @@
 //! The package a component is matched under: its OSV ecosystem, name and version (`specs/vulnerability-matching.md`).
 
 use forewarn_domain::matching::{ComponentPackage, ComponentReason, same_name};
-use forewarn_domain::sbom::Component;
+use forewarn_domain::sbom::{Component, SourcePackage};
 
 fn component(purl: &str, version: Option<&str>) -> Component {
     Component {
@@ -433,4 +433,105 @@ fn reports_a_debian_qualifier_that_does_not_decode_as_an_invalid_package_url() {
             "{purl}"
         );
     }
+}
+
+/// A component of `purl`, at `version`, built from the source package `source` at `source_version`.
+fn built_from(
+    purl: &str,
+    version: Option<&str>,
+    source: &str,
+    source_version: Option<&str>,
+) -> ComponentPackage {
+    ComponentPackage::of(&Component {
+        source: Some(SourcePackage {
+            name: source.into(),
+            version: source_version.map(Into::into),
+        }),
+        ..component(purl, version)
+    })
+    .expect("a package")
+}
+
+// spec: DEB-2, DEB-3
+#[test]
+fn matches_a_debian_package_without_upstream_under_the_source_it_carries() {
+    let package = built_from(
+        "pkg:deb/debian/libc6@2.36-9%2Bdeb12u14?arch=amd64&distro=debian-12.15",
+        Some("2.36-9+deb12u14"),
+        "glibc",
+        Some("2.36-9+deb12u14"),
+    );
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("glibc", "2.36-9+deb12u14")
+    );
+    let bash = "pkg:deb/debian/bash@5.2.15-2%2Bb13?distro=debian-12";
+    let package = built_from(bash, Some("5.2.15-2+b13"), "bash", Some("5.2.15-2"));
+    assert_eq!(package.version, "5.2.15-2");
+    let package = built_from(
+        "pkg:deb/debian/libpam0g@1.5.2-6?distro=debian-12",
+        Some("1.5.2-6+b1"),
+        "pam",
+        None,
+    );
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("pam", "1.5.2-6+b1")
+    );
+}
+
+// spec: DEB-2, DEB-3
+#[test]
+fn prefers_the_upstream_qualifier_to_the_source_the_component_carries() {
+    let purl = "pkg:deb/debian/libssl3@3.0.11-1?distro=debian-12&upstream=openssl";
+    let package = built_from(purl, None, "openssl-other", Some("3.0.12-1"));
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("openssl", "3.0.11-1")
+    );
+    let package = built_from(
+        &format!("{purl}%403.0.10-1"),
+        None,
+        "openssl-other",
+        Some("3.0.12-1"),
+    );
+    assert_eq!(package.version, "3.0.10-1");
+}
+
+// spec: DEB-2
+#[test]
+fn reads_the_source_only_of_a_debian_package() {
+    let package = built_from("pkg:cargo/time@0.1.43", None, "other", Some("9.9"));
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("time", "0.1.43")
+    );
+}
+
+// spec: DEB-5
+#[test]
+fn reads_the_epoch_qualifier_into_the_version_of_the_package_url() {
+    let purl = "pkg:deb/debian/login@4.13%2Bdfsg1-1?distro=debian-12&epoch=1";
+    for (purl, version, expected) in [
+        (purl.to_owned(), None, "1:4.13+dfsg1-1"),
+        (purl.to_owned(), Some("1:4.13+dfsg1-1"), "1:4.13+dfsg1-1"),
+        (purl.to_owned(), Some("4.13+dfsg1-1"), "1:4.13+dfsg1-1"),
+        (purl.replace("epoch=1", "Epoch=%31"), None, "1:4.13+dfsg1-1"),
+        (purl.replace("epoch=1", "epoch=%20"), None, "4.13+dfsg1-1"),
+        (purl.replace("epoch=1", "epoch="), None, "4.13+dfsg1-1"),
+        (
+            purl.replace("4.13%2B", "2%3A4.13%2B"),
+            None,
+            "2:4.13+dfsg1-1",
+        ),
+    ] {
+        let package = ComponentPackage::of(&component(&purl, version)).expect("a package");
+        assert_eq!(package.version, expected, "{purl} {version:?}");
+    }
+    let package = built_from(purl, None, "shadow", Some("4.13+dfsg1-1"));
+    assert_eq!(package.version, "4.13+dfsg1-1");
+    assert_eq!(
+        ComponentPackage::of(&component(&purl.replace("epoch=1", "epoch=%G1"), None)),
+        Err(ComponentReason::InvalidPackageUrl)
+    );
 }

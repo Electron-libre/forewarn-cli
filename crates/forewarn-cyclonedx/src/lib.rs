@@ -1,5 +1,7 @@
 //! The CycloneDX adapter of `forewarn`: reads an SBOM produced by an existing tool into the types of the domain.
 
+mod trivy;
+
 use std::collections::HashSet;
 use std::fmt;
 use std::io::Read;
@@ -264,7 +266,8 @@ fn flatten<'a>(
     }
 }
 
-/// The component of the domain, `first_party` or not (SBR-14), a file when of type `file` (SBR-15).
+/// The component of the domain, `first_party` or not (SBR-14), a file when of type `file` (SBR-15), with the source
+/// package of its properties (SBR-17).
 fn to_domain(component: &CdxComponent, first_party: bool) -> Component {
     Component {
         name: component.name.to_string(),
@@ -303,6 +306,7 @@ fn to_domain(component: &CdxComponent, first_party: bool) -> Component {
             .collect(),
         first_party,
         file: component.component_type == Classification::File,
+        source: trivy::source(component.properties.as_ref()),
     }
 }
 

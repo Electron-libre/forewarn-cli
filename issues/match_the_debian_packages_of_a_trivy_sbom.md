@@ -52,12 +52,12 @@ distributions and other tools' properties stay out.
 1. [x] Split the Debian requirements out of `specs/vulnerability-matching.md` (over `spec_max_bytes`) into a spec of
    their own, ids moved as `write-spec` says, the tests re-cited, no change of behaviour; verified by
    `cardinal run check-specs` and the tests unchanged; ~200 lines. (autonomous)
-2. [ ] Read the source package of a Trivy component (adapter module `trivy`, `Component::source` in the domain), match
+2. [x] Read the source package of a Trivy component (adapter module `trivy`, `Component::source` in the domain), match
    a `deb` component under it when `upstream` gives no name, read `epoch`; a trimmed Trivy SBOM of
    `debian:bookworm-slim` as fixture (`fixtures/trivy.cdx.json`, its command in the fixtures README); verified by
    `forewarn-cyclonedx/tests/real_tools.rs`, `reading.rs`, `forewarn-domain/tests/component_package.rs` and a
    `forewarn match --osv` test through the binary on a Trivy SBOM; makes true SBR-4, SBR-17, SBR-H6, VMT-33, VMT-34,
-   now DEB-2, DEB-3, DEB-5, DEB-H2; ~500 lines.
+   now DEB-2, DEB-3, DEB-5, DEB-H2; ~500 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -87,5 +87,35 @@ red: none (no new test: a move).
 Code review: no findings
 
 not verified: nothing.
+
+decisions needed: none.
+
+## Deliverable 2: match the Debian packages of a Trivy SBOM
+
+done: the CycloneDX adapter reads the source package of the `aquasecurity:trivy:Src…` properties (module `trivy`)
+into `Component::source` (`SourcePackage`); a `deb` component without a name in `upstream` is matched under it, its
+version that of the source; the `epoch` qualifier precedes a version of the component or its package URL that
+lacks one; a trimmed Trivy
+SBOM of `debian:bookworm-slim` as fixture. `specs/debian-matching.md` and `specs/sbom-reading.md` `accepted`.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean |
+| docs | user guide, `CLAUDE.md`, `docs/architecture.md`, fixtures README |
+| code review | see below |
+
+red: DEB-H2, DEB-2, DEB-3, DEB-5, SBR-4, SBR-H6, SBR-17: `unresolved import forewarn_domain::sbom::SourcePackage`
+(domain and adapter tests); through the binary, `libpam0g` matched under its binary name and `libc6`, `bash` missed
+(`left: [libpam0g DSA-6103-1]`, `right: [libc6 DSA-6101-1, bash DSA-6102-1]`).
+
+Code review: 1 finding
+- `matching.rs`: the `epoch` qualifier was lost when the component has a version of its own without epoch (a
+  `1.2.13` compared below a `1:` fix). Fixed: DEB-5 amended to the version of the component too, tested in
+  `component_package.rs`.
+
+not verified: a whole Trivy SBOM against the OSV `Debian:12` archive (the fixture is trimmed, the archive not
+fetched).
 
 decisions needed: none.

@@ -1,9 +1,10 @@
 //! The packages of Debian, as image scanners write them (`pkg:deb/debian/<name>@<version>?distro=debian-<release>`),
 //! mapped to the `Debian:<release>` ecosystems of OSV, named by their source package
-//! (`specs/debian-matching.md`, DEB-1 to DEB-3).
+//! (`specs/debian-matching.md`, DEB-1 to DEB-5).
 
 use crate::matching::ComponentReason;
 use crate::purl::{PackageUrl, qualifier};
+use crate::sbom::SourcePackage;
 
 /// The package URL type of the Debian packages.
 pub(crate) const PURL_TYPE: &str = "deb";
@@ -14,13 +15,21 @@ pub(crate) struct DebianPackage {
     pub(crate) ecosystem: String,
     /// The source package.
     pub(crate) name: String,
-    /// The version of the source package, when the package URL gives it.
-    pub(crate) source_version: Option<String>,
+    /// The version of the source package when the package URL or the source the component carries gives it (DEB-3),
+    /// else that of the component, else that of its package URL, these two preceded by the epoch of the `epoch`
+    /// qualifier when they lack one (DEB-5); none when none is given.
+    pub(crate) version: Option<String>,
 }
 
 impl DebianPackage {
-    /// The package of a `deb` package URL, read from `text`, or why it cannot be matched.
-    pub(crate) fn of(purl: &PackageUrl, text: &str) -> Result<Self, ComponentReason> {
+    /// The package of a `deb` package URL, read from `text`, of a component at `version` built from `source`, or
+    /// why it cannot be matched.
+    pub(crate) fn of(
+        purl: &PackageUrl,
+        text: &str,
+        version: Option<&str>,
+        source: Option<&SourcePackage>,
+    ) -> Result<Self, ComponentReason> {
         if !purl.namespace.eq_ignore_ascii_case("debian") {
             return Err(ComponentReason::UnknownEcosystem);
         }
@@ -30,17 +39,36 @@ impl DebianPackage {
             .and_then(release)
             .ok_or(ComponentReason::UnknownRelease)?;
         let upstream = read("upstream")?.unwrap_or_default();
-        let (source, source_version) = upstream.split_once('@').unwrap_or((&upstream, ""));
-        let source = source.trim();
-        let source_version = source_version.trim();
+        let epoch = read("epoch")?;
+        let (name, upstream_version) = upstream.split_once('@').unwrap_or((&upstream, ""));
+        let filled = |text: &str| {
+            Some(text.trim())
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+        };
+        let (name, source_version) = match (filled(name), source) {
+            (Some(name), _) => (name, filled(upstream_version)),
+            (None, Some(source)) => (
+                source.name.clone(),
+                source.version.as_deref().and_then(filled),
+            ),
+            (None, None) => (purl.name.clone(), filled(upstream_version)),
+        };
+        let epoch = epoch.as_deref().and_then(filled);
+        let with_epoch = |version: String| match &epoch {
+            Some(epoch) if !version.contains(':') => format!("{epoch}:{version}"),
+            _ => version,
+        };
         Ok(Self {
             ecosystem: format!("Debian:{release}"),
-            name: if source.is_empty() {
-                purl.name.clone()
-            } else {
-                source.to_owned()
-            },
-            source_version: (!source_version.is_empty()).then(|| source_version.to_owned()),
+            name,
+            version: source_version.or_else(|| {
+                [version, purl.version.as_deref()]
+                    .into_iter()
+                    .flatten()
+                    .find_map(filled)
+                    .map(with_epoch)
+            }),
         })
     }
 }

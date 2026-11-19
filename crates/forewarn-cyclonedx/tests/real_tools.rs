@@ -4,7 +4,7 @@ use std::fs::File;
 use std::path::Path;
 
 use forewarn_cyclonedx::read_json;
-use forewarn_domain::sbom::{Component, Hash, Product, Sbom, SpecVersion};
+use forewarn_domain::sbom::{Component, Hash, Product, Sbom, SourcePackage, SpecVersion};
 
 fn read_fixture(name: &str) -> Sbom {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -197,6 +197,47 @@ fn reads_the_modules_cdxgen_nests_in_the_product_of_a_maven_project() {
         Some(Some(
             "pkg:maven/org.example.forewarn/parent@1.0?type=pom".into()
         ))
+    );
+}
+
+// spec: SBR-4, SBR-H6, SBR-17
+#[test]
+fn reads_the_source_packages_trivy_writes_for_a_debian_image() {
+    let sbom = read_fixture("trivy.cdx.json");
+    assert_eq!(sbom.spec_version, SpecVersion::new(1, 7));
+    let read: Vec<(&str, Option<&str>, Option<SourcePackage>)> = sbom
+        .components
+        .iter()
+        .map(|c| (c.name.as_str(), c.version.as_deref(), c.source.clone()))
+        .collect();
+    let source = |name: &str, version: &str| {
+        Some(SourcePackage {
+            name: name.into(),
+            version: Some(version.into()),
+        })
+    };
+    assert_eq!(
+        read,
+        vec![
+            ("debian", Some("12.15"), None),
+            ("bash", Some("5.2.15-2+b13"), source("bash", "5.2.15-2")),
+            ("libapt-pkg6.0", Some("2.6.2"), source("apt", "2.6.2")),
+            (
+                "libc6",
+                Some("2.36-9+deb12u14"),
+                source("glibc", "2.36-9+deb12u14")
+            ),
+            (
+                "libpam0g",
+                Some("1.5.2-6+deb12u2"),
+                source("pam", "1.5.2-6+deb12u2")
+            ),
+            (
+                "login",
+                Some("1:4.13+dfsg1-1+deb12u2"),
+                source("shadow", "1:4.13+dfsg1-1+deb12u2")
+            ),
+        ]
     );
 }
 

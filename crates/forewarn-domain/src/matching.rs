@@ -584,29 +584,35 @@ impl ComponentPackage {
         let text = purl.trim();
         let local_path = points_to_local_path(text);
         let purl = PackageUrl::parse(text).map_err(|_| ComponentReason::InvalidPackageUrl)?;
-        let (ecosystem, scheme, name, source_version) = if purl.purl_type == debian::PURL_TYPE {
-            let package = DebianPackage::of(&purl, text)?;
+        let (ecosystem, scheme, name, versions) = if purl.purl_type == debian::PURL_TYPE {
+            let package = DebianPackage::of(
+                &purl,
+                text,
+                component.version.as_deref(),
+                component.source.as_ref(),
+            )?;
             (
                 package.ecosystem,
                 Scheme::Debian,
                 package.name,
-                package.source_version,
+                [package.version, None],
             )
         } else {
             let (ecosystem, scheme, name) = Self::mapped(&purl)?;
-            (ecosystem.to_owned(), scheme, name, None)
+            (
+                ecosystem.to_owned(),
+                scheme,
+                name,
+                [component.version.clone(), purl.version.clone()],
+            )
         };
-        let version = [
-            source_version.as_deref(),
-            component.version.as_deref(),
-            purl.version.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-        .map(str::trim)
-        .find(|version| !version.is_empty())
-        .ok_or(ComponentReason::NoVersion)?
-        .to_owned();
+        let version = versions
+            .iter()
+            .flatten()
+            .map(|version| version.trim())
+            .find(|version| !version.is_empty())
+            .ok_or(ComponentReason::NoVersion)?
+            .to_owned();
         if local_path {
             return Err(ComponentReason::LocalPath);
         }

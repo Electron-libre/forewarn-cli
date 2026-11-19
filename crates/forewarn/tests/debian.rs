@@ -1,5 +1,5 @@
 //! `forewarn match` on the Debian packages of a container image, as an image scanner lists them
-//! (`specs/debian-matching.md`, DEB-H1, DEB-1 to DEB-3).
+//! (`specs/debian-matching.md`, DEB-H1, DEB-H2, DEB-1 to DEB-3).
 
 mod common;
 
@@ -162,4 +162,91 @@ fn a_debian_advisory_is_reported_and_flagged_under_the_cve_it_names_upstream() {
     assert_eq!(report["affected"].as_array().map(Vec::len), Some(1));
     assert_eq!(report["affected"][0]["id"], json!("CVE-2026-0001"));
     assert_eq!(report["exploitedCount"], json!(1));
+}
+
+/// A package of a Debian 12 image as Trivy lists it: no `upstream`, its source in its properties.
+fn trivy_component(name: &str, version: &str, purl: &str, source: [&str; 3]) -> Value {
+    let property = |suffix: &str, value: &str| json!({"name": format!("aquasecurity:trivy:{suffix}"), "value": value});
+    json!({
+        "type": "library",
+        "name": name,
+        "version": version,
+        "purl": purl,
+        "properties": [
+            property("PkgType", "debian"),
+            property("SrcName", source[0]),
+            property("SrcRelease", source[1]),
+            property("SrcVersion", source[2]),
+        ],
+    })
+}
+
+// spec: DEB-H2, DEB-2, DEB-3, SBR-17
+#[test]
+fn matches_the_debian_packages_of_a_trivy_sbom_under_their_source() {
+    let osv = TempDir::new().expect("a temporary directory");
+    for record in [
+        debian_record("DSA-6101-1", "12", "glibc", "2.36-9+deb12u15"),
+        debian_record("DSA-6102-1", "12", "bash", "5.2.15-2+b1"),
+        debian_record("DSA-6103-1", "12", "libpam0g", "9.9"),
+    ] {
+        fs::write(
+            osv.path()
+                .join(format!("{}.json", record["id"].as_str().expect("an id"))),
+            record.to_string(),
+        )
+        .expect("the record is written");
+    }
+    let sbom = bom(
+        "1.7",
+        &json!([
+            trivy_component(
+                "libc6",
+                "2.36-9+deb12u14",
+                "pkg:deb/debian/libc6@2.36-9%2Bdeb12u14?arch=amd64&distro=debian-12.15",
+                ["glibc", "9+deb12u14", "2.36"],
+            ),
+            trivy_component(
+                "bash",
+                "5.2.15-2+b13",
+                "pkg:deb/debian/bash@5.2.15-2%2Bb13?arch=amd64&distro=debian-12.15",
+                ["bash", "2", "5.2.15"],
+            ),
+            trivy_component(
+                "libpam0g",
+                "1.5.2-6+deb12u2",
+                "pkg:deb/debian/libpam0g@1.5.2-6%2Bdeb12u2?arch=amd64&distro=debian-12.15",
+                ["pam", "6+deb12u2", "1.5.2"],
+            ),
+        ]),
+    );
+    let run = run(
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            osv.path().to_str().expect("UTF-8 path"),
+            "-",
+        ],
+        Some(&sbom),
+    );
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    let report = json_report(&run);
+    let affected: Vec<Value> = report["affected"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .map(|a| json!([a["name"], a["version"], a["id"]]))
+        .collect();
+    assert_eq!(
+        affected,
+        [
+            json!(["libc6", "2.36-9+deb12u14", "DSA-6101-1"]),
+            json!(["bash", "5.2.15-2+b13", "DSA-6102-1"]),
+        ]
+    );
+    assert_eq!(report["cleanCount"], json!(1));
 }

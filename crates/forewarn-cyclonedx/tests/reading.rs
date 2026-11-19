@@ -114,6 +114,7 @@ fn maps_the_fields_of_a_component() {
                 }],
                 first_party: false,
                 file: false,
+                source: None,
             },
             Component {
                 licenses: vec!["MIT OR Apache-2.0".into()],
