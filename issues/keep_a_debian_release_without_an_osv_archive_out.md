@@ -27,4 +27,4 @@ rest matched.
 
 # Resources
 * `crates/forewarn-osv/src/fetch.rs`, `crates/forewarn/src/main.rs` (`ecosystems`, `no_records`).
-* `issues/match_debian_packages.md`.
+* `issues/done/match_debian_packages.md`.

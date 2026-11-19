@@ -31,7 +31,7 @@ source package and version.
 
 # Resources
 * `crates/forewarn-domain/src/debian.rs`, `crates/forewarn-cyclonedx/src/`.
-* `issues/match_debian_packages.md`.
+* `issues/done/match_debian_packages.md`.
 
 # Hints
 * Properties are vendor-specific: keep their names in the adapter, out of the domain.
