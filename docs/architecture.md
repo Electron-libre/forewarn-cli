@@ -30,6 +30,7 @@ flowchart TD
     exp["forewarn-exploited<br/>(KEV + EUVD adapter)"]
     cache["forewarn-cache<br/>(download cache)"]
     domain["forewarn-domain<br/>(rules, no I/O)"]
+    api["forewarn-api<br/>(upload contract, no I/O)"]
 
     cli --> cdx & osv & exp & domain
     cdx --> domain
@@ -44,6 +45,7 @@ flowchart TD
 | `forewarn-osv` | Reads OSV records, fetches ecosystem archives into the cache, queries the OSV API | `lib` (read), `fetch`, `api` |
 | `forewarn-exploited` | Reads or fetches the exploited lists into `ExploitedList` | `kev`, `euvd` |
 | `forewarn-cache` | Refresh policy, freshness, the files of each download, a file lock per entry | single module |
+| `forewarn-api` | The contract of an SBOM upload, shared with the service: the route of a product version, the names it accepts ([upload-api](../specs/upload-api.md), [ADR 0017](adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md)) | single module |
 | `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` (the characters both writers escape, a path's own way), `error_line` (the error lines naming a file) |
 
 The dependency direction is enforced: `crates/forewarn/tests/workspace_policy.rs` fails when the domain depends on
@@ -125,6 +127,7 @@ One directory (`$XDG_CACHE_HOME/forewarn/osv` by default) holds an entry per dow
 | change how a VEX verdict applies | `forewarn-domain` (`vex`) and the table of VEX-8 |
 | add an exploited list | a module of `forewarn-exploited`, a `--<list>` / `--no-<list>` pair in the CLI |
 | change a report's layout | `crates/forewarn/src/report.rs` (the JSON report is the stable one) |
+| change the contract of an SBOM upload | `forewarn-api` and `specs/upload-api.md`, within `/api/v1` only by adding (ADR 0017) |
 | follow a new version of the ENISA glossary | `crates/forewarn/src/early_warning.rs` and the field table of `specs/early-warning-draft.md`; the domain only when a new field needs new data |
 
 ## Decisions
@@ -149,3 +152,4 @@ Every structural decision is an ADR in [`docs/adr/`](adr/):
 | [0014](adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md) | The VEX verdicts applied in the domain after the flagging, components known by their `bom-ref` |
 | [0015](adr/0015-distribute-release-binaries-on-github-before-crates-io.md) | Release binaries built on each tag and attached to a GitHub release, before any crates.io publication |
 | [0016](adr/0016-complete-the-sbom-of-the-release-binaries-after-cargo-cyclonedx.md) | The release SBOMs completed by a `jq` step (manufacturer, crates.io as supplier, source hash of the workspace crates) and refused when `forewarn check` finds them incomplete |
+| [0017](adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md) | The upload contract shared with the service in a crate of plain types: the SBOM as the body, the product and version in the path, the version of the contract in the path |
