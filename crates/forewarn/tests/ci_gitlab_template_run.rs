@@ -11,10 +11,10 @@ mod common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 
-use ci_template::{Sandbox, fixture, indent, quoted};
+use ci_template::{Sandbox, ci_fixture, fixture, indent, literal_block};
 use common::{Run, run_command};
 
 const TEMPLATE: &str = "examples/ci/gitlab-ci.yml";
@@ -33,67 +33,56 @@ const INSTALL_SYFT: &str = SBOM;
 /// are the installation, replaced; those after it are run.
 const IN_PROJECT: &str = r#"cd "$CI_PROJECT_DIR""#;
 
-/// `script` with each line continued by a final `\\` joined to the next, as the shell reads it, so that a command
-/// written over several lines is rewritten as one.
-fn unfolded(script: &str) -> String {
-    let mut joined = String::new();
-    for line in script.lines() {
-        if let Some(head) = line.strip_suffix('\\') {
-            joined.push_str(head);
-        } else {
-            joined.push_str(line);
-            joined.push('\n');
-        }
-    }
-    joined
-}
-
 /// A job of the template, hidden (a name starting with `.`, a base other jobs extend) or not.
 #[derive(Default)]
 struct TemplateJob {
-    /// The job it extends.
-    extends: Option<String>,
-    /// Its keys (`stage`, `variables`, `script`…).
-    keys: BTreeSet<String>,
-    /// The variables of its `variables:`, their values unquoted.
-    variables: BTreeMap<String, String>,
-    /// Its `before_script` and `script`, one shell item each, a literal block dedented.
-    before_script: Vec<String>,
-    script: Vec<String>,
+    /// Its keys (`stage`, `variables`, `script`…), with their value when it is written on the line of the key
+    /// (`extends: .forewarn`, `needs: [forewarn-sbom]`), else empty.
+    keys: BTreeMap<String, String>,
+    /// The items of its lists (`rules`, `before_script`, `script`…), a literal block of a shell list dedented.
+    lists: BTreeMap<String, Vec<String>>,
+    /// The keys of its maps (`variables`, `cache`, `artifacts`), with their value.
+    maps: BTreeMap<String, BTreeMap<String, String>>,
 }
 
-/// An item of a list of shell lines that starts at line `i` with `- <value>`: the value, or a literal block (`|`)
+impl TemplateJob {
+    fn extends(&self) -> Option<&str> {
+        self.keys.get("extends").map(String::as_str)
+    }
+
+    fn list(&self, key: &str) -> &[String] {
+        self.lists.get(key).map_or(&[], Vec::as_slice)
+    }
+
+    fn map(&self, key: &str, entry: &str) -> Option<&str> {
+        self.maps.get(key)?.get(entry).map(String::as_str)
+    }
+}
+
+/// An item of a list that starts at line `i` with `- <value>`: the value, or for a shell list a literal block (`|`)
 /// dedented; `i` moves past it. The items are indented to `dash`.
-fn shell_item(lines: &[&str], i: &mut usize, dash: usize, value: &str) -> String {
+fn list_item(lines: &[&str], i: &mut usize, dash: usize, shell: bool, value: &str) -> String {
     let value = value.trim();
     *i += 1;
-    if value != "|" {
-        assert!(
-            !value.starts_with(['|', '>', '\'', '"']),
-            "{TEMPLATE}: an item `- {value}`, read here as plain or `|` only"
-        );
+    if !shell {
         return value.to_owned();
     }
-    let mut block = String::new();
-    let mut body_indent = None;
-    while *i < lines.len() && (lines[*i].trim().is_empty() || indent(lines[*i]) > dash) {
-        let body = lines[*i];
-        if !body.trim().is_empty() {
-            let start = *body_indent.get_or_insert(indent(body));
-            block.push_str(body.get(start..).unwrap_or(""));
-        }
-        block.push('\n');
-        *i += 1;
+    if value == "|" {
+        return literal_block(lines, i, dash);
     }
-    block
+    assert!(
+        !value.starts_with(['|', '>', '\'', '"']),
+        "{TEMPLATE}: a shell item `- {value}`, read here as plain or `|` only"
+    );
+    value.to_owned()
 }
 
 /// Each job of the template, by name: a key at the top level, its keys indented two spaces, the items of its lists
-/// and its variables four.
+/// and the keys of its maps four.
 fn jobs(template: &str) -> BTreeMap<String, TemplateJob> {
     let lines: Vec<&str> = template.lines().collect();
     let mut found: BTreeMap<String, TemplateJob> = BTreeMap::new();
-    let mut job: Option<String> = None;
+    let mut job = String::new();
     let mut key = String::new();
     let mut i = 0;
     while i < lines.len() {
@@ -104,40 +93,34 @@ fn jobs(template: &str) -> BTreeMap<String, TemplateJob> {
             continue;
         }
         let (name, value) = trimmed.split_once(':').unwrap_or((trimmed, ""));
+        let value = value.trim();
         match indent(line) {
             0 => {
-                job = Some(name.to_owned());
-                found.entry(name.to_owned()).or_default();
+                name.clone_into(&mut job);
+                found.entry(job.clone()).or_default();
             }
             2 => {
-                let current = found
-                    .get_mut(job.as_deref().expect("a key belongs to a job"))
-                    .expect("the job is found");
-                current.keys.insert(name.to_owned());
-                if name == "extends" {
-                    current.extends = Some(value.trim().to_owned());
-                }
+                let current = found.get_mut(&job).expect("a key belongs to a job");
+                current.keys.insert(name.to_owned(), value.to_owned());
                 name.clone_into(&mut key);
             }
             4 => {
-                let current = found
-                    .get_mut(job.as_deref().expect("a key belongs to a job"))
-                    .expect("the job is found");
+                let current = found.get_mut(&job).expect("a key belongs to a job");
                 if let Some(item) = trimmed.strip_prefix("- ") {
-                    let item = shell_item(&lines, &mut i, 4, item);
-                    match key.as_str() {
-                        "before_script" => current.before_script.push(item),
-                        "script" => current.script.push(item),
-                        _ => {}
-                    }
+                    let shell = matches!(key.as_str(), "before_script" | "script" | "after_script");
+                    let item = list_item(&lines, &mut i, 4, shell, item);
+                    current.lists.entry(key.clone()).or_default().push(item);
                     continue;
                 }
-                if key == "variables" {
-                    current.variables.insert(
-                        name.to_owned(),
-                        value.trim().trim_matches(['"', '\'']).to_owned(),
-                    );
-                }
+                assert!(
+                    !value.is_empty() && !value.contains('#'),
+                    "{TEMPLATE}: `{key}: {name}:` in `{job}`, read here as one plain value only: {line}"
+                );
+                current
+                    .maps
+                    .entry(key.clone())
+                    .or_default()
+                    .insert(name.to_owned(), value.trim_matches(['"', '\'']).to_owned());
             }
             _ => {}
         }
@@ -151,6 +134,7 @@ fn jobs(template: &str) -> BTreeMap<String, TemplateJob> {
 struct Pipeline {
     sandbox: Sandbox,
     jobs: BTreeMap<String, TemplateJob>,
+    sbom: PathBuf,
     syft_args: PathBuf,
 }
 
@@ -160,26 +144,12 @@ impl Pipeline {
     fn new(env: &[(&'static str, &str)], sbom: &str) -> Self {
         let template = fs::read_to_string(fixture(TEMPLATE)).expect("the template is read");
         let sandbox = Sandbox::new(env);
+        symlink(ci_fixture("syft"), sandbox.bin.join("syft")).expect("the stub of syft is linked");
         let syft_args = sandbox.scratch().join("syft-args");
-        let syft = sandbox.bin.join("syft");
-        let sbom = fixture(&format!(
-            "crates/forewarn/tests/fixtures/ci-template/{sbom}"
-        ));
-        fs::write(
-            &syft,
-            format!(
-                "#!/bin/sh\nprintf '%s\\n' \"$@\" > {args}\nfor arg; do\n  case $arg in\n    \
-                 cyclonedx-json=*) cp {sbom} \"${{arg#cyclonedx-json=}}\" ;;\n  esac\ndone\n",
-                args = quoted(&syft_args),
-                sbom = quoted(&sbom),
-            ),
-        )
-        .expect("the stub of syft is written");
-        fs::set_permissions(&syft, fs::Permissions::from_mode(0o755))
-            .expect("the stub of syft is executable");
         Self {
             sandbox,
             jobs: jobs(&template),
+            sbom: ci_fixture(sbom),
             syft_args,
         }
     }
@@ -190,59 +160,64 @@ impl Pipeline {
             .unwrap_or_else(|| panic!("{TEMPLATE} has no job `{job}`"))
     }
 
+    /// The job that holds `key` for `job`: itself, else the nearest job it extends.
+    fn holding(&self, job: &str, key: &str) -> Option<&TemplateJob> {
+        let mut next = Some(job);
+        while let Some(name) = next {
+            let template_job = self.template_job(name);
+            if template_job.keys.contains_key(key) {
+                return Some(template_job);
+            }
+            next = template_job.extends();
+        }
+        None
+    }
+
     /// The variables of a job and of the jobs it extends, its own first.
     fn variables(&self, job: &str) -> BTreeMap<String, String> {
         let mut variables = BTreeMap::new();
         let mut next = Some(job);
         while let Some(name) = next {
             let template_job = self.template_job(name);
-            for (variable, value) in &template_job.variables {
+            for (variable, value) in template_job.maps.get("variables").into_iter().flatten() {
                 variables
                     .entry(variable.clone())
                     .or_insert_with(|| value.clone());
             }
-            next = template_job.extends.as_deref();
+            next = template_job.extends();
         }
         variables
-    }
-
-    /// The `before_script` of a job, its own or that of the job it extends.
-    fn before_script(&self, job: &str) -> &[String] {
-        let mut next = Some(job);
-        while let Some(name) = next {
-            let template_job = self.template_job(name);
-            if template_job.keys.contains("before_script") {
-                return &template_job.before_script;
-            }
-            next = template_job.extends.as_deref();
-        }
-        &[]
     }
 
     /// Runs the `script` of a job, `rewrite` applied to it, as the runner runs it with `sh`: the items of its
     /// `before_script` once in the project (the installation replaced), then those of its `script`, one after the
     /// other in one shell that stops at the first that fails, with the variables of the job, of the pipeline and the
-    /// CI/CD variables `cicd` only; expects its exit code.
+    /// CI/CD variables `cicd` only; expects its exit code. The host's `sh` runs them, not the `ash` of the image: the
+    /// scripts use no pipe whose status `pipefail` would change.
     fn job(
         &self,
         job: &str,
-        rewrite: impl Fn(&str) -> String,
+        rewrite: impl Fn(&TemplateJob, &str) -> String,
         cicd: &[(&str, &str)],
         code: i32,
     ) -> Run {
-        let before = self.before_script(job);
+        let before = self
+            .holding(job, "before_script")
+            .map_or(&[][..], |holder| holder.list("before_script"));
         let in_project = before
             .iter()
             .rposition(|item| item == IN_PROJECT)
             .map_or(before.len(), |at| at + 1);
-        let script = rewrite(&unfolded(
+        let template_job = self.template_job(job);
+        let script = rewrite(
+            template_job,
             &before[in_project..]
                 .iter()
-                .chain(&self.template_job(job).script)
+                .chain(template_job.list("script"))
                 .map(String::as_str)
                 .collect::<Vec<_>>()
                 .join("\n"),
-        ));
+        );
         let script = format!(
             "if set -o | grep pipefail > /dev/null; then set -o pipefail; fi\nset -o errexit\n{script}\n"
         );
@@ -251,7 +226,9 @@ impl Pipeline {
             .envs(self.variables(job))
             .env("CI_PROJECT_DIR", &self.sandbox.product)
             .env("CI_PROJECT_NAME", "acme-app")
-            .env("CI_COMMIT_SHA", "0000000000000000000000000000000000000000");
+            .env("CI_COMMIT_SHA", "0000000000000000000000000000000000000000")
+            .env("SYFT_STUB_ARGS", &self.syft_args)
+            .env("SYFT_STUB_SBOM", &self.sbom);
         let env: Vec<(&str, Option<&str>)> = cicd
             .iter()
             .map(|(name, value)| (*name, Some(*value)))
@@ -290,15 +267,34 @@ impl Pipeline {
     }
 }
 
-fn unchanged(block: &str) -> String {
+/// The items of an inline list, `[a, b]`.
+fn inline_list(value: &str) -> Vec<&str> {
+    value
+        .strip_prefix('[')
+        .and_then(|rest| rest.strip_suffix(']'))
+        .unwrap_or_else(|| panic!("{TEMPLATE}: an inline list `[…]`: {value}"))
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .collect()
+}
+
+fn unchanged(_: &TemplateJob, block: &str) -> String {
     block.to_owned()
 }
 
-fn with_local_feeds(block: &str) -> String {
-    ci_template::with_local_feeds(TEMPLATE, block)
+/// The match with local feeds, its `--cache` the directory the job keeps between pipelines.
+fn with_local_feeds(job: &TemplateJob, block: &str) -> String {
+    let kept = job.map("cache", "paths").map(inline_list);
+    let kept = match kept.as_deref() {
+        None => None,
+        Some([path]) => Some(*path),
+        Some(paths) => panic!("{TEMPLATE}: one directory of feeds kept, not {paths:?}"),
+    };
+    ci_template::with_local_feeds(TEMPLATE, block, kept)
 }
 
-fn as_dry_run(block: &str) -> String {
+fn as_dry_run(_: &TemplateJob, block: &str) -> String {
     ci_template::as_dry_run(TEMPLATE, block)
 }
 
@@ -309,7 +305,7 @@ fn the_test_runs_each_job_of_the_template_and_replaces_each_installation() {
     let with = |key: &str| -> BTreeSet<String> {
         found
             .iter()
-            .filter(|(_, job)| job.keys.contains(key))
+            .filter(|(_, job)| job.keys.contains_key(key))
             .map(|(name, _)| name.clone())
             .collect()
     };
@@ -330,7 +326,7 @@ fn the_test_runs_each_job_of_the_template_and_replaces_each_installation() {
     for name in [INSTALL_FOREWARN, INSTALL_SYFT] {
         assert!(
             found[name]
-                .before_script
+                .list("before_script")
                 .iter()
                 .any(|item| item == IN_PROJECT),
             "{TEMPLATE}: the `before_script` of `{name}` goes back to the project"
@@ -338,13 +334,58 @@ fn the_test_runs_each_job_of_the_template_and_replaces_each_installation() {
     }
     for name in [MATCH, UPLOAD] {
         assert_eq!(
-            found[name].extends.as_deref(),
+            found[name].extends(),
             Some(INSTALL_FOREWARN),
             "{TEMPLATE}: `{name}` installs forewarn"
         );
     }
 }
 
+#[test]
+fn the_jobs_after_the_sbom_receive_it_on_the_triggers_of_the_runs() {
+    let template = fs::read_to_string(fixture(TEMPLATE)).expect("the template is read");
+    let found = jobs(&template);
+    // Each job runs in a fresh checkout: the SBOM reaches the others as an artifact they need, not as a file left in
+    // the directory where this test runs them all.
+    assert_eq!(
+        found[SBOM].map("artifacts", "paths").map(inline_list),
+        Some(vec!["sbom.cdx.json"]),
+        "{TEMPLATE}: the SBOM job keeps sbom.cdx.json"
+    );
+    for name in [MATCH, UPLOAD] {
+        assert_eq!(
+            found[name]
+                .keys
+                .get("needs")
+                .map(|needs| inline_list(needs)),
+            Some(vec![SBOM]),
+            "{TEMPLATE}: `{name}` needs the SBOM"
+        );
+    }
+    // The runs of the tests: a schedule runs the SBOM and the match, a tag runs them and the upload, and only a tag.
+    let base = found[SBOM]
+        .extends()
+        .expect("the SBOM job extends the base");
+    assert_eq!(found[INSTALL_FOREWARN].extends(), Some(base));
+    for rule in [
+        "if: $CI_COMMIT_TAG =~ /^v/",
+        r#"if: $CI_PIPELINE_SOURCE == "schedule""#,
+    ] {
+        assert!(
+            found[base].list("rules").iter().any(|item| item == rule),
+            "{TEMPLATE}: the jobs run on `{rule}`"
+        );
+    }
+    assert!(
+        !found[SBOM].keys.contains_key("rules") && !found[MATCH].keys.contains_key("rules"),
+        "{TEMPLATE}: the SBOM and the match keep the rules of `{base}`"
+    );
+    assert_eq!(
+        found[UPLOAD].list("rules"),
+        ["if: $CI_COMMIT_TAG =~ /^v/"],
+        "{TEMPLATE}: the upload runs on a tag only"
+    );
+}
 #[test]
 fn a_scheduled_run_checks_the_latest_tag_and_fails_on_an_actively_exploited_match() {
     let pipeline = Pipeline::new(&[("CI_PIPELINE_SOURCE", "schedule")], "exploited.cdx.json");

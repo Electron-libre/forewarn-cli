@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
-use ci_template::{Sandbox, fixture, indent};
+use ci_template::{Sandbox, ci_fixture, fixture, indent, literal_block};
 use common::{Run, run_command};
 
 const TEMPLATE: &str = "examples/ci/github-actions.yml";
@@ -50,18 +50,7 @@ fn run_block(lines: &[&str], i: &mut usize, keys: usize, value: &str) -> String 
         );
         return format!("{value}\n");
     }
-    let mut block = String::new();
-    let mut body_indent = None;
-    while *i < lines.len() && (lines[*i].trim().is_empty() || indent(lines[*i]) > keys) {
-        let body = lines[*i];
-        if !body.trim().is_empty() {
-            let start = *body_indent.get_or_insert(indent(body));
-            block.push_str(body.get(start..).unwrap_or(""));
-        }
-        block.push('\n');
-        *i += 1;
-    }
-    block
+    literal_block(lines, i, keys)
 }
 
 /// Each named step of the template that has a `run:`, by name. A step is an item of a `steps:` list; its keys are
@@ -130,7 +119,7 @@ fn run_steps(template: &str) -> BTreeMap<String, TemplateStep> {
 }
 
 fn with_local_feeds(block: &str) -> String {
-    ci_template::with_local_feeds(TEMPLATE, block)
+    ci_template::with_local_feeds(TEMPLATE, block, None)
 }
 
 fn as_dry_run(block: &str) -> String {
@@ -233,9 +222,7 @@ impl Job {
             "{TEMPLATE}: the SBOM step writes sbom.cdx.json"
         );
         fs::copy(
-            fixture(&format!(
-                "crates/forewarn/tests/fixtures/ci-template/{fixture_name}"
-            )),
+            ci_fixture(fixture_name),
             self.sandbox.product.join("sbom.cdx.json"),
         )
         .expect("the SBOM is copied");

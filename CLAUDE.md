@@ -98,7 +98,8 @@ runs the `run:` blocks of the GitHub template with `bash` (Unix) against the bin
 (`tests/fixtures/ci-template`) and local feeds: a daily run on the latest tag exits with 6 on an exploited match, a tag
 run passes on a match not exploited and uploads with `--dry-run`; a new step with a `run:` must be run or replaced there.
 `crates/forewarn/tests/ci_gitlab_template_run.rs` runs the `script` of each GitLab job the same way, with `sh`, its
-`before_script` replaced up to `cd "$CI_PROJECT_DIR"` and `syft` by a stub writing the fixture SBOM; a new job with a
+`before_script` replaced up to `cd "$CI_PROJECT_DIR"` and `syft` by a stub writing the fixture SBOM, and checks the
+`needs`, `artifacts` and `rules` that carry the SBOM between its jobs on a schedule and a tag; a new job with a
 `script` or a new `before_script` must be run or replaced there (the two share `tests/ci_template`).
 
 ## Layout

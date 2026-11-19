@@ -1,0 +1,9 @@
+#!/bin/sh
+# The syft of the GitLab template run: records its arguments, one per line, in the file $SYFT_STUB_ARGS, and copies
+# the SBOM $SYFT_STUB_SBOM where `-o cyclonedx-json=<file>` asks for one.
+printf '%s\n' "$@" > "$SYFT_STUB_ARGS"
+for arg; do
+  case $arg in
+    cyclonedx-json=*) cp "$SYFT_STUB_SBOM" "${arg#cyclonedx-json=}" ;;
+  esac
+done

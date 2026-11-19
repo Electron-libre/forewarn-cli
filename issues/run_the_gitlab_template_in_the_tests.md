@@ -56,6 +56,10 @@ writes the fixture SBOM, so the shell of `forewarn-sbom` (tag resolution, `git c
    two scenarios; fixtures README, `CLAUDE.md` and the docs updated; verified by the new tests (red first on a
    template step they do not run yet). (autonomous)
 
+3. [x] Fixes of the `high` review of the issue: the `needs`, `artifacts`, `rules` and `cache` of the template checked,
+   the unfolding of continued lines and the reading of literal blocks shared, `syft` a checked-in stub; verified by
+   the GitLab and GitHub runs and two mutations of the template. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 4ca94a7d1f995178af63ae5e2bbf9beab76e1aeb
@@ -80,3 +84,14 @@ writes the fixture SBOM, so the shell of `forewarn-sbom` (tag resolution, `git c
   (the line continued with `\`, now unfolded), then `--cache and --refresh apply to what is fetched` (exit 2, not 6).
 - Code review: no findings.
 - checks: `project-check` green (fmt, clippy, tests, specs); size 457 lines; no file over the size limit.
+
+### 3. Fixes of the `high` review
+- done: findings 1-4, 6-10 of the `high` review fixed: a test checks the SBOM artifact, the `needs` of the match and
+  the upload and the rules of the schedule and the tag; the dropped `--cache` must be the directory the job keeps;
+  `unfolded` and `literal_block` live in `tests/ci_template` (the GitHub run unfolds too); the shared module allows
+  its dead code; only shell lists are read as shell; a variable with a comment or no plain value is refused; `syft`
+  is a checked-in script linked, not written then run (no `ETXTBSY`).
+- not fixed: finding 5, the host `sh` instead of busybox `ash`: the scripts have no pipe, said in the doc comment.
+- red: none (no spec); mutations of the template (`--cache /tmp/feeds`, `needs: []`) turn the tests red.
+- Code review: no findings.
+- checks: `project-check` green; size 370 lines.

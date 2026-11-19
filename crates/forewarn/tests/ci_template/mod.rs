@@ -2,6 +2,12 @@
 //! feeds) and `forewarn upload` (a dry run), and the directory of a product where the shell of a job runs, against the
 //! binary of this commit, with the variables of the job only.
 
+// `expect` would fail in the run that uses every helper.
+#![allow(
+    dead_code,
+    reason = "each run of a template uses a part of the helpers"
+)]
+
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
@@ -25,9 +31,49 @@ pub fn fixture(relative: &str) -> PathBuf {
     workspace_root().join(relative)
 }
 
+/// A file of the fixtures of the template runs, `tests/fixtures/ci-template/<name>`.
+pub fn ci_fixture(name: &str) -> PathBuf {
+    fixture(&format!(
+        "crates/forewarn/tests/fixtures/ci-template/{name}"
+    ))
+}
+
 /// The indentation of a line, in spaces.
 pub fn indent(line: &str) -> usize {
     line.len() - line.trim_start_matches(' ').len()
+}
+
+/// The body of a literal block (`|`) that starts at line `i`, under a key indented to `parent`: its lines indented
+/// further, or empty, dedented; `i` moves past it.
+pub fn literal_block(lines: &[&str], i: &mut usize, parent: usize) -> String {
+    let mut block = String::new();
+    let mut body_indent = None;
+    while *i < lines.len() && (lines[*i].trim().is_empty() || indent(lines[*i]) > parent) {
+        let body = lines[*i];
+        if !body.trim().is_empty() {
+            let start = *body_indent.get_or_insert(indent(body));
+            block.push_str(body.get(start..).unwrap_or(""));
+        }
+        block.push('\n');
+        *i += 1;
+    }
+    block
+}
+
+/// `block` with each line continued by a final `\\` joined to the next, as the shell reads it, so that a command
+/// written over several lines is rewritten as one. The blocks of the templates end no line with a `\\` that is not
+/// a continuation (in quotes or a here-document).
+fn unfolded(block: &str) -> String {
+    let mut joined = String::new();
+    for line in block.lines() {
+        if let Some(head) = line.strip_suffix('\\') {
+            joined.push_str(head);
+        } else {
+            joined.push_str(line);
+            joined.push('\n');
+        }
+    }
+    joined
 }
 
 /// Shell-quotes a path.
@@ -36,14 +82,16 @@ pub fn quoted(path: &Path) -> String {
     format!("'{}'", text.replace('\'', r"'\''"))
 }
 
-/// The `forewarn <command>` line of `block`, a shell block of `template`, rewritten by `rewrite` (its tokens after the
-/// command); the block must run that command once, on one line without quotes, so that no rewrite misses an argument.
+/// The `forewarn <command>` line of `block`, a shell block of `template` its continued lines joined, rewritten by
+/// `rewrite` (its tokens after the command); the block must run that command once, without quotes, so that no
+/// rewrite misses an argument.
 fn rewritten(
     template: &str,
     block: &str,
     command: &str,
     rewrite: impl Fn(Vec<&str>) -> Vec<String>,
 ) -> String {
+    let block = &unfolded(block);
     let prefix = format!("forewarn {command} ");
     let lines: Vec<&str> = block
         .lines()
@@ -81,13 +129,22 @@ fn option_at(tokens: &[&str], option: &str) -> Option<std::ops::RangeInclusive<u
 
 /// The match of `block`, a shell block of `template`, with the feeds given as files, so that nothing is fetched; its
 /// refresh policy and its cache directory, if it gives one, are dropped, as `forewarn` refuses them when nothing is
-/// fetched.
-pub fn with_local_feeds(template: &str, block: &str) -> String {
+/// fetched; `cache_kept` is the directory the job keeps between runs, the one the match must give, if any.
+pub fn with_local_feeds(template: &str, block: &str, cache_kept: Option<&str>) -> String {
     rewritten(template, block, "match", |tokens| {
         let refresh = option_at(&tokens, "--refresh").unwrap_or_else(|| {
             panic!("{template}: the match gives a refresh policy, dropped here: {tokens:?}")
         });
         let cache = option_at(&tokens, "--cache");
+        let cache_given = cache.as_ref().map(|at| {
+            let value = tokens[*at.end()];
+            value.strip_prefix("--cache=").unwrap_or(value)
+        });
+        assert_eq!(
+            cache_given.map(|dir| dir.trim_end_matches('/')),
+            cache_kept.map(|dir| dir.trim_end_matches('/')),
+            "{template}: the match caches the feeds where the job keeps them"
+        );
         let mut args: Vec<String> = [
             ("--osv", "crates/forewarn-osv/tests/fixtures"),
             ("--osv", "crates/forewarn/tests/fixtures/ci-template/osv"),
