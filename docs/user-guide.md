@@ -399,7 +399,10 @@ when one is. Keep the cache between jobs (a CI cache keyed on the day, for examp
 | `forewarn upload --dry-run` | nothing |
 | `forewarn upload` | the SBOM itself, as given, with the product name, the version and the token, to the endpoint only |
 
-Never source code. Your own components (first-party) are never matched nor sent.
+Never source code. Your own components (first-party) are never matched nor sent, nor is a component whose package URL
+points to a local path (a `download_url` of `file:`): `cargo-cyclonedx` writes one for each crate of your workspace and
+for a crate you keep by path (`[patch]`), which `forewarn` cannot tell from the published crate of the same name. The
+report lists them not evaluated, `local path`: a fork of a published crate kept by path is yours to follow.
 
 ## Reference
 
@@ -427,7 +430,7 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | `exploitedLists` | each list used: `name`, `kind` (`fetched`, `local`), `entryCount`, the catalog's `version` and `released`, and `downloadedAt` or `path` |
 | `awareSince`, `measureAvailable` | the moment of awareness of the run (a CVE `--awareness` recorded keeps its own, in `affected`) and of the measure, `null` when nothing is actively exploited |
 | `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `awareSince` (the moment its deadlines count from, which `--awareness` may have recorded) or `null`, `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
-| `notEvaluated` | each component not evaluated, with its reason (`first-party`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
+| `notEvaluated` | each component not evaluated, with its reason (`first-party`, `local path`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
 | `drafts` | each draft written: `cve`, `path` |
 | `staleDrafts` | each draft of the product left from an earlier run that this run no longer writes: `cve`, `path` |
 | `vex` | each source of verdicts: `kind` (`sbom`, `file`), `verdictCount`, and the `path` of a file |

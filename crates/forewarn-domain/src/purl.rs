@@ -69,6 +69,27 @@ impl PackageUrl {
     }
 }
 
+/// Whether a package URL points to a local path: one of its qualifiers is `download_url`, its key in any ASCII case,
+/// and its value, percent-decoded, starts with `file:` in any ASCII case (`specs/vulnerability-matching.md`, VMT-31).
+#[must_use]
+pub fn points_to_local_path(purl: &str) -> bool {
+    let purl = purl.split_once('#').map_or(purl, |(before, _)| before);
+    let Some((_, qualifiers)) = purl.split_once('?') else {
+        return false;
+    };
+    qualifiers
+        .split('&')
+        .filter_map(|qualifier| qualifier.split_once('='))
+        .any(|(key, value)| {
+            key.eq_ignore_ascii_case("download_url")
+                && decode(value).is_ok_and(|value| {
+                    value
+                        .get(..5)
+                        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("file:"))
+                })
+        })
+}
+
 /// A type is ASCII letters, digits, `.`, `+` and `-`, and does not start with a digit.
 fn is_valid_type(purl_type: &str) -> bool {
     purl_type

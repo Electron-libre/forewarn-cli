@@ -220,6 +220,43 @@ fn a_vendor_s_own_crate_is_not_sent_to_the_osv_api() {
     );
 }
 
+// spec: MCH-44, VMT-10, VMT-11
+#[test]
+fn a_crate_of_the_workspace_at_a_local_path_is_not_sent_to_the_osv_api() {
+    let api = OsvApi::new(None);
+    let mut document: Value = serde_json::from_slice(&bom(
+        "1.6",
+        &json!([
+            component(
+                "lib",
+                "0.1.0",
+                Some("pkg:cargo/lib@0.1.0?download_url=file://../lib")
+            ),
+            component("ryu", "1.0.23", Some("pkg:cargo/ryu@1.0.23")),
+        ]),
+    ))
+    .expect("JSON");
+    document["metadata"] = json!({"component": {
+        "type": "application",
+        "name": "app",
+        "purl": "pkg:cargo/app@0.1.0?download_url=file://.",
+    }});
+
+    let run = query(&api, &["--format", "json"], document.to_string().as_bytes());
+
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(
+        api.requests()[0].1,
+        Some(json!({"queries": [
+            {"package": {"ecosystem": "crates.io", "name": "ryu"}, "version": "1.0.23"},
+        ]}))
+    );
+    let report = json_report(&run);
+    assert_eq!(report["notEvaluated"][0]["name"], json!("lib"));
+    assert_eq!(report["notEvaluated"][0]["reason"], json!("local path"));
+    assert_eq!(report["notEvaluated"].as_array().map(Vec::len), Some(1));
+}
+
 // spec: MCH-16, MCH-26
 #[test]
 fn the_json_report_gives_the_api_as_the_source() {

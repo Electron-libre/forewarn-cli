@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::cve::{is_cve, read_cve};
-use crate::purl::PackageUrl;
+use crate::purl::{PackageUrl, points_to_local_path};
 use crate::sbom::Component;
 use crate::version::{Maven, NuGet, Packagist, Pep440, RubyGems, Scheme, Semver, VersionOrder};
 use crate::vulnerability::{AffectedPackage, Event, Range, RangeKind, Vulnerability};
@@ -51,6 +51,9 @@ pub enum ComponentReason {
     NoPackageUrl,
     /// The package URL does not follow the specification, or lacks a namespace its type requires.
     InvalidPackageUrl,
+    /// The package URL points to a local path (VMT-31): a crate of the workspace, or a fork kept by path, which the
+    /// SBOM does not tell apart from the published package of the same name.
+    LocalPath,
     /// The package URL type maps to no OSV ecosystem matching knows.
     UnknownEcosystem,
     /// Neither the component nor its package URL has a version.
@@ -572,8 +575,12 @@ impl ComponentPackage {
             .as_deref()
             .filter(|purl| !purl.trim().is_empty())
             .ok_or(ComponentReason::NoPackageUrl)?;
-        let purl =
+        let parsed =
             PackageUrl::parse(purl.trim()).map_err(|_| ComponentReason::InvalidPackageUrl)?;
+        if points_to_local_path(purl.trim()) {
+            return Err(ComponentReason::LocalPath);
+        }
+        let purl = parsed;
         let (_, ecosystem, form, scheme) = ECOSYSTEMS
             .iter()
             .find(|(purl_type, _, _, _)| *purl_type == purl.purl_type)

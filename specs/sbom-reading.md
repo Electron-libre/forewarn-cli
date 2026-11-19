@@ -195,7 +195,8 @@ check and the matching work on the components and a report names the product.
 - Deciding whether a field counts as present for the CRA: the completeness check (`specs/sbom-completeness.md`) does.
 - Telling first-party code by a `file://` download URL (`cargo-cyclonedx` writes one for a path dependency, which may
   be a vendored copy of a published package), the group of the product, the `scope` or a property of a tool
-  (`cdx:cargo:sourceKind`): only the place in the SBOM and the package URL of the product are read.
+  (`cdx:cargo:sourceKind`): only the place in the SBOM and the package URL of the product are read. The matching keeps
+  a component pointing to a local path out under a reason of its own (`specs/vulnerability-matching.md`, VMT-31).
 - Telling a component bundled in the product from a module of it when their package URLs share the type and have no
   namespace (a Cargo product nesting a vendored crate): the SBOM gives nothing else to tell them apart.
 - Reading the file from disk or standard input: the command line does.

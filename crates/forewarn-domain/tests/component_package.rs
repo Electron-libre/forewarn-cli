@@ -70,7 +70,7 @@ fn reads_the_package_url_by_its_specification() {
         ("PKG:CARGO/time@1.0.0", "time", "1.0.0"),
         ("pkg://cargo/time@1.0.0", "time", "1.0.0"),
         (
-            "pkg:cargo/sample@0.1.0?download_url=file://.#src/main.rs",
+            "pkg:cargo/sample@0.1.0?download_url=https://example.com/sample.crate#src/main.rs",
             "sample",
             "0.1.0",
         ),
@@ -220,4 +220,55 @@ fn keeps_a_first_party_component_out_before_any_other_reason() {
             Err(ComponentReason::FirstParty)
         );
     }
+}
+
+// spec: VMT-10, VMT-11, VMT-31
+#[test]
+fn keeps_a_component_pointing_to_a_local_path_out() {
+    for purl in [
+        "pkg:cargo/itoa@1.0.9?download_url=file://../forks/itoa",
+        "pkg:cargo/lib@0.1.0?Download_URL=FILE%3A..%2Flib",
+        "pkg:cargo/lib@0.1.0?checksum=sha256:00&download_url=file:///src/lib#src/lib.rs",
+    ] {
+        assert_eq!(
+            ComponentPackage::of(&component(purl, None)),
+            Err(ComponentReason::LocalPath),
+            "{purl}"
+        );
+    }
+}
+
+// spec: VMT-31
+#[test]
+fn matches_a_component_whose_download_url_is_remote_or_whose_local_url_is_another_qualifier() {
+    for purl in [
+        "pkg:cargo/ryu@1.0.23?download_url=https://example.com/ryu.crate",
+        "pkg:cargo/ryu@1.0.23?vcs_url=file://../ryu",
+        "pkg:cargo/ryu@1.0.23#file:",
+    ] {
+        assert_eq!(package(purl).name, "ryu", "{purl}");
+    }
+}
+
+// spec: VMT-10
+#[test]
+fn keeps_a_first_party_component_pointing_to_a_local_path_out_as_first_party() {
+    let product = Component {
+        first_party: true,
+        ..component("pkg:cargo/app@0.1.0?download_url=file://.", None)
+    };
+
+    assert_eq!(
+        ComponentPackage::of(&product),
+        Err(ComponentReason::FirstParty)
+    );
+}
+
+// spec: VMT-10
+#[test]
+fn reports_an_invalid_package_url_before_a_local_path() {
+    assert_eq!(
+        ComponentPackage::of(&component("pkg:cargo/a%4?download_url=file://.", None)),
+        Err(ComponentReason::InvalidPackageUrl)
+    );
 }

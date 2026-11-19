@@ -50,3 +50,38 @@ also leaves out, stays visible in the report as not matched and why.
 # Hints
 * Compare the qualifier by the package URL specification (percent-decoded, key lowercased), not as a substring.
 * The JSON `reason` gains a value: additive, but scripts matching on `first-party` should be named in the changelog.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+A component whose package URL has a `download_url` qualifier that is a `file:` URL is not matched, not fetched for,
+not sent to the OSV API, and reported not evaluated with the new reason `local path`. First-party (SBR-14) is unchanged.
+Means: the domain reads the qualifier when it parses the package URL (`purl.rs`) and `ComponentPackage::of` gives the
+reason, so the adapter and `Component` do not change; the CLI keeps archives and API queries out through that same
+function.
+
+Measured (2026-11-19): `cargo-cyclonedx` 0.5.10 writes `download_url=file://…` for a workspace crate and a `[patch]`
+by path, none for `cargo vendor`; `cdxgen` 13.2.0 nests the workspace crates in the product (already first-party).
+
+## Plan
+1. [x] Local path reason: `PackageUrl` keeps whether it points to a local path, `ComponentReason::LocalPath` after
+   the package URL reasons, `"local path"` in both reports, the user guide (`notEvaluated` reasons, what leaves the
+   machine); verified by domain tests (VMT-31 scenarios) and a CLI test through `--osv-api` against a mirror (MCH-44);
+   makes true VMT-10, VMT-31, MCH-44. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: fb4efd7de9042f688faf3b5b57ddb8126c83e3ab
+
+## Deliverable 1
+- done: `points_to_local_path` in `purl.rs`, `ComponentReason::LocalPath` after the package URL reasons, `"local path"`
+  in the reports; specs `vulnerability-matching` (VMT-10, VMT-31, a non-goal) and `cli-match` (MCH-44, the JSON
+  reason) accepted again, the `file://` non-goal of `sbom-reading` pointing to VMT-31; user guide and `CLAUDE.md`.
+- Code review: no findings.
+- red: VMT-10, VMT-11, VMT-31, MCH-44: `no variant ... named LocalPath found for enum ComponentReason`.
+- The VMT-5 test read `download_url=file://.` to show the qualifiers ignored: now a local path, so it reads an
+  `https` one.
+- not verified: the release SBOM of forewarn itself, until the next release (the daily watch will list its seven
+  workspace crates as `local path`).
