@@ -4,6 +4,17 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.5.0] - 2026-11-19
+
+### Added
+
+- remember the moment of awareness of each exploited CVE
+- the CI templates keep the moments of awareness in their cache
+
+### Fixed
+
+- keep the origin and the hand edits of the moments of awareness
+
 ## [0.4.1] - 2026-11-19
 
 ### Milestones
