@@ -6,6 +6,10 @@ name: Watch
 # release publishes (cargo-cyclonedx, completed, one per target) instead of a syft scan. The job fails on an actively
 # exploited match (exit 6), which GitHub mails to whoever last changed the schedule; the reports and the draft early
 # warnings are kept as artifacts.
+# GitHub disables a schedule after 60 days without activity in the repository: re-enable this workflow then (Actions,
+# Watch, Enable), or the release stops being watched.
+# The options given to forewarn are those of the latest release, not of the main branch: rename or add one here only
+# once a release has it.
 
 on:
   schedule:
@@ -15,6 +19,12 @@ on:
 permissions:
   contents: read
   attestations: read
+
+# A manual run never overlaps the scheduled one: the later save of the cache would drop a moment of awareness the
+# other one recorded.
+concurrency:
+  group: watch
+  cancel-in-progress: false
 
 jobs:
   watch:
@@ -35,7 +45,7 @@ jobs:
             --pattern SHA256SUMS
           sha256sum --check --ignore-missing SHA256SUMS
           for file in "$ARCHIVE.tar.gz" forewarn-*.cdx.json; do
-            gh attestation verify "$file" --repo "$REPO"
+            gh attestation verify "$file" --repo "$REPO" --signer-workflow "$REPO/.github/workflows/release.yml"
           done
           tar -xzf "$ARCHIVE.tar.gz"
           sudo install "$ARCHIVE/forewarn" /usr/local/bin/
@@ -50,7 +60,8 @@ jobs:
           restore-keys: forewarn-watch-
 
       # Each target has its SBOM, its dependencies differing with the target. They describe the same product: the
-      # awareness file holds one moment per CVE, and a draft the targets share is written once per target, the same.
+      # awareness file holds one moment per CVE. Each target writes its drafts into a directory of its own, so that
+      # neither overwrites the draft of another nor reports it stale.
       - name: Match the SBOM of each target
         run: |
           mkdir reports
@@ -59,7 +70,7 @@ jobs:
             target=$(basename "$sbom" .cdx.json)
             code=0
             forewarn match --allow-affected --refresh 12h --awareness ~/.cache/forewarn/awareness.json \
-              --format json --drafts drafts "$sbom" > "reports/$target.json" || code=$?
+              --format json --drafts "drafts/$target" "$sbom" > "reports/$target.json" || code=$?
             if [ "$code" -ne 0 ]; then
               echo "::error::forewarn match exits with $code on the SBOM of $target"
               # An exploited match (6) is the exit code of the job whatever another target gave.
