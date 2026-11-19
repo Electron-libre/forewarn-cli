@@ -87,7 +87,7 @@ pub struct Component {
     /// (`specs/sbom-reading.md`, SBR-14): matching keeps it out.
     pub first_party: bool,
     /// Whether the component is a file, of CycloneDX type `file`: a manifest or a lock file a tool read
-    /// (`specs/sbom-reading.md`, SBR-15): matching and the completeness check keep it out.
+    /// (`specs/sbom-reading.md`, SBR-15).
     pub file: bool,
 }
 

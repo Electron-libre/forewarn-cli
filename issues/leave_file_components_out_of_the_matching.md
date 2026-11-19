@@ -74,3 +74,14 @@ Code review: no findings
 
 not verified: none.
 decisions needed: none.
+
+## Outcome
+- `high` review, finding 1: nothing in an SBOM tells a manifest a tool read from a file the product ships
+  (`specs/sbom-completeness.md` non-goals); leaving every file out could hide an exploited CVE of a shipped file typed
+  `file` (no exit 6, no draft). The case is rare either way (`syft` writes its files without package URL), and a
+  missed exploited match costs more than a lock file reported affected, which `--vex` can set aside.
+- Decision (Cedric Brancourt, 2026-11-19): option b. Deliverable 1 (`28f4a2a`) reverted; the non-goal of
+  `specs/vulnerability-matching.md` states that a file component carrying a package URL is matched as a package.
+  The other findings of the review applied to the reverted change and are moot. No release.
+- `issues/split_the_vulnerability_matching_spec.md` kept: the non-goal leaves the spec over `spec_max_bytes`.
+- Revert, `low` review: Code review: 1 finding, the file guard removed: the purpose of the revert (option b), not fixed.
