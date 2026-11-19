@@ -79,8 +79,7 @@ No spec: CI of the project, no change of what the CLI does.
   behind a later error; fixed, 6 now wins.
 - red: none (no spec); the two tests failed first on `.github/workflows/watch.yml` missing.
 - docs: `docs/architecture.md` has no CI part, left as is.
-- not verified: the run on GitHub (`gh release download`, `gh attestation verify`, the cache), to check with a
-  `workflow_dispatch` after the push; no local `actionlint`.
+- verified on GitHub: run 44609918425 (`workflow_dispatch`): release 0.5.0 downloaded, checksums and attestations checked, 4 SBOMs matched (100 components each, no affected one), KEV, EUVD and OSV fetched, cache saved.
 
 ## Deliverable 2
 - done: fixes of the `high` review of the issue.
