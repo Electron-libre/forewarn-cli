@@ -117,3 +117,54 @@ fn the_debug_form_of_a_token_holds_none_of_it() {
     let text = format!("{token:?}");
     assert!(!text.contains("fw_secret"), "{text}");
 }
+
+// spec: UPL-6, UPL-11, UPL-4
+#[test]
+fn credentials_are_named_as_stars_however_the_endpoint_is_malformed() {
+    for (endpoint, named) in [
+        ("ci:fw_secret@example.com", "***@example.com"),
+        ("https:/ci:fw_secret@example.com", "***@example.com"),
+        (
+            "https://ci:fw#secret@example.com",
+            "https://***@example.com",
+        ),
+        (
+            "https://ci:fw?secret@example.com",
+            "https://***@example.com",
+        ),
+        (
+            "https://ci:fw/secret@example.com/",
+            "https://***@example.com",
+        ),
+    ] {
+        let error = Endpoint::parse(endpoint).expect_err("refused");
+        assert_eq!(
+            error.problem,
+            EndpointProblem::UserInformation,
+            "{endpoint}"
+        );
+        assert_eq!(error.endpoint, named, "{endpoint}");
+        let text = format!("{error} {error:?}");
+        assert!(!text.contains("secret"), "{text}");
+    }
+}
+
+// spec: UPL-6
+#[test]
+fn an_endpoint_whose_port_or_host_is_malformed_is_refused() {
+    for endpoint in [
+        "http://localhost:abc",
+        "http://127.0.0.1:99999",
+        "http://[::1]evil.com",
+        "https://[not-an-address]",
+    ] {
+        assert_eq!(refused(endpoint), EndpointProblem::NotAnUrl, "{endpoint}");
+    }
+}
+
+// spec: UPL-11
+#[test]
+fn a_refused_endpoint_is_named_with_its_control_characters_escaped() {
+    let error = Endpoint::parse("ftp://x\n::error::forged").expect_err("refused");
+    assert!(!error.to_string().contains('\n'), "{error}");
+}

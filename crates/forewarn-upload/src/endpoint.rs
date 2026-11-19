@@ -8,7 +8,11 @@ use ureq::http::Uri;
 
 /// The root of a Forewarn service, checked (UPL-6): the URL as the caller gave it, without a trailing `/`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Endpoint(String);
+pub struct Endpoint {
+    named: String,
+    /// `http`, to a loopback host.
+    plain: bool,
+}
 
 /// Why an endpoint is refused (UPL-6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,10 +41,11 @@ pub struct InvalidEndpoint {
 
 impl fmt::Display for InvalidEndpoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let endpoint = &self.endpoint;
+        // Quoted, its control characters escaped: the endpoint is the caller's text, not a URL checked yet.
+        let endpoint = format!("{:?}", self.endpoint);
         match self.problem {
             EndpointProblem::NotAnUrl => {
-                write!(f, "the endpoint {endpoint:?} is not an absolute URL")
+                write!(f, "the endpoint {endpoint} is not an absolute URL")
             }
             EndpointProblem::Scheme => {
                 write!(f, "the endpoint {endpoint} is neither https nor http")
@@ -69,8 +74,15 @@ impl Endpoint {
     /// holds user information, a query or a fragment.
     pub fn parse(endpoint: &str) -> Result<Self, InvalidEndpoint> {
         let named = endpoint.trim_end_matches('/');
+        // Any `@` first, wherever it is: the error names no character before it (UPL-11).
+        if named.contains('@') {
+            return Err(InvalidEndpoint {
+                endpoint: without_user_information(named),
+                problem: EndpointProblem::UserInformation,
+            });
+        }
         let refuse = |problem| InvalidEndpoint {
-            endpoint: without_user_information(named),
+            endpoint: named.to_owned(),
             problem,
         };
         let Some((scheme, rest)) = endpoint.split_once("://") else {
@@ -85,50 +97,58 @@ impl Endpoint {
         } else {
             return Err(refuse(EndpointProblem::NotAnUrl));
         };
-        let (authority, tail) = rest.split_at(rest.find(['/', '?', '#']).unwrap_or(rest.len()));
-        if authority.contains('@') {
-            return Err(refuse(EndpointProblem::UserInformation));
-        }
+        let tail = &rest[rest.find(['/', '?', '#']).unwrap_or(rest.len())..];
         match tail.find(['?', '#']).map(|at| tail.as_bytes()[at]) {
             Some(b'?') => return Err(refuse(EndpointProblem::Query)),
             Some(_) => return Err(refuse(EndpointProblem::Fragment)),
             None => {}
         }
-        let Ok(uri) = endpoint.parse::<Uri>() else {
-            return Err(refuse(EndpointProblem::NotAnUrl));
-        };
-        if uri.host().is_none_or(str::is_empty) {
-            return Err(refuse(EndpointProblem::NotAnUrl));
-        }
-        if plain && !is_loopback(host(authority)) {
+        let host = endpoint
+            .parse::<Uri>()
+            .ok()
+            .and_then(|uri| checked_host(&uri).map(str::to_owned))
+            .ok_or_else(|| refuse(EndpointProblem::NotAnUrl))?;
+        if plain && !is_loopback(&host) {
             return Err(refuse(EndpointProblem::PlainHttp));
         }
-        Ok(Self(named.to_owned()))
+        Ok(Self {
+            named: named.to_owned(),
+            plain,
+        })
+    }
+
+    /// Whether the endpoint is plain `http`, to a loopback host: reached directly, never through a proxy (UPL-13).
+    pub(crate) fn is_plain_http(&self) -> bool {
+        self.plain
     }
 
     /// The endpoint as the caller gave it, without a trailing `/`.
     #[must_use]
     pub fn as_str(&self) -> &str {
-        &self.0
+        &self.named
     }
 }
 
 impl fmt::Display for Endpoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.named)
     }
 }
 
-/// The host of an authority, without its port; an IPv6 address keeps its brackets.
-fn host(authority: &str) -> &str {
-    if authority.starts_with('[') {
-        authority
-            .find(']')
-            .map_or(authority, |end| &authority[..=end])
-    } else {
-        authority
-            .rsplit_once(':')
-            .map_or(authority, |(host, _)| host)
+/// The host the URI names, the URI that `ureq` connects to: none when it is empty, when an IPv6 host is not an
+/// address, or when the authority holds anything after it but a port of 0 to 65535.
+fn checked_host(uri: &Uri) -> Option<&str> {
+    let authority = uri.authority()?;
+    let host = authority.host();
+    if host.is_empty() {
+        return None;
+    }
+    if let Some(v6) = host.strip_prefix('[') {
+        v6.strip_suffix(']')?.parse::<Ipv6Addr>().ok()?;
+    }
+    match authority.as_str().strip_prefix(host)? {
+        "" => Some(host),
+        after => after.strip_prefix(':')?.parse::<u16>().ok().map(|_| host),
     }
 }
 
@@ -143,14 +163,11 @@ fn is_loopback(host: &str) -> bool {
     host.parse::<Ipv4Addr>().is_ok_and(|ip| ip.is_loopback())
 }
 
-/// The endpoint with the user information of its authority written `***` (UPL-11).
+/// The endpoint with everything before its last `@`, past its `scheme://`, written `***` (UPL-11).
 fn without_user_information(endpoint: &str) -> String {
-    let Some((scheme, rest)) = endpoint.split_once("://") else {
-        return endpoint.to_owned();
-    };
-    let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
-    match rest[..end].rfind('@') {
-        Some(at) => format!("{scheme}://***{}", &rest[at..]),
-        None => endpoint.to_owned(),
-    }
+    let at = endpoint.rfind('@').unwrap_or(0);
+    let scheme = endpoint[..at]
+        .find("://")
+        .map_or("", |end| &endpoint[..end + 3]);
+    format!("{scheme}***{}", &endpoint[at..])
 }

@@ -26,6 +26,9 @@ pub const API_ROOT: &str = api_root!();
 /// The route of the account of a token, relative to the root of the service (UPA-12).
 pub const ACCOUNT_PATH: &str = concat!(api_root!(), "/account");
 
+/// The most bytes of an SBOM the service stores: over it, it answers `413` `too_large` (UPA-9).
+pub const MAX_SBOM_BYTES: u64 = 10 * 1024 * 1024;
+
 /// The most characters (Unicode scalar values) a product name or a version may hold (UPA-6).
 pub const MAX_NAME_CHARS: usize = 255;
 

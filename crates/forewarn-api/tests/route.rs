@@ -114,3 +114,9 @@ fn the_error_names_the_product_name_or_the_version() {
         "the product name is `.` or `..`, which a URL client would resolve"
     );
 }
+
+// spec: UPA-9
+#[test]
+fn the_most_bytes_of_an_sbom_are_ten_mebibytes() {
+    assert_eq!(forewarn_api::MAX_SBOM_BYTES, 10_485_760);
+}

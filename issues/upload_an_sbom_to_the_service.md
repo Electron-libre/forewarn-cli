@@ -52,6 +52,10 @@ unreadable answer). Out of scope: the `upload` command, the environment variable
    the token redacted from the service's messages; verified by `crates/forewarn-upload/tests/upload.rs` against a
    loopback server; makes true UPL-1, UPL-3, UPL-4, UPL-5, UPL-8, UPL-9, UPL-10, UPL-12; docs (architecture, CLAUDE.md), ADR
    0018 accepted, spec accepted. (autonomous)
+3. [x] The fixes of the `high` review: no proxy to a loopback endpoint in plain HTTP (UPL-13), every `@` refused and
+   redacted, the host and port read from the URI `ureq` connects to, a refused endpoint quoted with its control
+   characters escaped, `MAX_SBOM_BYTES` moved to `forewarn-api`; verified by `tests/proxy.rs` and new tests of
+   `tests/endpoint.rs`; makes true UPL-6, UPL-11, UPL-13. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -78,3 +82,25 @@ unreadable answer). Out of scope: the `upload` command, the environment variable
 - not verified: the TLS path and the timeouts (no network, no wait in tests).
 - note: a `401` or `403` whose body is not the contract's JSON (a proxy's HTML page) is an unreadable answer, as the
   table of UPL-9 says, not credentials refused.
+
+## High review of the issue
+8 findings:
+1. Proxy of the environment used for a loopback HTTP endpoint (token sent through it): fixed, UPL-13, `tests/proxy.rs`.
+2. Credentials printed for an endpoint whose user information holds `/`, `?`, `#` or has no `://`: fixed, any `@`
+   refused and all before it written `***`.
+3. Host and port read by hand, disagreeing with the URI `ureq` connects to: fixed, read from the parsed URI, a port
+   that is not 0 to 65535 or an IPv6 host that is not an address refused.
+4. `401` answered before the whole body is read reported as unreachable: not fixed, needs a measure; filed as
+   `issues/tell_refused_credentials_answered_before_the_body.md`.
+5. `MAX_SBOM_BYTES` not shared with the service: fixed, moved to `forewarn-api`, re-exported.
+6. Control characters of a refused endpoint written raw: fixed, the endpoint quoted with escapes.
+7. A `401`/`403` with a body that is not the contract's JSON is an unreadable answer: not fixed, the table of UPL-9
+   says so (a decision for the user).
+8. The "nothing listens" test reuses a freed port: not fixed, the same pattern as `crates/forewarn-osv/tests/api.rs`.
+
+## Deliverable 3 summary
+- done: the fixes of findings 1, 2, 3, 5, 6; spec UPL amended (UPL-6, UPL-11, UPL-13), ADR 0018, CLAUDE.md.
+- red: UPL-13, UPL-6, UPL-11: `stored: Unreachable { ..., reason: "CONNECT proxy failed: proxy server responded 502/502" }`
+  (the token went to the proxy); `http://localhost:abc is refused: Endpoint("http://localhost:abc")`.
+- Code review: no findings
+- not verified: a real proxy, the TLS path.

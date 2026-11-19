@@ -5,14 +5,11 @@ use std::fmt;
 use std::time::Duration;
 
 use forewarn_api::{
-    ErrorBody, ErrorCode, InvalidName, Receipt, Refusal, UploadAnswer, read_upload_answer,
-    sbom_upload_path,
+    ErrorBody, ErrorCode, InvalidName, MAX_SBOM_BYTES, Receipt, Refusal, UploadAnswer,
+    read_upload_answer, sbom_upload_path,
 };
 
 use crate::{Endpoint, Token};
-
-/// The most bytes of an SBOM the service stores (UPA-9), refused before anything is sent (UPL-8).
-pub const MAX_SBOM_BYTES: u64 = 10 * 1024 * 1024;
 
 /// The most bytes of an answer read (UPL-9).
 const ANSWER_LIMIT: u64 = 1024 * 1024;
@@ -130,7 +127,7 @@ pub fn upload(
         endpoint: named(),
         reason: token.redact(&error.to_string()),
     };
-    let response = agent()
+    let response = agent(endpoint)
         .put(format!("{endpoint}{path}"))
         .header("Authorization", format!("Bearer {}", token.expose()))
         .header("Content-Type", CONTENT_TYPE)
@@ -187,9 +184,16 @@ fn redacted(refusal: Refusal, token: &Token) -> Refusal {
     }
 }
 
-/// The agent of an upload: no redirect followed (UPL-10), every status read as an answer, the timeouts of ADR 0018.
-fn agent() -> ureq::Agent {
-    ureq::Agent::config_builder()
+/// The agent of an upload: no redirect followed (UPL-10), no proxy to a loopback endpoint in plain HTTP (UPL-13),
+/// every status read as an answer, the timeouts of ADR 0018.
+fn agent(endpoint: &Endpoint) -> ureq::Agent {
+    let builder = ureq::Agent::config_builder();
+    let builder = if endpoint.is_plain_http() {
+        builder.proxy(None)
+    } else {
+        builder
+    };
+    builder
         .http_status_as_error(false)
         .max_redirects(0)
         .timeout_connect(Some(CONNECT_TIMEOUT))

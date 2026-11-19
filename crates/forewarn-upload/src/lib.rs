@@ -6,4 +6,5 @@ mod token;
 pub use endpoint::{Endpoint, EndpointProblem, InvalidEndpoint};
 pub use token::{InvalidToken, Token};
 mod send;
-pub use send::{MAX_SBOM_BYTES, Stored, UploadError, upload};
+pub use forewarn_api::MAX_SBOM_BYTES;
+pub use send::{Stored, UploadError, upload};

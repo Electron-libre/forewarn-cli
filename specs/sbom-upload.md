@@ -31,8 +31,8 @@ differently.
   (UPA-5), one `/` between them, with the headers `Authorization: Bearer <token>` and `Content-Type:
   application/vnd.cyclonedx+json`, and the SBOM bytes as body.
 - **UPL-6** (deterministic) The endpoint must be an absolute URL whose scheme is `https`, or `http` with the host
-  `localhost`, an IPv4 address of `127.0.0.0/8` or `[::1]`, with a path or none (the root of the service), and with
-  no user information, no query and no fragment.
+  `localhost`, an IPv4 address of `127.0.0.0/8` or `[::1]`, an IPv6 host being an address, a port of `0` to `65535`
+  or none, a path or none (the root of the service), and no `@` (user information), no query and no fragment.
 - **UPL-7** (deterministic) An upload must refuse, before anything is sent, a token that is empty or holds a character
   outside the visible ASCII characters (`!` to `~`), the error naming no character of it.
 - **UPL-8** (deterministic) An upload must refuse, before anything is sent, a product name or a version the contract
@@ -48,9 +48,13 @@ differently.
 | a body `read_upload_answer` cannot read (UPA-10), or over 1 MiB | unreadable answer | the endpoint, the status, the reason |
 
 - **UPL-10** (deterministic) An upload must not follow a redirect: a `3xx` answer is read as any other status (UPL-9).
-- **UPL-11** (deterministic) An error must name the endpoint as the caller gave it, without a trailing `/`, and a refused
-  endpoint holding user information with that information written `***`.
+- **UPL-11** (deterministic) An error must name the endpoint as the caller gave it, without a trailing `/`, a refused
+  endpoint holding a `@` with all before its last `@` past its `scheme://` written `***`, and a refused endpoint quoted
+  with its control characters escaped.
 - **UPL-12** (deterministic) An error must write each occurrence of the token in a message of the service as `***`.
+
+- **UPL-13** (deterministic) An upload to a loopback endpoint in plain HTTP must reach it directly, never through a
+  proxy the environment names (`ALL_PROXY`, `HTTPS_PROXY`, `HTTP_PROXY`).
 
 ## Scenarios
 
@@ -80,6 +84,12 @@ differently.
 - (UPL-10) Given the service answers `307` with a `Location` to another path, that path receives no request and the
   upload fails with unreadable answer naming `307`.
 - (UPL-11) Given the endpoint `http://127.0.0.1:<port>/`, an error names `http://127.0.0.1:<port>`.
+- (UPL-6, UPL-11) Given `ci:fw_secret@example.com` or `https://ci:fw/secret@example.com`, the upload is refused naming
+  `***@example.com` or `https://***@example.com`; given `http://localhost:abc`, `http://127.0.0.1:99999` or
+  `http://[::1]evil.com`, it is refused as not an absolute URL; given `ftp://x` followed by a line feed, the error
+  holds no line feed.
+- (UPL-13) Given `HTTP_PROXY` naming a proxy and the endpoint `http://127.0.0.1:<port>`, the service receives the
+  request and the proxy none.
 - (UPL-12) Given the service answers `400` with a message holding the token, the error holds `***` in its place.
 
 ## Non-goals
@@ -88,5 +98,6 @@ differently.
 - Reading the token or the endpoint from the environment or the command line: the caller's (`forewarn upload`).
 - Checking the SBOM: the caller reads it with the CycloneDX adapter before the upload.
 - The account of a token (`/api/v1/account`): no command asks for it yet.
-- A proxy, a client certificate or a custom root certificate: the system's network and the roots `ureq` ships.
+- A proxy of its own setting, a client certificate or a custom root certificate: an HTTPS endpoint goes through the
+  proxy the environment names, as the other sources do, with the roots `ureq` ships.
 - The timeouts of the request: a test cannot prove them without waiting; ADR 0018 states them.

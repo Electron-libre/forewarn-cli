@@ -15,6 +15,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [define_the_sbom_upload_api_types](issues/done/define_the_sbom_upload_api_types.md)
   - [upload_an_sbom_to_the_service](issues/upload_an_sbom_to_the_service.md)
   - [cli_upload_command](issues/cli_upload_command.md)
+  - [tell_refused_credentials_answered_before_the_body](issues/tell_refused_credentials_answered_before_the_body.md)
 
 ## CI integration templates
 

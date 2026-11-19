@@ -60,8 +60,8 @@ created (`201`) or replaced (`200`) with its warnings, a refusal with its error 
 with its text, the account of a token (`specs/upload-api.md`, ADR
 [0017](docs/adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md)). The crate `forewarn-upload`, its
 adapter, sends the SBOM as is in one `PUT` to that route under the endpoint of a service (HTTPS, or plain HTTP to a
-loopback host, no user information), with a bearer token never written in a debug form or an error, no redirect
-followed and no retry, an SBOM over 10 MiB refused first, and tells apart a receipt, the endpoint unreachable, the
+loopback host, then reached without a proxy, no user information), with a bearer token never written in a debug form
+or an error, no redirect followed and no retry, an SBOM over 10 MiB (`MAX_SBOM_BYTES` of `forewarn-api`) refused first, and tells apart a receipt, the endpoint unreachable, the
 credentials refused (`401`, `403`), the upload refused and an unreadable answer (`specs/sbom-upload.md`, ADR
 [0018](docs/adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md)); no command uploads yet.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:

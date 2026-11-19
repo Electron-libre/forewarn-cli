@@ -22,15 +22,17 @@ upload and an unreadable answer differently.
   in a header; the endpoint carries no user information, so an error naming the endpoint names no credentials. An
   error writes the token as `***` wherever the service echoed it.
 - **No redirect followed**: a `PUT` redirected to another host would send the token and the SBOM there.
+- **No proxy for a loopback endpoint in plain HTTP**: a proxy the environment names would carry the token and the SBOM
+  in clear to another machine, and reach its own loopback. An HTTPS endpoint goes through it, TLS end to end.
 - **An agent of its own**: no redirect, connect 30 s, sending the body 5 min, waiting for the answer 2 min, reading it
   1 min; the cache's agent (`forewarn_cache::agent`) follows redirects and waits 30 min for a body.
 - **No retry**: the request is sent once; the code `unavailable` tells the caller a retry is safe.
 - **The SBOM is refused over 10 MiB before it is sent**, the limit of the service (UPA-9), rather than uploaded to be
-  refused.
+  refused; the limit is `forewarn_api::MAX_SBOM_BYTES`, shared with the service.
 
 ## Consequences
 
 - The service keeps a contract crate with no HTTP client.
 - A test proves the adapter against a loopback server in plain HTTP; the TLS path is `ureq`'s and is not tested here.
-- A vendor behind a proxy, or a service with a private certificate authority, needs a later change.
+- A service with a private certificate authority needs a later change.
 - A change of the service's size limit needs a release of the CLI.
