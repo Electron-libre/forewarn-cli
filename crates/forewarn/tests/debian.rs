@@ -1,5 +1,5 @@
 //! `forewarn match` on the Debian packages of a container image, as an image scanner lists them
-//! (`specs/debian-matching.md`, DEB-H1, DEB-H2, DEB-1 to DEB-3).
+//! (`specs/debian-matching.md`, DEB-H1, DEB-H2, DEB-1 to DEB-3, DEB-5).
 
 mod common;
 
@@ -249,4 +249,50 @@ fn matches_the_debian_packages_of_a_trivy_sbom_under_their_source() {
         ]
     );
     assert_eq!(report["cleanCount"], json!(1));
+}
+
+// spec: DEB-5
+#[test]
+fn keeps_the_epoch_of_the_package_url_version_a_component_version_lacks() {
+    let osv = TempDir::new().expect("a temporary directory");
+    for record in [
+        debian_record("DSA-6101-1", "12", "login", "1:4.13+dfsg1-1"),
+        debian_record("DSA-6102-1", "12", "login", "1:4.13+dfsg1-2"),
+    ] {
+        fs::write(
+            osv.path()
+                .join(format!("{}.json", record["id"].as_str().expect("an id"))),
+            record.to_string(),
+        )
+        .expect("the record is written");
+    }
+    let sbom = bom(
+        "1.6",
+        &json!([component(
+            "login",
+            "4.13+dfsg1-1",
+            "pkg:deb/debian/login@1%3A4.13%2Bdfsg1-1?arch=amd64&distro=debian-12",
+        )]),
+    );
+    let run = run(
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            osv.path().to_str().expect("UTF-8 path"),
+            "-",
+        ],
+        Some(&sbom),
+    );
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    let affected: Vec<Value> = json_report(&run)["affected"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .map(|a| json!([a["name"], a["version"], a["id"]]))
+        .collect();
+    assert_eq!(affected, [json!(["login", "4.13+dfsg1-1", "DSA-6102-1"])]);
 }

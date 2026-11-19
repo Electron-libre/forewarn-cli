@@ -16,8 +16,8 @@ pub(crate) struct DebianPackage {
     /// The source package.
     pub(crate) name: String,
     /// The version of the source package when the package URL or the source the component carries gives it (DEB-3),
-    /// else that of the component, else that of its package URL, these two preceded by the epoch of the `epoch`
-    /// qualifier when they lack one (DEB-5); none when none is given.
+    /// else that of the component, else that of its package URL, these two preceded, when they lack one, by the epoch
+    /// of the `epoch` qualifier, else that of the package URL version (DEB-5); none when none is given.
     pub(crate) version: Option<String>,
 }
 
@@ -53,7 +53,10 @@ impl DebianPackage {
             (None, None) => (purl.name.clone(), None),
         };
         let source_version = filled(upstream_version).or(source_version);
-        let epoch = epoch.as_deref().and_then(filled);
+        let epoch = epoch.as_deref().and_then(filled).or_else(|| {
+            let (epoch, _) = purl.version.as_deref()?.split_once(':')?;
+            filled(epoch)
+        });
         let with_epoch = |version: String| match &epoch {
             Some(epoch) if !version.contains(':') => format!("{epoch}:{version}"),
             _ => version,

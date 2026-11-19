@@ -550,6 +550,24 @@ fn reads_the_epoch_qualifier_into_the_version_of_the_package_url() {
             None,
             "2:4.13+dfsg1-1",
         ),
+        (
+            purl.replace("4.13%2B", "1%3A4.13%2B")
+                .replace("&epoch=1", ""),
+            Some("4.13+dfsg1-1"),
+            "1:4.13+dfsg1-1",
+        ),
+        (
+            purl.replace("4.13%2B", "1%3A4.13%2B")
+                .replace("epoch=1", "epoch=2"),
+            Some("4.13+dfsg1-1"),
+            "2:4.13+dfsg1-1",
+        ),
+        (
+            purl.replace("4.13%2B", "1%3A4.13%2B")
+                .replace("epoch=1", "epoch=%20"),
+            Some("4.13+dfsg1-1"),
+            "1:4.13+dfsg1-1",
+        ),
     ] {
         let package = ComponentPackage::of(&component(&purl, version)).expect("a package");
         assert_eq!(package.version, expected, "{purl} {version:?}");
