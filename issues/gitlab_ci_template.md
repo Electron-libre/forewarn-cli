@@ -23,7 +23,7 @@ with the report and the drafts as artifacts, upload on a tag.
 CI integration templates
 
 # Resources
-* `issues/github_actions_template.md` (or `issues/done/` once closed): the steps and choices to mirror.
+* `issues/done/github_actions_template.md` (or `issues/done/` once closed): the steps and choices to mirror.
 * `docs/user-guide.md`: sections "Install", "The cache", "In CI", "Exit codes".
 
 # Hints
