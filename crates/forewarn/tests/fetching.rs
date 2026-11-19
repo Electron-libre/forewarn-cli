@@ -320,6 +320,21 @@ fn each_ecosystem_is_fetched_once_in_the_order_of_its_first_component() {
     );
 }
 
+// spec: MCH-5, OSF-14, OSF-21
+#[test]
+fn the_debian_packages_fetch_the_archive_of_their_release() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = Mirror::new();
+    mirror.serve("Debian%3A13", &[], None);
+    let purl = "pkg:deb/debian/libc6@2.41-12?arch=amd64&distro=debian-13.7&upstream=glibc";
+    let input = bom("1.6", &json!([component("libc6", "2.41-12", Some(purl))]));
+    let run = fetch(cache.path(), &mirror, &["--format", "json"], &input);
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(mirror.requests(), ["/Debian%3A13/all.zip"]);
+    assert_eq!(osv_of(&run)[0]["ecosystem"], json!("Debian:13"));
+    assert!(cache.path().join("Debian%3A13").is_dir());
+}
+
 // spec: MCH-5, MCH-16
 #[test]
 fn an_sbom_with_no_ecosystem_fetches_nothing() {

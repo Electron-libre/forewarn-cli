@@ -59,9 +59,9 @@ the archive URL and the cache directory. Ubuntu and other distributions, and cod
    reason `unknown release` (domain, report text, user guide); verified by `tests/version_ordering.rs`,
    `tests/component_package.rs` and a `forewarn match --osv` test through the binary; makes true VMT-4, VMT-5, VMT-7,
    VMT-10, VMT-32, VMT-33, VMT-34, VOR-1, VOR-7, the reason of MCH (cli-match table). (autonomous)
-2. [ ] Fetch `Debian:13`: `:` accepted (OSF-17), written `%3A` in the URL (OSF-14) and in the cache directory
+2. [x] Fetch `Debian:13`: `:` accepted (OSF-17), written `%3A` in the URL (OSF-14) and in the cache directory
    (OSF-21); verified by `forewarn-osv/tests/fetching.rs` (a fake server) and a `forewarn match` test reading the
-   cached archive; makes true OSF-14, OSF-17, OSF-21.
+   cached archive; makes true OSF-14, OSF-17, OSF-21. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -94,5 +94,30 @@ UnknownRelease found for enum ComponentReason` (the tests did not compile before
 Code review: no findings
 
 not verified: a real Syft SBOM against the OSV `Debian:13` archive (deliverable 2 fetches it).
+
+decisions needed: none.
+
+## Deliverable 2: fetch `Debian:13`
+
+done: an ecosystem name may hold `:` (not first); it is written `%3A` in the archive URL and in the name of its cache
+entry (`forewarn-cache` accepts `%` in an entry name); `forewarn match` on a Debian image fetches
+`Debian%3A13/all.zip`.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | OSF accepted, `check-specs` clean |
+| docs | user guide (download URL, cache contents) |
+| code review | see below |
+
+red: OSF-14, OSF-17, OSF-21: `the ecosystem is fetched: FetchError { ecosystem: "Debian:13", cause: InvalidName }`.
+
+`crates/forewarn/tests/fetching.rs` (over the file size limit) takes one more test of 15 lines: its `Mirror` lives
+there; moving it to `tests/common` is a refactor of its own.
+
+Code review: no findings
+
+not verified: the real OSV bucket serving `Debian%3A13/all.zip` (no test reaches the network).
 
 decisions needed: none.

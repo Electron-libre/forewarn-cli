@@ -144,8 +144,8 @@ Clean: 0 of 2 components
 | Local OSV records (a file or an extracted archive) | `--osv <path>`, repeatable | nothing |
 | OSV API | `--osv-api`; `--osv-api-url` for another | ecosystem, name and version of each component |
 
-The default downloads `<ecosystem>/all.zip` for each ecosystem of the SBOM. The API answer depends on the moment of
-the query, which the report gives; it is never on by default.
+The default downloads `<ecosystem>/all.zip` for each ecosystem of the SBOM (`Debian%3A13/all.zip` for `Debian:13`).
+The API answer depends on the moment of the query, which the report gives; it is never on by default.
 
 ### Actively exploited
 
@@ -189,7 +189,7 @@ verdicts**. A `--vex` file that cannot be read stops the run with exit code 3.
 | | |
 |---|---|
 | Location | `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv`; `--cache <dir>` for another |
-| Contents | one directory per OSV ecosystem, `cisa-kev`, `euvd-exploited` |
+| Contents | one directory per OSV ecosystem (each `:` written `%3A`: `Debian%3A13`), `cisa-kev`, `euvd-exploited` |
 | Refresh | `--refresh 1d` by default; `offline` (never download), `if-missing`, `always`, or an age (`30m`, `12h`, `7d`) |
 | Shared by several runs | yes: readers share it, a download waits for them and they for it, up to 40 minutes per entry |
 | A copy damaged outside `forewarn` | downloaded again; under `--refresh offline`, the run fails with "damaged cached copy" |

@@ -74,7 +74,7 @@ impl fmt::Display for FetchError {
         match &self.cause {
             FetchCause::InvalidName => write!(
                 f,
-                "invalid ecosystem name \"{}\": only ASCII letters, digits, `.`, `-` and `_`, not first `.`",
+                "invalid ecosystem name \"{}\": only ASCII letters, digits, `.`, `-`, `_` and `:`, not first `.` or `:`",
                 self.ecosystem
             ),
             FetchCause::NotCached => write!(f, "not cached, and the refresh policy is offline"),
@@ -152,24 +152,23 @@ impl Archives {
         agent: &ureq::Agent,
         clock: &impl Fn() -> SystemTime,
     ) -> Result<Snapshot, FetchCause> {
-        if !is_path_segment(ecosystem, b"") {
+        if ecosystem.starts_with(':') || !is_path_segment(ecosystem, b":") {
             return Err(FetchCause::InvalidName);
         }
+        // `Debian:13`: a `:` is no file name on Windows, and opens a scheme in a relative URL (OSF-14, OSF-21).
+        let entry = ecosystem.replace(':', "%3A");
         let cache = Cache {
             directory: self.cache.clone(),
             refresh: self.refresh,
             lock_wait: self.lock_wait,
         };
         let source = Source {
-            url: format!(
-                "{}/{ecosystem}/all.zip",
-                self.base_url.trim_end_matches('/')
-            ),
+            url: format!("{}/{entry}/all.zip", self.base_url.trim_end_matches('/')),
             download: &forewarn_cache::get,
             unpack: &extract,
             read: &read_records,
         };
-        let Fetched { value, freshness } = cache.fetch(agent, ecosystem, &source, clock)?;
+        let Fetched { value, freshness } = cache.fetch(agent, &entry, &source, clock)?;
         Ok(Snapshot {
             ecosystem: ecosystem.to_owned(),
             freshness,

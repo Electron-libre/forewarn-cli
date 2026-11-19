@@ -368,7 +368,7 @@ fn is_entry_name(name: &str) -> bool {
         && !name.starts_with('.')
         && name
             .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'%'))
 }
 
 /// How a fetch holds the lock of an entry: shared to read its copy, exclusive to replace it (ADR 0007).

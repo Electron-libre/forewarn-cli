@@ -472,6 +472,37 @@ fn the_names_osv_uses_are_accepted() {
     }
 }
 
+// spec: OSF-14, OSF-17, OSF-21
+#[test]
+fn an_ecosystem_of_a_release_is_requested_and_cached_with_its_colon_escaped() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    server.route("/Debian%3A13/all.zip", ok(npm_archive()));
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["Debian:13"], || at(1_000))
+        .expect("the ecosystem is fetched");
+
+    assert_eq!(server.requests(), ["GET /Debian%3A13/all.zip"]);
+    assert_eq!(snapshots[0].ecosystem, "Debian:13");
+    assert_eq!(ids(&snapshots[0]), ["GHSA-35jh-r3h4-6jhm"]);
+    assert!(cache.path().join("Debian%3A13").is_dir());
+    let cached = archives(cache.path(), &server, Refresh::Offline)
+        .fetch(&["Debian:13"], || at(2_000))
+        .expect("the snapshot is read back");
+    assert_eq!(ids(&cached[0]), ["GHSA-35jh-r3h4-6jhm"]);
+}
+
+// spec: OSF-17, OSF-18
+#[test]
+fn an_ecosystem_name_starting_with_a_colon_is_refused() {
+    let cache = TempDir::new().expect("a cache");
+    let server = Server::new();
+    let error = fetch_error(cache.path(), &server, Refresh::IfMissing, ":13");
+    assert_eq!(error.cause, FetchCause::InvalidName);
+    assert_eq!(server.requests(), Vec::<String>::new());
+}
+
 // spec: OSF-18
 #[test]
 fn a_cache_that_cannot_be_written_fails_with_cannot_use_the_cache() {
