@@ -10,11 +10,8 @@ use std::path::{Path, PathBuf};
 
 use common::run;
 
-/// The templates: GitHub Actions and GitLab CI.
-const TEMPLATES: [&str; 2] = [
-    "examples/ci/github-actions.yml",
-    "examples/ci/gitlab-ci.yml",
-];
+/// The directory of the templates, each a `.yml` file.
+const TEMPLATES: &str = "examples/ci";
 
 /// The commands a template must run: the whole of a release check.
 const COMMANDS: [&str; 3] = ["check", "match", "upload"];
@@ -25,6 +22,28 @@ fn workspace_root() -> PathBuf {
         .nth(2)
         .expect("the crate lives two levels below the workspace root")
         .to_path_buf()
+}
+
+/// The templates of `examples/ci/`, relative to the workspace root, sorted: each is checked, none forgotten.
+fn templates() -> Vec<String> {
+    let dir = workspace_root().join(TEMPLATES);
+    let mut found: Vec<String> = fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
+        .map(|entry| entry.expect("an entry of the directory").file_name())
+        .filter_map(|name| name.into_string().ok())
+        .filter(|name| {
+            Path::new(name)
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("yml"))
+        })
+        .map(|name| format!("{TEMPLATES}/{name}"))
+        .collect();
+    found.sort();
+    assert!(
+        found.len() >= 2,
+        "{TEMPLATES} holds no GitHub and GitLab templates: {found:?}"
+    );
+    found
 }
 
 fn read(relative: &str) -> String {
@@ -95,8 +114,8 @@ fn describes(help: &str, option: &str) -> bool {
 
 #[test]
 fn each_template_runs_each_command_with_options_the_binary_has() {
-    for template in TEMPLATES {
-        let found = invocations(&read(template));
+    for template in templates() {
+        let found = invocations(&read(&template));
 
         let commands: BTreeSet<&str> = found.iter().map(|(command, _)| command.as_str()).collect();
         assert_eq!(
@@ -117,14 +136,29 @@ fn each_template_runs_each_command_with_options_the_binary_has() {
     }
 }
 
-/// The value of the variable `TARGET` a template sets: the line `TARGET: <triple>`.
-fn template_target(template: &str) -> String {
-    template
+/// The archive suffix a template derives from the runner's architecture: `uname -m` names the first part of the
+/// target triple.
+const UNAME_TARGET: &str = "$(uname -m)-unknown-linux-musl";
+
+/// The architectures `uname -m` names on the runners a template derives its archive for.
+const UNAME_ARCHITECTURES: [&str; 2] = ["x86_64", "aarch64"];
+
+/// The targets a template can install: the value of its line `TARGET: <triple>`, or each architecture of
+/// `UNAME_ARCHITECTURES` when it derives the triple from `uname -m`.
+fn template_targets(template: &str) -> BTreeSet<String> {
+    let mut targets: BTreeSet<String> = template
         .lines()
-        .find_map(|line| line.trim().strip_prefix("TARGET:"))
-        .expect("the template sets the TARGET it installs")
-        .trim()
-        .to_owned()
+        .filter_map(|line| line.trim().strip_prefix("TARGET:"))
+        .map(|target| target.trim().to_owned())
+        .collect();
+    if template.contains(UNAME_TARGET) {
+        targets.extend(
+            UNAME_ARCHITECTURES
+                .iter()
+                .map(|architecture| UNAME_TARGET.replace("$(uname -m)", architecture)),
+        );
+    }
+    targets
 }
 
 /// The `target` of each entry of the build matrix of the release workflow: the lines `- target: <triple>`.
@@ -139,12 +173,18 @@ fn released_targets() -> BTreeSet<String> {
 #[test]
 fn each_template_installs_an_archive_the_release_builds() {
     let released = released_targets();
-    for template in TEMPLATES {
-        let target = template_target(&read(template));
+    for template in templates() {
+        let targets = template_targets(&read(&template));
 
         assert!(
-            released.contains(&target),
-            "{template} installs {target}, which no release builds"
+            !targets.is_empty(),
+            "{template} names no target it installs"
         );
+        for target in targets {
+            assert!(
+                released.contains(&target),
+                "{template} installs {target}, which no release builds"
+            );
+        }
     }
 }

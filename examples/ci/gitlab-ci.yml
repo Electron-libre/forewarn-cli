@@ -1,4 +1,12 @@
-# forewarn in GitLab CI: copy these jobs into the `.gitlab-ci.yml` of your product's project.
+# forewarn in GitLab CI: copy this file into your product's project, as `ci/forewarn.gitlab-ci.yml` for example, and
+# include it from your `.gitlab-ci.yml`:
+#
+#   include:
+#     - local: ci/forewarn.gitlab-ci.yml
+#
+# Every key is set on its jobs, none global: it changes neither the stages, the image, the variables nor the rules of
+# your other jobs. Its jobs run in the stage `test`, which GitLab defines unless your `stages:` list leaves it out: then
+# add it to the list, or change `stage:` below to one of yours.
 #
 # On each release tag, and on a pipeline schedule against the latest release tag, it produces the CycloneDX SBOM of
 # the release, reports the components missing what the CRA expects, matches them against OSV, the CISA KEV catalog and
@@ -11,35 +19,31 @@
 #
 # Documentation: https://github.com/Electron-libre/forewarn-cli/blob/main/docs/user-guide.md#in-ci
 
-workflow:
+# What the jobs share: the image, the versions installed (the archives of the runner's architecture, x86_64 or
+# aarch64), and when they run.
+.forewarn-base:
+  stage: test
+  image: alpine:3
+  variables:
+    FOREWARN_VERSION: 0.4.0
+    SYFT_VERSION: 1.57.2
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
 
-variables:
-  # The release of forewarn to install, and the archive of the runner's platform (`aarch64-unknown-linux-musl` on an
-  # ARM64 runner).
-  FOREWARN_VERSION: 0.4.0
-  TARGET: x86_64-unknown-linux-musl
-  SYFT_VERSION: 1.57.2
-
-stages: [sbom, forewarn]
-
-default:
-  image: alpine:3
-
-# forewarn, checked against the SHA256SUMS of its release and installed outside the project directory, so the SBOM
-# of your product does not take in forewarn and its files.
+# forewarn, checked against the SHA256SUMS of its release and installed outside the project directory.
 .forewarn:
+  extends: .forewarn-base
   before_script:
     - apk add --no-cache curl
     - cd /tmp
+    - archive="forewarn-$(uname -m)-unknown-linux-musl.tar.gz"
     - base="https://github.com/Electron-libre/forewarn-cli/releases/download/v$FOREWARN_VERSION"
-    - curl -fsSL -O "$base/forewarn-$TARGET.tar.gz" -O "$base/SHA256SUMS"
-    - grep " forewarn-$TARGET.tar.gz\$" SHA256SUMS | sha256sum -c -
-    - tar -xzf "forewarn-$TARGET.tar.gz"
-    - install "forewarn-$TARGET/forewarn" /usr/local/bin/
+    - curl -fsSL --fail-early -O "$base/$archive" -O "$base/SHA256SUMS"
+    - grep " $archive\$" SHA256SUMS | sha256sum -c -
+    - tar -xzf "$archive"
+    - install "${archive%.tar.gz}/forewarn" /usr/local/bin/
     - cd "$CI_PROJECT_DIR"
     - forewarn --version
 
@@ -49,17 +53,16 @@ default:
 # package URL: forewarn then cannot tell your own packages from the third-party ones and matches them too. The tool of
 # your ecosystem names it (`cargo cyclonedx` for Rust, `cdxgen` for many languages): prefer it, writing CycloneDX JSON
 # to sbom.cdx.json.
-sbom:
-  stage: sbom
+forewarn-sbom:
+  extends: .forewarn-base
   variables:
     GIT_DEPTH: 0
   before_script:
     - apk add --no-cache curl git
     - cd /tmp
-    # The archive of the runner's architecture: amd64 or arm64.
     - archive="syft_${SYFT_VERSION}_linux_$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/').tar.gz"
     - base="https://github.com/anchore/syft/releases/download/v$SYFT_VERSION"
-    - curl -fsSL -O "$base/$archive" -O "$base/syft_${SYFT_VERSION}_checksums.txt"
+    - curl -fsSL --fail-early -O "$base/$archive" -O "$base/syft_${SYFT_VERSION}_checksums.txt"
     - grep " $archive\$" "syft_${SYFT_VERSION}_checksums.txt" | sha256sum -c -
     - tar -xzf "$archive" syft
     - install syft /usr/local/bin/
@@ -84,10 +87,9 @@ sbom:
 # so a daily run never matches against the lists of the day before.
 # The 24 h and 72 h deadlines count from the moment of the run (`--aware-since`): the first run that fails is the
 # moment you knew; each later run counts from itself again, so keep the drafts of that first one.
-match:
-  stage: forewarn
+forewarn-match:
   extends: .forewarn
-  needs: [sbom]
+  needs: [forewarn-sbom]
   # The OSV archives, the CISA KEV catalog and the EUVD list, kept between pipelines and saved even when the job
   # fails. A cache is kept per runner unless your runners share a distributed cache.
   cache:
@@ -102,15 +104,14 @@ match:
         --format json --drafts drafts sbom.cdx.json > forewarn.json
   artifacts:
     when: always
-    paths: [sbom.cdx.json, forewarn.json, drafts/]
+    paths: [forewarn.json, drafts/]
 
 # On a tag, the SBOM is uploaded whatever the match found: this job needs the SBOM only, not the match. Set the CI/CD
 # variables FOREWARN_ENDPOINT and FOREWARN_TOKEN (masked; protected, with the tags `v*` protected); remove this job
 # without a service.
-upload:
-  stage: forewarn
+forewarn-upload:
   extends: .forewarn
-  needs: [sbom]
+  needs: [forewarn-sbom]
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
   script:

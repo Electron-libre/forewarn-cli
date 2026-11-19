@@ -324,9 +324,11 @@ code, and the 24 h deadline runs from the moment you know it. Each run counts th
 of the first run that fails, the moment you knew. `syft` names your product without a package URL, so your own packages
 are matched as third-party ones; the SBOM tool of your ecosystem (`cargo cyclonedx`, `cdxgen`) avoids it.
 
-[`examples/ci/gitlab-ci.yml`](../examples/ci/gitlab-ci.yml) does the same in GitLab CI, on an `alpine` image, in three
-jobs: `sbom`, then `match` and `upload`, the latter needing the SBOM only, so it runs on a tag whatever the match
-found. Add a daily pipeline schedule for the daily run; the variables `FOREWARN_ENDPOINT` and `FOREWARN_TOKEN` are
+[`examples/ci/gitlab-ci.yml`](../examples/ci/gitlab-ci.yml) does the same in GitLab CI: copy it into your project and
+`include:` it; it sets no global key, so your other jobs keep their stages, image, variables and rules. Its three
+jobs run on an `alpine` image (x86_64 or aarch64 runners) in the stage `test` (add it to your `stages:` when your list
+leaves it out, or change their `stage:`): `forewarn-sbom`, then `forewarn-match`
+and `forewarn-upload`, the latter needing the SBOM only, so it runs on a tag whatever the match found. Add a daily pipeline schedule for the daily run; the variables `FOREWARN_ENDPOINT` and `FOREWARN_TOKEN` are
 masked and protected, with the tags `v*` protected. The cache of the feeds is kept per runner unless the runners share
 a distributed cache.
 

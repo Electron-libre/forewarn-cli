@@ -59,7 +59,7 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           base="https://github.com/Electron-libre/forewarn-cli/releases/download/v$FOREWARN_VERSION"
-          curl -fsSL -O "$base/forewarn-$TARGET.tar.gz" -O "$base/SHA256SUMS"
+          curl -fsSL --fail-early -O "$base/forewarn-$TARGET.tar.gz" -O "$base/SHA256SUMS"
           sha256sum --check --ignore-missing SHA256SUMS
           tar -xzf "forewarn-$TARGET.tar.gz"
           sudo install "forewarn-$TARGET/forewarn" /usr/local/bin/

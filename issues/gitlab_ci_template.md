@@ -48,6 +48,10 @@ scope: running it (no GitLab in this repository's CI), the pinned version at rel
    "In CI" of the user guide, `README.md` and `CLAUDE.md` name it; verified by `ci_templates` (red before the file).
    (autonomous)
 
+2. [x] Fixes of the `high` review of the issue: the GitLab file included with no global key, its archives following
+   the runner's architecture, `curl --fail-early`, the SBOM kept once, the test listing `examples/ci/`; verified by
+   `ci_templates`. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 2c7c5ddf1f8d7247d9dd0292af71b93a1c49b5a0
@@ -75,3 +79,30 @@ the `sbom` job; its archive now follows `uname -m`.
 
 not verified: the jobs have not run on GitLab; busybox `sha256sum -c -` and the `syft` asset names are read from
 their documentation and release, not run.
+
+## Deliverable 2
+done: the fixes of the `high` review (10 findings) in the GitLab template, the GitHub template's download, the test
+and the guide.
+
+| check | result |
+|---|---|
+| tests | pass (`ci_templates`; a GitLab archive off the musl triple turns it red) |
+| lint | pass |
+| specs | n/a |
+| docs | user guide "In CI" |
+| code review | 1 finding, fixed |
+
+red: none traced; deliverable of fixes, its test already green.
+
+`high` review: 10 findings. Fixed: the global `workflow`, `stages`, `default` and `variables` that changed the
+including project (now an included file, every key on its jobs, stage `test`); the forewarn archive fixed to x86_64
+(now `$(uname -m)`, the test checking both architectures); a failed download hidden by the next one
+(`--fail-early`, both templates); the SBOM stored twice; the templates listed by hand in the test (now
+`examples/ci/*.yml`). Not fixed: the two install sequences kept apart, each downloads another tool and an anchor
+would make the example harder to read.
+
+Code review: 1 finding. Fixed: the jobs in the default stage `test`, missing from a project whose `stages:` leaves it
+out; `stage: test` now explicit, the file and the guide saying to add it or change it (`.pre` and `.post`, always
+defined, would make a scheduled pipeline with these jobs alone invalid).
+
+not verified: the jobs have not run on GitLab.
