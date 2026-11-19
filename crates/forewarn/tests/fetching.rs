@@ -335,6 +335,55 @@ fn the_debian_packages_fetch_the_archive_of_their_release() {
     assert!(cache.path().join("Debian%3A13").is_dir());
 }
 
+// spec: OSF-H4, OSF-22, MCH-5
+#[test]
+fn a_debian_release_without_an_archive_is_matched_against_the_debian_archive() {
+    let cache = TempDir::new().expect("a cache");
+    let mirror = crates_io_mirror();
+    mirror.serve("Debian", &["DEBIAN-CVE-2024-6387.json"], None);
+    let purl =
+        "pkg:deb/debian/openssh-server@1%3A9.6p1-3?arch=amd64&distro=debian-14&upstream=openssh";
+    let input = bom(
+        "1.6",
+        &json!([
+            component("openssh-server", "1:9.6p1-3", Some(purl)),
+            component("time", "0.1.43", Some("pkg:cargo/time@0.1.43")),
+        ]),
+    );
+    let run = fetch(cache.path(), &mirror, &["--format", "json"], &input);
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    assert_eq!(
+        mirror.requests(),
+        [
+            "/Debian%3A14/all.zip",
+            "/Debian/all.zip",
+            "/crates.io/all.zip"
+        ]
+    );
+    let osv = osv_of(&run);
+    assert_eq!(osv[0]["ecosystem"], json!("Debian"));
+    assert_eq!(osv[1]["ecosystem"], json!("crates.io"));
+    let report = json_report(&run);
+    let affected: Vec<(&str, &str)> = report["affected"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .map(|m| {
+            (
+                m["name"].as_str().expect("a name"),
+                m["id"].as_str().expect("an id"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        affected,
+        [
+            ("openssh-server", "CVE-2024-6387"),
+            ("time", "CVE-2020-26235")
+        ]
+    );
+}
+
 // spec: MCH-5, MCH-16
 #[test]
 fn an_sbom_with_no_ecosystem_fetches_nothing() {

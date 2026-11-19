@@ -86,7 +86,7 @@ fn lists_the_affected_components_apart_from_those_not_evaluated_and_exits_with_1
         run.stdout,
         format!(
             "SBOM: CycloneDX 1.6, 3 components\n\
-             OSV records:\n  {}: 4 records, local\n\
+             OSV records:\n  {}: 5 records, local\n\
              Exploited lists:\n  CISA KEV: catalog 2026.11.10 released 2026-11-10, 2 entries, local {}\n\
              Affected (1, 0 actively exploited):\n  time 0.1.43 (pkg:cargo/time@0.1.43): CVE-2020-26235 \
              (GHSA-wcg3-cvx6-7396, RUSTSEC-2020-0071), affected per RUSTSEC-2020-0071 from RUSTSEC\n\
@@ -122,7 +122,7 @@ fn prints_the_same_result_as_json() {
             "specVersion": "1.6",
             "componentCount": 3,
             "cleanCount": 1,
-            "osv": [{"kind": "local", "path": path(&osv), "recordCount": 4}],
+            "osv": [{"kind": "local", "path": path(&osv), "recordCount": 5}],
             "exploitedLists": [],
             "exploitedCount": 0,
             "awareSince": null,

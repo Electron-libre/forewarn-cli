@@ -146,6 +146,9 @@ Clean: 0 of 2 components
 | OSV API | `--osv-api`; `--osv-api-url` for another | ecosystem, name and version of each component |
 
 The default downloads `<ecosystem>/all.zip` for each ecosystem of the SBOM (`Debian%3A13/all.zip` for `Debian:13`).
+A release OSV publishes no archive of (`Debian:14`, testing, answers 404) is read from the archive of its parent,
+`Debian/all.zip` (about 80 MB, every release), downloaded once and named `Debian` among the sources of the report; with
+`--refresh offline`, from that archive when the cache holds it.
 The API answer depends on the moment of the query, which the report gives; it is never on by default.
 
 ### Actively exploited

@@ -113,8 +113,12 @@ pub enum Error<E> {
     NotCached,
     /// Another fetch still handles the entry in this cache once the wait is over.
     Locked { waited: Duration },
-    /// The server cannot be reached or does not answer 200.
-    Download { url: String, reason: String },
+    /// The server cannot be reached or does not answer 200; `status` is the status it answered, if it answered.
+    Download {
+        url: String,
+        reason: String,
+        status: Option<u16>,
+    },
     /// The cache directory cannot be read or written; the system's reason.
     Cache(String),
     /// The policy is [`Refresh::Offline`] and the files of the cached copy differ from those its download stored.
@@ -128,7 +132,7 @@ impl<E: fmt::Display> fmt::Display for Error<E> {
         match self {
             Self::NotCached => write!(f, "not cached, and the refresh policy is offline"),
             Self::Locked { waited } => write!(f, "cache locked by another run, waited {waited:?}"),
-            Self::Download { url, reason } => write!(f, "cannot download {url}: {reason}"),
+            Self::Download { url, reason, .. } => write!(f, "cannot download {url}: {reason}"),
             Self::Cache(reason) => write!(f, "cannot use the cache: {reason}"),
             Self::Damaged(damage) => write!(f, "{damage}"),
             Self::Source(error) => write!(f, "{error}"),
@@ -558,6 +562,7 @@ fn call<E>(
         return Err(Error::Download {
             url: url.to_owned(),
             reason: format!("the server answered {}", response.status()),
+            status: Some(response.status().as_u16()),
         });
     }
     let last_modified = response
@@ -572,6 +577,7 @@ fn download_error<E>(url: &str, error: &impl fmt::Display) -> Error<E> {
     Error::Download {
         url: url.to_owned(),
         reason: error.to_string(),
+        status: None,
     }
 }
 

@@ -43,11 +43,11 @@ parent archive `Debian/all.zip` instead (checked 2026-11-19: 82 MB zipped, 75k r
 1. [x] Move the test helpers of `crates/forewarn-osv/tests/fetching.rs` (fake server, archives, fixtures; the file is
    over the size limit) into `crates/forewarn-osv/tests/common/mod.rs`, no change of behaviour; verified by the
    unchanged tests passing. (autonomous)
-2. [ ] Fall back to the parent archive: a 404 told apart from the other download failures (`forewarn-cache`), the
+2. [x] Fall back to the parent archive: a 404 told apart from the other download failures (`forewarn-cache`), the
    fallback in `Archives::fetch` (`forewarn-osv/src/fetch.rs`), the parent returned once, offline read of a cached
    parent; verified by `forewarn-osv/tests/release_archive.rs` (new, fake server) and a `forewarn match` test in
    `crates/forewarn/tests/debian.rs` (a `Debian:14` package matched through `Debian/all.zip`, the crates of the same
-   SBOM matched too); docs: user guide, `CLAUDE.md`; makes true OSF-22, OSF-23, OSF-24, OSF-25.
+   SBOM matched too); docs: user guide, `CLAUDE.md`; makes true OSF-22, OSF-23, OSF-24, OSF-25.  (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -75,5 +75,34 @@ red: none (a move, no new test).
 Code review: no findings
 
 not verified: nothing.
+
+decisions needed: none.
+
+## Deliverable 2: fall back to the parent archive
+
+done: `Archives::fetch` reads an ecosystem `<parent>:<release>` whose archive answers 404 (or, offline, that the cache
+does not hold) from the snapshot of `<parent>`, returned once at the place of the first ecosystem it stands for; a
+failure of the parent names the release. `forewarn_cache::Error::Download` carries the status the server answered.
+Fixture `DEBIAN-CVE-2024-6387.json` (api.osv.dev) added; the two `matching.rs` tests reading the fixture directory count 5 records.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | OSF accepted, `check-specs` clean |
+| docs | user guide (sources), `CLAUDE.md`, fixtures README |
+| code review | see below |
+
+red: OSF-H4, OSF-22, OSF-23, OSF-24: `forewarn match` exited 5, `"Debian:14": cannot download …/Debian%3A14/all.zip:
+the server answered 404 Not Found`; `Archives::fetch` failed the same way for each scenario. OSF-25 and the 503 case
+passed before the code (the former behaviour, kept).
+
+Measured on the real `Debian/all.zip` (74,965 records, `--osv` on the extracted archive): an openssh-server of
+`debian-14` matched (CVE-2024-6387 among others), peak memory 650 MB.
+
+Code review: no findings
+
+not verified: the real OSV bucket answering 404 for `Debian%3A14` through `forewarn match` (no test reaches the
+network; the 404 was checked with `curl`).
 
 decisions needed: none.

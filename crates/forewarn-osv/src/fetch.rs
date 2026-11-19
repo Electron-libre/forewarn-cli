@@ -98,7 +98,7 @@ impl From<forewarn_cache::Error<FetchCause>> for FetchCause {
         match error {
             forewarn_cache::Error::NotCached => Self::NotCached,
             forewarn_cache::Error::Locked { waited } => Self::Locked { waited },
-            forewarn_cache::Error::Download { url, reason } => Self::Download { url, reason },
+            forewarn_cache::Error::Download { url, reason, .. } => Self::Download { url, reason },
             forewarn_cache::Error::Cache(reason) => Self::Cache(reason),
             forewarn_cache::Error::Damaged(damage) => Self::Damaged(damage),
             forewarn_cache::Error::Source(cause) => cause,
@@ -122,10 +122,14 @@ impl Archives {
     /// says so; `clock` gives the time the policy compares with and the time recorded for a download, read when the
     /// request of that download starts.
     ///
+    /// An ecosystem `<parent>:<release>` whose archive the server answers 404, or that the cache does not hold under
+    /// [`Refresh::Offline`], is read from the snapshot of `<parent>`, whose archive holds the records of every release
+    /// (OSF-22, OSF-23); each snapshot is returned once, at the place of the first ecosystem it stands for.
+    ///
     /// # Errors
     ///
-    /// The [`FetchError`] of the first ecosystem that cannot be fetched; a failed download leaves the snapshot the
-    /// cache held before unchanged.
+    /// The [`FetchError`] of the first ecosystem that cannot be fetched, naming the ecosystem asked for; a failed
+    /// download leaves the snapshot the cache held before unchanged.
     pub fn fetch(
         &self,
         ecosystems: &[impl AsRef<str>],
@@ -133,27 +137,40 @@ impl Archives {
     ) -> Result<Vec<Snapshot>, FetchError> {
         // One agent for every download, so that they share its connections.
         let agent = forewarn_cache::agent();
-        ecosystems
-            .iter()
-            .map(AsRef::as_ref)
-            .map(|ecosystem| {
-                self.snapshot(ecosystem, &agent, &clock)
-                    .map_err(|cause| FetchError {
-                        ecosystem: ecosystem.to_owned(),
-                        cause,
-                    })
-            })
-            .collect()
+        let mut snapshots: Vec<Snapshot> = Vec::new();
+        for ecosystem in ecosystems.iter().map(AsRef::as_ref) {
+            let fetched = |name: &str| snapshots.iter().any(|s| s.ecosystem == name);
+            if fetched(ecosystem) {
+                continue;
+            }
+            let error = |cause| FetchError {
+                ecosystem: ecosystem.to_owned(),
+                cause,
+            };
+            match self.snapshot(ecosystem, &agent, &clock) {
+                Ok(snapshot) => snapshots.push(snapshot),
+                Err(Missing::Release(parent)) => {
+                    if !fetched(parent) {
+                        let snapshot = self
+                            .snapshot(parent, &agent, &clock)
+                            .map_err(|missing| error(missing.into_cause()))?;
+                        snapshots.push(snapshot);
+                    }
+                }
+                Err(Missing::No(cause)) => return Err(error(cause)),
+            }
+        }
+        Ok(snapshots)
     }
 
-    fn snapshot(
+    fn snapshot<'a>(
         &self,
-        ecosystem: &str,
+        ecosystem: &'a str,
         agent: &ureq::Agent,
         clock: &impl Fn() -> SystemTime,
-    ) -> Result<Snapshot, FetchCause> {
+    ) -> Result<Snapshot, Missing<'a>> {
         if ecosystem.starts_with(':') || !is_path_segment(ecosystem, b":") {
-            return Err(FetchCause::InvalidName);
+            return Err(Missing::No(FetchCause::InvalidName));
         }
         // `Debian:13`: a `:` is no file name on Windows, and opens a scheme in a relative URL (OSF-14, OSF-21).
         let entry = ecosystem.replace(':', "%3A");
@@ -168,12 +185,46 @@ impl Archives {
             unpack: &extract,
             read: &read_records,
         };
-        let Fetched { value, freshness } = cache.fetch(agent, &entry, &source, clock)?;
-        Ok(Snapshot {
-            ecosystem: ecosystem.to_owned(),
-            freshness,
-            vulnerabilities: value,
-        })
+        match cache.fetch(agent, &entry, &source, clock) {
+            Ok(Fetched { value, freshness }) => Ok(Snapshot {
+                ecosystem: ecosystem.to_owned(),
+                freshness,
+                vulnerabilities: value,
+            }),
+            Err(error) => {
+                let unpublished = matches!(
+                    error,
+                    forewarn_cache::Error::NotCached
+                        | forewarn_cache::Error::Download {
+                            status: Some(404),
+                            ..
+                        }
+                );
+                match ecosystem.split_once(':') {
+                    Some((parent, _)) if unpublished => Err(Missing::Release(parent)),
+                    _ => Err(Missing::No(error.into())),
+                }
+            }
+        }
+    }
+}
+
+/// Why the snapshot of an ecosystem was not returned.
+enum Missing<'a> {
+    /// The ecosystem is a release of this parent, whose archive the server does not publish (404), or which the cache
+    /// does not hold under [`Refresh::Offline`] (OSF-22, OSF-23).
+    Release(&'a str),
+    /// The cause of the failure.
+    No(FetchCause),
+}
+
+impl Missing<'_> {
+    /// The cause of the failure; the parent of a release, missing itself, has none of its own.
+    fn into_cause(self) -> FetchCause {
+        match self {
+            Self::Release(_) => FetchCause::NotCached,
+            Self::No(cause) => cause,
+        }
     }
 }
 
