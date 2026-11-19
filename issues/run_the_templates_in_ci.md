@@ -51,6 +51,11 @@ runs the `run:` blocks of the template's steps with `bash -e` in a temporary Git
    product and version); fixtures under `crates/forewarn/tests/fixtures/ci-template/`; docs (`CLAUDE.md`, user guide
    if it names the template checks); verified by the test itself, red first on a template whose match line is broken. (autonomous)
    Code review: no findings.
+2. [x] Fixes of the `high` review of the issue: the shell of a step runs with only the job's variables (no
+   `GIT_DIR` nor Git configuration of the caller), the variables of a step's `env:` all given, a `shell:` or
+   `working-directory:` of a step run refused, `|-` and `|+` blocks read, `--refresh=` dropped too, a multiline output
+   refused, the run of `common` reused; verified by the tests, also run under the `GIT_DIR` of this repository.
+   (autonomous) Code review: no findings.
 
 ## Decisions
 - Mode: autonomous
@@ -66,3 +71,11 @@ runs the `run:` blocks of the template's steps with `bash -e` in a temporary Git
   `error: unexpected argument '--allow-afected' found`.
 - not verified: the steps that use an action (checkout, cache, artifact, syft), GitHub's.
 - follow-up: the GitLab template, an issue of its own.
+
+## Deliverable 2 (high review of the issue)
+- done: the fixes listed in the plan.
+- red: none (fixes of a test).
+- Code review (high): 9 findings. Fixed: 1 (caller's `GIT_*`), 2 (global Git configuration), 4 (step `env:`,
+  `working-directory:`, `shell:`), 5 (block indicators), 6 (dead branch of `--refresh`), 7 (`common::Run` reused),
+  9 (multiline outputs). Not fixed: 3, wrong: a `run:` without `shell:` runs with `bash -e {0}` on GitHub, no
+  `pipefail`; 8, `workspace_root` is copied in each test crate already, its sharing a refactor of its own.

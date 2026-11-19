@@ -5,12 +5,15 @@
 //! fetched.
 #![cfg(unix)]
 
+mod common;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use common::{Run, run_command};
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -44,14 +47,58 @@ fn indent(line: &str) -> usize {
     line.len() - line.trim_start_matches(' ').len()
 }
 
-/// The `run:` block of each named step of the template that has one, by step name: a literal block (`run: |`)
-/// dedented, or the line of `run: <command>`. A step is an item of a `steps:` list; its keys are indented two spaces
-/// past its dash.
-fn run_blocks(template: &str) -> BTreeMap<String, String> {
+/// A step of the template that runs a shell block.
+#[derive(Default)]
+struct TemplateStep {
+    /// Its `run:` block, dedented.
+    run: String,
+    /// Its keys (`name`, `if`, `env`, `run`…).
+    keys: BTreeSet<String>,
+    /// The variables of its `env:`.
+    env: BTreeSet<String>,
+}
+
+/// The `run:` block of a step that starts after line `i`: a literal block (`|`, `|-`, `|+`) dedented, or the
+/// `value` of `run: <command>`; `i` moves past the block. A step's keys are indented to `keys`.
+fn run_block(lines: &[&str], i: &mut usize, keys: usize, value: &str) -> String {
+    let value = value.trim();
+    if !matches!(value, "|" | "|-" | "|+") {
+        assert!(
+            !value.starts_with(['|', '>']),
+            "{TEMPLATE}: a `run: {value}` block, read here as `|` only"
+        );
+        return format!("{value}\n");
+    }
+    let mut block = String::new();
+    let mut body_indent = None;
+    while *i < lines.len() && (lines[*i].trim().is_empty() || indent(lines[*i]) > keys) {
+        let body = lines[*i];
+        if !body.trim().is_empty() {
+            let start = *body_indent.get_or_insert(indent(body));
+            block.push_str(body.get(start..).unwrap_or(""));
+        }
+        block.push('\n');
+        *i += 1;
+    }
+    block
+}
+
+/// Each named step of the template that has a `run:`, by name. A step is an item of a `steps:` list; its keys are
+/// indented two spaces past its dash, the variables of its `env:` two more.
+fn run_steps(template: &str) -> BTreeMap<String, TemplateStep> {
     let lines: Vec<&str> = template.lines().collect();
-    let mut blocks = BTreeMap::new();
+    let mut found = BTreeMap::new();
     let mut step_indent = None;
-    let mut name: Option<String> = None;
+    let mut current: Option<(Option<String>, TemplateStep)> = None;
+    let mut in_env = false;
+    let mut finish = |current: &mut Option<(Option<String>, TemplateStep)>| {
+        if let Some((name, step)) = current.take()
+            && step.keys.contains("run")
+        {
+            let name = name.unwrap_or_else(|| panic!("{TEMPLATE}: a `run:` step without a name"));
+            found.insert(name, step);
+        }
+    };
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
@@ -61,48 +108,44 @@ fn run_blocks(template: &str) -> BTreeMap<String, String> {
             continue;
         }
         if trimmed == "steps:" {
+            finish(&mut current);
             step_indent = Some(indent(line) + 2);
-            name = None;
             continue;
         }
         let Some(dash) = step_indent else { continue };
         if indent(line) < dash {
+            finish(&mut current);
             step_indent = None;
             continue;
         }
         let key = if indent(line) == dash && trimmed.starts_with("- ") {
-            name = None;
+            finish(&mut current);
+            current = Some((None, TemplateStep::default()));
             &trimmed[2..]
         } else if indent(line) == dash + 2 {
             trimmed
         } else {
+            if in_env
+                && indent(line) == dash + 4
+                && let (Some((_, step)), Some((variable, _))) =
+                    (&mut current, trimmed.split_once(':'))
+            {
+                step.env.insert(variable.to_owned());
+            }
             continue;
         };
-        if let Some(value) = key.strip_prefix("name:") {
-            name = Some(value.trim().to_owned());
-        } else if let Some(value) = key.strip_prefix("run:") {
-            let step = name
-                .clone()
-                .unwrap_or_else(|| panic!("{TEMPLATE}: a `run:` step without a name, line {i}"));
-            let block = if value.trim() == "|" {
-                let mut block = String::new();
-                let mut body_indent = None;
-                while i < lines.len() && (lines[i].trim().is_empty() || indent(lines[i]) > dash + 2)
-                {
-                    let body = lines[i];
-                    let start = *body_indent.get_or_insert(indent(body));
-                    block.push_str(body.get(start..).unwrap_or(""));
-                    block.push('\n');
-                    i += 1;
-                }
-                block
-            } else {
-                format!("{}\n", value.trim())
-            };
-            blocks.insert(step, block);
+        let (name, step) = current.as_mut().expect("a key belongs to a step");
+        let (key, value) = key.split_once(':').unwrap_or((key, ""));
+        step.keys.insert(key.to_owned());
+        in_env = key == "env";
+        match key {
+            "name" => *name = Some(value.trim().to_owned()),
+            "run" => step.run = run_block(&lines, &mut i, dash + 2, value),
+            _ => {}
         }
     }
-    blocks
+    finish(&mut current);
+    found
 }
 
 /// Shell-quotes a path.
@@ -138,11 +181,17 @@ fn rewritten(block: &str, command: &str, rewrite: impl Fn(Vec<&str>) -> Vec<Stri
 /// dropped, as `forewarn` refuses one when nothing is fetched.
 fn with_local_feeds(block: &str) -> String {
     rewritten(block, "match", |tokens| {
-        let refresh = tokens.iter().position(|token| *token == "--refresh");
-        assert!(
-            refresh.is_some(),
-            "{TEMPLATE}: the match gives a refresh policy, dropped here: {tokens:?}"
-        );
+        let at = tokens
+            .iter()
+            .position(|token| *token == "--refresh" || token.starts_with("--refresh="))
+            .unwrap_or_else(|| {
+                panic!("{TEMPLATE}: the match gives a refresh policy, dropped here: {tokens:?}")
+            });
+        let refresh = if tokens[at] == "--refresh" {
+            at..=at + 1
+        } else {
+            at..=at
+        };
         let mut args: Vec<String> = [
             ("--osv", "crates/forewarn-osv/tests/fixtures"),
             ("--osv", "crates/forewarn/tests/fixtures/ci-template/osv"),
@@ -159,7 +208,7 @@ fn with_local_feeds(block: &str) -> String {
             tokens
                 .iter()
                 .enumerate()
-                .filter(|(i, _)| refresh.is_none_or(|at| *i != at && *i != at + 1))
+                .filter(|(i, _)| !refresh.contains(i))
                 .map(|(_, token)| (*token).to_owned()),
         );
         args
@@ -183,20 +232,12 @@ struct Job {
     home: PathBuf,
     output: PathBuf,
     env: Vec<(&'static str, String)>,
-    blocks: BTreeMap<String, String>,
-}
-
-/// The outcome of a step.
-struct Step {
-    code: i32,
-    stdout: String,
-    stderr: String,
+    steps: BTreeMap<String, TemplateStep>,
 }
 
 impl Job {
     fn new(env: &[(&'static str, &str)]) -> Self {
         let template = fs::read_to_string(fixture(TEMPLATE)).expect("the template is read");
-        let blocks = run_blocks(&template);
         let scratch = TempDir::new().expect("a temporary directory");
         let product = scratch.path().join("acme-app");
         let bin = scratch.path().join("bin");
@@ -218,53 +259,64 @@ impl Job {
                 .iter()
                 .map(|(name, value)| (*name, (*value).to_owned()))
                 .collect(),
-            blocks,
+            steps: run_steps(&template),
         }
     }
 
-    /// The block of a step, as the template writes it.
-    fn block(&self, step: &str) -> &str {
-        self.blocks
+    /// A step of the template, as it writes it.
+    fn template_step(&self, step: &str) -> &TemplateStep {
+        self.steps
             .get(step)
             .unwrap_or_else(|| panic!("{TEMPLATE} has no step `{step}` with a `run:`"))
     }
 
-    /// Runs `script` with `bash -e` in the product, with the variables of the job and of the step.
-    fn run(&self, script: &str, step_env: &[(&str, &str)]) -> Step {
+    /// Runs `script` as GitHub runs a `run:` block that names no `shell:` on Linux (`bash -e {0}`, no `pipefail`), in
+    /// the product, with the variables of the job and of the step only: none of the caller's (`GIT_DIR`, its Git
+    /// configuration, `BASH_ENV`) reaches it.
+    fn run(&self, script: &str, step_env: &[(&str, &str)]) -> Run {
         let path = format!(
             "{}:{}",
             self.bin.display(),
             std::env::var("PATH").unwrap_or_default()
         );
-        let output = Command::new("bash")
-            .args(["-e", "-c", script])
+        let mut command = Command::new("bash");
+        command
+            .env_clear()
             .current_dir(&self.product)
             .env("PATH", path)
             .env("HOME", &self.home)
             .env("XDG_CACHE_HOME", self.home.join(".cache"))
             .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
             .env("GITHUB_OUTPUT", &self.output)
             .env("GITHUB_REPOSITORY", "acme/acme-app")
-            .envs(self.env.iter().map(|(name, value)| (*name, value.as_str())))
-            .envs(step_env.iter().copied())
-            .output()
-            .expect("bash runs");
-        Step {
-            code: output.status.code().expect("bash exits with a code"),
-            stdout: String::from_utf8(output.stdout).expect("stdout is UTF-8"),
-            stderr: String::from_utf8(output.stderr).expect("stderr is UTF-8"),
-        }
+            .envs(self.env.iter().map(|(name, value)| (*name, value.as_str())));
+        let env: Vec<(&str, Option<&str>)> = step_env
+            .iter()
+            .map(|(name, value)| (*name, Some(*value)))
+            .collect();
+        run_command(command, &["-e", "-c", script], None, &env)
     }
 
-    /// Runs a step of the template, `rewrite` applied to its block, and expects its exit code.
+    /// Runs a step of the template, `rewrite` applied to its block, with a value for each variable of its `env:`, and
+    /// expects its exit code.
     fn step(
         &self,
         step: &str,
         rewrite: impl Fn(&str) -> String,
         step_env: &[(&str, &str)],
         code: i32,
-    ) -> Step {
-        let script = rewrite(self.block(step));
+    ) -> Run {
+        let template_step = self.template_step(step);
+        assert_eq!(
+            step_env
+                .iter()
+                .map(|(name, _)| (*name).to_owned())
+                .collect::<BTreeSet<_>>(),
+            template_step.env,
+            "{TEMPLATE}: the variables of the step `{step}`"
+        );
+        let script = rewrite(&template_step.run);
         let ran = self.run(&script, step_env);
         assert_eq!(
             ran.code, code,
@@ -274,20 +326,30 @@ impl Job {
         ran
     }
 
-    /// The outputs the steps wrote to `GITHUB_OUTPUT`.
+    /// The outputs the steps wrote to `GITHUB_OUTPUT`, one `name=value` per line.
     fn outputs(&self) -> BTreeMap<String, String> {
         fs::read_to_string(&self.output)
             .unwrap_or_default()
             .lines()
-            .filter_map(|line| line.split_once('='))
-            .map(|(name, value)| (name.to_owned(), value.to_owned()))
+            .map(|line| {
+                assert!(
+                    !line.contains("<<"),
+                    "a multiline output, read here as `name=value` only: {line}"
+                );
+                let (name, value) = line
+                    .split_once('=')
+                    .unwrap_or_else(|| panic!("an output `name=value`: {line}"));
+                (name.to_owned(), value.to_owned())
+            })
             .collect()
     }
 
     /// The SBOM step, replaced: the fixture SBOM where `syft` writes it.
     fn produce_sbom(&self, fixture_name: &str) {
         assert!(
-            self.block(PRODUCE_SBOM).contains("sbom.cdx.json"),
+            self.template_step(PRODUCE_SBOM)
+                .run
+                .contains("sbom.cdx.json"),
             "{TEMPLATE}: the SBOM step writes sbom.cdx.json"
         );
         fs::copy(
@@ -325,7 +387,20 @@ fn unchanged(block: &str) -> String {
 #[test]
 fn the_test_runs_or_replaces_each_step_of_the_template_with_a_run() {
     let template = fs::read_to_string(fixture(TEMPLATE)).expect("the template is read");
-    let steps: BTreeSet<String> = run_blocks(&template).into_keys().collect();
+    let found = run_steps(&template);
+    // The steps run must run where and how this test runs them; the replaced ones are not run.
+    for (name, step) in found
+        .iter()
+        .filter(|(name, _)| ![INSTALL, PRODUCE_SBOM].contains(&name.as_str()))
+    {
+        for key in ["shell", "working-directory"] {
+            assert!(
+                !step.keys.contains(key),
+                "{TEMPLATE}: the step `{name}` gives a `{key}`, not run here"
+            );
+        }
+    }
+    let steps: BTreeSet<String> = found.into_keys().collect();
     assert_eq!(
         steps,
         BTreeSet::from([CHECK_OUT, INSTALL, PRODUCE_SBOM, CHECK, MATCH, UPLOAD].map(str::to_owned)),
@@ -397,11 +472,14 @@ fn a_tag_run_passes_on_a_match_not_exploited_and_uploads_the_sbom() {
         "time 0.1.43 is affected: {report}"
     );
 
-    // A pull request from a fork has no secret: the dry run reads no token.
+    // A secret GitHub does not give (a pull request from a fork) is empty: the dry run reads no token.
     let upload = job.step(
         UPLOAD,
         as_dry_run,
-        &[("FOREWARN_ENDPOINT", "https://forewarn.example.invalid")],
+        &[
+            ("FOREWARN_ENDPOINT", "https://forewarn.example.invalid"),
+            ("FOREWARN_TOKEN", ""),
+        ],
         0,
     );
     assert!(

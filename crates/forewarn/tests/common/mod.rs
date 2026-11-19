@@ -38,7 +38,8 @@ pub fn run_in(cwd: &Path, args: &[&str], stdin: Option<&[u8]>) -> Run {
     run_command(command, args, stdin, &[])
 }
 
-fn run_command(
+/// Runs `command` with `args`, `stdin` on its standard input, each variable of `env` set, or removed when `None`.
+pub fn run_command(
     mut command: Command,
     args: &[&str],
     stdin: Option<&[u8]>,
