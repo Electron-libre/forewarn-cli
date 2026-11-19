@@ -51,6 +51,9 @@ of scope: a refusal after a `100 Continue` (a proxy that buffers the body), a no
 1. [x] Early answer: the `PUT` sends `Expect: 100-continue`, the await of `100` set to 1 s in `send.rs`; the test
    server answers `100 Continue` when asked, as real servers do; verified by tests of an early `401` and `413` on an
    SBOM of 8 MiB and of a server that never answers `100`; ADR 0018 states the wait; makes true UPL-14, UPL-5. (autonomous)
+2. [x] Fixes of the `high` review: the CLI and proxy test servers answer `100 Continue` (no 1 s wait), one test
+   `Server` with three modes, `CONTINUE_TIMEOUT` documented on its own, the user guide names the case of a proxy
+   that agrees in the place of the service; verified by `project-check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -64,3 +67,12 @@ of scope: a refusal after a `100 Continue` (a proxy that buffers the body), a no
 - Code review: no findings
 - not verified: a real reverse proxy (nginx, a cloud load balancer); the CLI tests whose server never answers
   `100 Continue` each wait 1 s (17 tests, 2.1 s in parallel).
+
+## Deliverable 2
+- done: fixes of 5 of the 7 findings of the `high` review (1 s wait of the CLI and proxy tests, duplicated server,
+  doc of the constant and its default pinned, user guide unconditional).
+- red: none (no new behaviour).
+- `high` review: 7 findings; fixed: test wait, duplication, `CONTINUE_TIMEOUT` doc, ureq default pinned on purpose
+  (said in its doc), user guide; not fixed: an early answer later than 1 s on a loaded runner (a scheduling delay of
+  over 1 s, accepted); open: a `417 Expectation Failed` is not resent without the expectation (decision for the user).
+- Code review: no findings

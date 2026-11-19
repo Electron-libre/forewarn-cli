@@ -49,7 +49,7 @@ impl Service {
                 let mut parts = line.split(' ');
                 let method = parts.next().unwrap_or_default().to_owned();
                 let path = parts.next().unwrap_or_default().to_owned();
-                let (mut length, mut authorization) = (0, None);
+                let (mut length, mut authorization, mut continues) = (0, None, false);
                 loop {
                     let mut header = String::new();
                     reader.read_line(&mut header).expect("a header");
@@ -59,8 +59,12 @@ impl Service {
                     match name.to_ascii_lowercase().as_str() {
                         "content-length" => length = value.trim().parse().expect("a length"),
                         "authorization" => authorization = Some(value.trim().to_owned()),
+                        "expect" => continues = value.trim() == "100-continue",
                         _ => {}
                     }
+                }
+                if continues {
+                    let _ = reader.get_mut().write_all(b"HTTP/1.1 100 Continue\r\n\r\n");
                 }
                 let mut body = vec![0; length];
                 reader.read_exact(&mut body).expect("the body");

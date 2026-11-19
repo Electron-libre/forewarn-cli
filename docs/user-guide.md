@@ -300,7 +300,8 @@ It refuses what an upload would refuse before sending (exit codes 2, 3 and 10).
 A request is sent once, never retried, and no redirect is followed; each failure has its exit code (8 to 11, see
 [Exit codes](#exit-codes)): a `503` names the code `unavailable`, after which a rerun is safe. The request asks
 `Expect: 100-continue` and sends the SBOM once the service agrees, or after 1 s without an answer, so a token the
-service refuses before reading the SBOM exits with 9, not 8.
+service refuses within that second, before reading the SBOM, exits with 9, not 8; a proxy that agrees in the place
+of the service lets the SBOM go, and a refusal while it is sent exits with 8.
 
 ## In CI
 

@@ -17,9 +17,10 @@ const ANSWER_LIMIT: u64 = 1024 * 1024;
 /// The content type of the body (UPL-5).
 const CONTENT_TYPE: &str = "application/vnd.cyclonedx+json";
 
-/// How long an upload waits to connect, for a `100 Continue` before it sends the SBOM anyway (UPL-14), to send the
-/// SBOM, for the answer, and for its body (ADR 0018).
+/// How long an upload waits to connect, to send the SBOM, for the answer, and for its body (ADR 0018).
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+/// How long an upload waits for a `100 Continue` before it sends the SBOM anyway (UPL-14): `ureq`'s default, pinned
+/// because the spec states it.
 const CONTINUE_TIMEOUT: Duration = Duration::from_secs(1);
 const SEND_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(2 * 60);

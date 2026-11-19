@@ -24,7 +24,7 @@ fn serve(reply: String) -> (String, Arc<Mutex<Vec<String>>>) {
                 .expect("the lines")
                 .push(line.trim_end().to_owned());
             // The head and a small body, read before answering.
-            let mut length = 0;
+            let (mut length, mut continues) = (0, false);
             loop {
                 let mut header = String::new();
                 if reader.read_line(&mut header).unwrap_or(0) == 0 || header.trim_end().is_empty() {
@@ -33,6 +33,10 @@ fn serve(reply: String) -> (String, Arc<Mutex<Vec<String>>>) {
                 if let Some(value) = header.to_ascii_lowercase().strip_prefix("content-length:") {
                     length = value.trim().parse().unwrap_or(0);
                 }
+                continues |= header.eq_ignore_ascii_case("expect: 100-continue\r\n");
+            }
+            if continues {
+                let _ = reader.get_mut().write_all(b"HTTP/1.1 100 Continue\r\n\r\n");
             }
             let mut body = vec![0; length];
             let _ = std::io::Read::read_exact(&mut reader, &mut body);
