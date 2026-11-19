@@ -1,9 +1,17 @@
 //! The API contract of an SBOM upload to a Forewarn service (ADR 0017, `specs/upload-api.md`): plain types and pure
 //! functions, no I/O, shared by the upload adapter of the CLI and by the service.
 //!
-//! An upload is a `PUT` of the SBOM file as is to [`sbom_upload_path`], relative to the root of the service.
+//! An upload is a `PUT` of the SBOM file as is to [`sbom_upload_path`], relative to the root of the service; its
+//! answer is read with [`read_upload_answer`].
 
 use std::fmt;
+
+mod answer;
+
+pub use answer::{
+    ACCOUNT_PATH, Account, AccountAnswer, ErrorBody, ErrorCode, Receipt, UnreadableAnswer,
+    UploadAnswer, Warning, WarningCode, read_account_answer, read_upload_answer,
+};
 
 /// The path of the contract version every route lives under (UPA-1).
 pub const API_ROOT: &str = "/api/v1";

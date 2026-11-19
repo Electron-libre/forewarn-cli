@@ -297,6 +297,10 @@ dependencies = [
 [[package]]
 name = "forewarn-api"
 version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "forewarn-cache"

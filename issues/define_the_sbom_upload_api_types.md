@@ -55,9 +55,9 @@ Out of scope: sending the request (next issue).
 1. [x] Route: crate `forewarn-api` (workspace member, inherited license and lints, scope `api`), the route of a product
    version, its segments percent-encoded, the names the service would refuse refused first; verified by
    `crates/forewarn-api/tests/route.rs`; makes true UPA-1, UPA-2, UPA-5, UPA-6. (autonomous)
-2. [ ] Answers: the receipt, the refusal and its error codes, the warning codes, the account, read from a status and
+2. [x] Answers: the receipt, the refusal and its error codes, the warning codes, the account, read from a status and
    a body and written back as JSON; verified by `crates/forewarn-api/tests/answers.rs`; makes true UPA-3, UPA-4,
-   UPA-7 to UPA-13, UPA-H1, UPA-H2; spec and ADR 0017 `accepted`.
+   UPA-7 to UPA-13, UPA-H1, UPA-H2; spec and ADR 0017 `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -75,4 +75,13 @@ Out of scope: sending the request (next issue).
   product name or the version (blank, over 255 characters, control character, `.`/`..`); docs (`CLAUDE.md`,
   `docs/architecture.md`), scope `api`.
 - red: UPA-1, UPA-2, UPA-5, UPA-6: `unresolved imports forewarn_api::InvalidName, Name, NameProblem, sbom_upload_path`
+- Code review: no findings
+
+## Deliverable 2: answers
+
+- done: module `answer` of `forewarn-api`: `read_upload_answer` (`Created`/`Replaced` receipt, `Refused` with status,
+  code and optional message), `read_account_answer`, `ErrorCode` (7 codes, `status()`, `Unknown`), `WarningCode`,
+  `UnreadableAnswer` naming the status; every type written back as the JSON it reads; spec and ADR 0017 `accepted`;
+  docs (`CLAUDE.md`, `docs/architecture.md`).
+- red: UPA-3, UPA-4, UPA-7, UPA-8, UPA-9, UPA-10, UPA-11, UPA-12, UPA-13, UPA-H1, UPA-H2: `unresolved imports forewarn_api::AccountAnswer, ErrorBody, ErrorCode, Receipt, UploadAnswer, Warning, WarningCode, read_account_answer, read_upload_answer`
 - Code review: no findings
