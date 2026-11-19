@@ -49,7 +49,7 @@ flowchart TD
 | `forewarn-cache` | Refresh policy, freshness, the files of each download, a file lock per entry | single module |
 | `forewarn-api` | The contract of an SBOM upload, shared with the service: the route of a product version, the names it accepts, the answers of the service, read from a status and a body ([upload-api](../specs/upload-api.md), [ADR 0017](adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md)) | `lib` (route), `answer` |
 | `forewarn-upload` | The upload adapter: one `PUT` of the SBOM to a service, the endpoint (HTTPS, or a loopback host in plain HTTP) and the bearer token checked before anything is sent, the answer read with `forewarn-api` into a receipt or an error (unreachable, credentials refused, upload refused, unreadable answer) ([sbom-upload](../specs/sbom-upload.md), [ADR 0018](adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md)) | `endpoint`, `token`, `send` (`upload`, `check_upload`) |
-| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `awareness` (the moments of awareness of a run, of the measure and of the check, the deadlines of each CVE and their lines of the human report), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` (the characters both writers escape, a path's own way), `error_line` (the error lines naming a file), `upload` (`forewarn upload`: the endpoint and token of the environment, its report) |
+| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `awareness` (the moments of awareness of a run, of the measure and of the check, the deadlines of each CVE and their lines of the human report), `awareness_file` (the file of `--awareness`: the moment of each CVE per product, read and rewritten whole), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` (the characters both writers escape, a path's own way), `error_line` (the error lines naming a file), `upload` (`forewarn upload`: the endpoint and token of the environment, its report) |
 
 The dependency direction is enforced: `crates/forewarn/tests/workspace_policy.rs` fails when the domain depends on
 another crate of the workspace, or when a crate does not inherit the workspace license and lints.
@@ -92,7 +92,9 @@ flowchart LR
    ([vex-verdicts](../specs/vex-verdicts.md), [ADR 0014](adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md)); its CRA article 14(2) deadlines are computed from the
    moment of awareness of its CVE ([reporting-deadlines](../specs/reporting-deadlines.md)); the early warning's fields are filled
    or marked to complete ([early-warning-draft](../specs/early-warning-draft.md)).
-6. **Output.** The stale drafts of the directory are listed, then the drafts written, so that a failure
+6. **Output.** With `--awareness`, the file read before the SBOM takes the moment of each CVE it records and is
+   rewritten with the CVEs it did not hold ([cli-match-awareness](../specs/cli-match-awareness.md),
+   [ADR 0019](adr/0019-remember-the-moments-of-awareness-in-a-file-the-user-names.md)). The stale drafts of the directory are listed, then the drafts written, so that a failure
    leaves standard output empty; then the report; then the exit code ([cli-match](../specs/cli-match.md), [cli-match-exploited](../specs/cli-match-exploited.md)).
 
 `forewarn check` stops after step 2 and runs the completeness rules
@@ -165,3 +167,4 @@ Every structural decision is an ADR in [`docs/adr/`](adr/):
 | [0016](adr/0016-complete-the-sbom-of-the-release-binaries-after-cargo-cyclonedx.md) | The release SBOMs completed by a `jq` step (manufacturer, crates.io as supplier, source hash of the workspace crates) and refused when `forewarn check` finds them incomplete |
 | [0017](adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md) | The upload contract shared with the service in a crate of plain types: the SBOM as the body, the product and version in the path, the version of the contract in the path |
 | [0018](adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md) | The upload sent by an adapter crate of its own, not a feature of the contract crate: HTTPS or loopback HTTP, a redacted token, no redirect, no retry |
+| [0019](adr/0019-remember-the-moments-of-awareness-in-a-file-the-user-names.md) | The moment of awareness of each CVE kept in a JSON file the user names (`--awareness`), not in the cache nor read back from the drafts; a recorded moment prevails over `--aware-since` |

@@ -3,6 +3,7 @@
 
 mod args;
 mod awareness;
+mod awareness_file;
 mod drafts;
 mod early_warning;
 mod error_line;
@@ -35,6 +36,7 @@ use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
 use args::{CheckArgs, Cli, Command, Format, MatchArgs};
 use awareness::Awareness;
+use awareness_file::{AwarenessFile, product_key};
 use error_line::ErrorLine;
 use report::{ExploitedSource, Origin, Source};
 
@@ -67,7 +69,7 @@ fn run_check(args: &CheckArgs) -> Result<ExitCode, u8> {
 
 fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
-    let awareness = Awareness::of_run(args);
+    let mut awareness = Awareness::of_run(args);
     let fetches_archives = args.osv.is_empty() && !args.osv_api;
     let fetches_kev = args.kev.is_none() && !args.no_kev;
     let fetches_euvd = args.euvd.is_none() && !args.no_euvd;
@@ -93,6 +95,8 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     let euvd_feed = cache
         .filter(|_| fetches_euvd)
         .map(|cache| euvd_feed(args, cache, refresh));
+    // The file of the moments of awareness before the SBOM (AWR-10).
+    let awareness_file = read_awareness_file(args)?;
     let sbom = read_sbom(&args.sbom)?;
     let vex_files = read_vex_files(&args.vex)?;
     let mut records = Records::default();
@@ -145,6 +149,8 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
             records: *records,
         }))
         .collect();
+    // The moments recorded before the drafts and the report, so that a file not written leaves both unwritten (AWR-11).
+    remember(&mut awareness, awareness_file, &sbom, &matching)?;
     // The drafts before the report, so that a draft not written leaves standard output empty (MXL-33).
     let drafts = args
         .drafts
@@ -168,6 +174,44 @@ fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
         return Ok(ExitCode::from(EXPLOITED));
     }
     Ok(exit(!matching.matches().is_empty() && !args.allow_affected))
+}
+
+/// The file of `--awareness`, or prints why it cannot be read and returns the code 3 (AWR-10).
+fn read_awareness_file(args: &MatchArgs) -> Result<Option<AwarenessFile>, u8> {
+    args.awareness
+        .as_deref()
+        .map(AwarenessFile::read)
+        .transpose()
+        .map_err(|error| {
+            eprintln!("error: {}", error.line());
+            UNREADABLE
+        })
+}
+
+/// Takes the moments the file of `--awareness` records for the CVEs of the actively exploited matches of the product
+/// of `sbom` and records the others (AWR-1, AWR-2), or prints why the file cannot be written and returns the code 7
+/// (AWR-11); nothing without the file.
+fn remember(
+    awareness: &mut Awareness,
+    file: Option<AwarenessFile>,
+    sbom: &Sbom,
+    matching: &FlaggedReport,
+) -> Result<(), u8> {
+    let Some(file) = file else {
+        return Ok(());
+    };
+    let product = sbom.product.as_ref().map(|product| product.name.as_str());
+    let cves = matching
+        .matches()
+        .iter()
+        .filter_map(|flagged| flagged.evidence.first())
+        .map(|evidence| evidence.cve.as_str());
+    awareness
+        .remember(file, product_key(product).as_deref(), cves)
+        .map_err(|error| {
+            eprintln!("error: {}", error.line());
+            DRAFT_UNWRITABLE
+        })
 }
 
 /// Matches the components of `sbom`, flags the matches the exploited lists name, then sets aside those the verdicts

@@ -49,11 +49,11 @@ nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts bac
    (`draft_early_warnings` takes the moment of each CVE), the reports take a moment per match; `Awareness`, its human
    lines and deadlines move from `report.rs` to a module `awareness` (keeps `report.rs` under 800 lines); verified by
    the existing tests unchanged; makes true nothing new (refactor). (autonomous)
-2. [ ] `--awareness <file>`: read, record the new CVEs (atomic write), deadlines, drafts, human and JSON reports from
+2. [x] `--awareness <file>`: read, record the new CVEs (atomic write), deadlines, drafts, human and JSON reports from
    the moment of each CVE; verified by tests through the binary (`tests/awareness.rs`); makes true AWR-1 to AWR-9,
-   AWR-12, the amended MXL-17, MXL-18 and the MCH-16 row.
-3. [ ] Refusals: the file unreadable or invalid (exit 3 before the SBOM), unwritable (exit 7, no draft); verified by
-   tests through the binary; makes true AWR-10, AWR-11, the MCH-10 rows; sets AWR, MXL, MCH `accepted`.
+   AWR-12, the amended MXL-17, MXL-18 and the MCH-16 row. (autonomous)
+3. [x] Refusals: the file unreadable or invalid (exit 3 before the SBOM), unwritable (exit 7, no draft); verified by
+   tests through the binary; makes true AWR-10, AWR-11, the MCH-10 rows; sets AWR, MXL, MCH `accepted`. (autonomous, with 2)
 4. [ ] CI templates: `--awareness` under the kept cache directory (GitHub `~/.cache/forewarn/awareness.json`, GitLab
    `.forewarn-cache/awareness.json`), the comment on the deadlines updated; `ci_template_run.rs` and
    `ci_gitlab_template_run.rs` check that a second daily run reads the moment back and shows the early warning
@@ -66,6 +66,9 @@ nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts bac
 - 2 a: a recorded moment prevails; `--aware-since` gives the moment of the CVEs the file does not hold yet.
 - 3 a: a file that cannot be written exits with 7.
 - 4 a: the CI templates keep the file in the cache directory they already keep.
+- Deliverables 2 and 3 merged (2026-11-19, autonomous): the refusals are the error paths of the reading and the
+  writing the file needs, so their tests come first in one deliverable (~800 lines, under the limit); the plan keeps
+  the numbering, 3 ticked with 2.
 - Estimated size: ~250 + ~650 + ~250 + ~300 changed lines.
 
 ## Summaries
@@ -77,5 +80,18 @@ nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts bac
 - red: EWD-4: `expected Moment, found closure` (the domain took one moment for every CVE).
 - Code review: no findings.
 - checks: project-check passed (fmt, clippy, tests, specs).
+- not verified: none.
+- decisions needed: none.
+
+### 2 and 3. `--awareness <file>` and its refusals
+- done: option `--awareness`, module `awareness_file` (read before the SBOM, entries per product and CVE, rewritten
+  whole through the temporary file of the drafts); the deadlines, drafts and reports of each CVE take its recorded
+  moment; a per-match line of the human report and `awareSince` of each match in JSON (none in `setAside`, MVX-8
+  amended); exit 3 for a file unreadable or invalid, 7 for one unwritable; AWR, MXL, MCH, MVX `accepted`; user guide,
+  CLAUDE.md, architecture.
+- red: AWR-H1, AWR-H2, AWR-1 to AWR-12, MCH-10, MCH-16: `unexpected argument '--awareness' found`.
+- Code review: no findings.
+- checks: project-check passed; `tests/matching.rs` (848 lines, over 800 before) gets only `awareSince` in two
+  expectations, not split here.
 - not verified: none.
 - decisions needed: none.

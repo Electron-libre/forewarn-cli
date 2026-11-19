@@ -135,6 +135,11 @@ pub(crate) struct MatchArgs {
     /// one Markdown file per CVE named `<product>-<CVE>.md`, replaced on a rerun.
     #[arg(long, value_name = "DIR")]
     pub(crate) drafts: Option<PathBuf>,
+    /// A JSON file of the moment of awareness of each actively exploited CVE per product, created when missing: the
+    /// deadlines of a CVE it records count from its moment, and the CVEs it does not record are recorded at the moment
+    /// of awareness of the run (`--aware-since`, else the moment of the run). Keep it between CI runs.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) awareness: Option<PathBuf>,
     /// A CycloneDX VEX document whose verdicts are applied after those of the SBOM; repeat it for several. A match
     /// every verdict naming it says `not_affected`, `false_positive` or `resolved` is set aside: listed apart, out of
     /// the exit code and the drafts.

@@ -1,6 +1,6 @@
 ---
 id: AWR
-status: draft
+status: accepted
 adrs: [0011, 0019]
 ---
 
@@ -88,14 +88,16 @@ The exit codes (3 for a file of moments that cannot be read, 7 for one that cann
   entry for that CVE.
 - (AWR-8) Given `--awareness a/b/awareness.json` where `a` does not exist and no match actively exploited, when the
   SBOM is matched, then nothing is created; given an exploited match, `a/b/` is created with the file.
-- (AWR-10, MCH-10) Given a file that is not JSON, a file `{}`, an entry whose `awareSince` is `2026-11-13`, two
+- (AWR-10, MCH-10) Given a directory, a file that is not JSON, a file `{}`, an entry whose `awareSince` is `2026-11-13`, two
   entries of `shop` and `CVE-2021-44228`, or a moment `9999-12-30T00:00:01Z`, when the command runs, then standard
   output is empty, standard error names the file, the command exits with 3 and the file is left untouched.
-- (AWR-11, MCH-10) Given `--awareness` naming a directory, or a path under a regular file, and an exploited match,
+- (AWR-11, MCH-10) Given `--awareness` naming a path under a regular file, and an exploited match,
   when the command runs with `--drafts drafts/`, then no draft is written, standard output is empty, standard error
   names the path, and the command exits with 7.
 - (AWR-6, AWR-12) Given no `--awareness`, when an exploited match is reported in JSON, then its `awareSince` is the
-  top-level `awareSince` and no file is written.
+  top-level `awareSince`, that of a match no list names is `null`, and no file is written.
+- (AWR-12, MVX-8) Given an exploited match set aside by a `not_affected` verdict, when it is reported in JSON, then
+  its entry of `setAside` holds no `awareSince`.
 
 ## Non-goals
 

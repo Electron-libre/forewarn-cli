@@ -89,7 +89,7 @@ pub fn write(
         .zip(names)
         .map(|(draft, name)| {
             let path = directory.join(name);
-            replace(&path, &early_warning::markdown(draft))
+            replace(&path, &early_warning::markdown(draft), ".forewarn-draft-")
                 .map_err(|error| WriteError {
                     kind: Failure::Write,
                     path: path.clone(),
@@ -170,13 +170,16 @@ fn safe(characters: impl Iterator<Item = char>) -> String {
         .collect()
 }
 
-/// Writes `text` to a new temporary file of a random name beside `path`, flushed to the disk, then renames it over
-/// `path`, so that `path` holds either its former content or the whole text (MXL-34); the temporary file is removed
-/// when a step fails.
-fn replace(path: &Path, text: &str) -> io::Result<()> {
-    let directory = path.parent().unwrap_or(Path::new("."));
+/// Writes `text` to a new temporary file of a random name opening on `prefix` beside `path`, flushed to the disk, then
+/// renames it over `path`, so that `path` holds either its former content or the whole text (MXL-34, AWR-9); the
+/// temporary file is removed when a step fails.
+pub(crate) fn replace(path: &Path, text: &str, prefix: &str) -> io::Result<()> {
+    let directory = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
     let mut temporary = tempfile::Builder::new()
-        .prefix(".forewarn-draft-")
+        .prefix(prefix)
         .suffix(".tmp")
         .tempfile_in(directory)?;
     temporary.write_all(text.as_bytes())?;

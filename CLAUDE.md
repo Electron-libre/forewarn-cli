@@ -46,7 +46,11 @@ OSV API names for its components (`specs/cli-match.md`), each match the CISA KEV
 actively exploited with its evidence (the catalog fetched into the same cache or read with `--kev`, the EUVD list paged
 into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-since` (by default the moment of the
 run) and `--measure-available`, each with the time left before it or how long it is overdue at `--now` (by default the
-moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`); with `--drafts <dir>`, it
+moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`); with `--awareness <file>`, it
+counts the deadlines of each such CVE from the moment the file records for the product and the CVE, records the
+moment of the run for those it does not, and rewrites the file whole then (module `awareness_file`), exiting with 3
+when the file cannot be read, 7 when it cannot be written (`specs/cli-match-awareness.md`, ADR
+[0019](docs/adr/0019-remember-the-moments-of-awareness-in-a-file-the-user-names.md)); with `--drafts <dir>`, it
 writes the draft early warning of each such CVE into `<dir>/<product>-<CVE>.md` (module `drafts`), names the files in
 the report, names apart the stale drafts of the product it no longer writes, left in place, and exits with 7 when one
 cannot be written or the directory listed. It applies the VEX verdicts of the SBOM and of each
@@ -118,7 +122,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read or paged into a cache, into the domain's exploited lists | `feeds` |
 | `forewarn-api` | the contract of an SBOM upload shared with the service, no I/O: the route of a product version and the names it accepts, the answers of the service (module `answer`) (`specs/upload-api.md`, ADR 0017) | `api` |
 | `forewarn-upload` | upload adapter: the endpoint of a service and the bearer token, checked (modules `endpoint`, `token`), the `PUT` of the SBOM and its answer mapped to a receipt or an error (module `send`) (`specs/sbom-upload.md`, ADR 0018) | `api` |
-| `forewarn` | the CLI binary: arguments (module `args`), wiring, the moments of awareness, of the measure and of the check of a run (module `awareness`), the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`), the error lines naming a file (module `error_line`), `forewarn upload` (module `upload`) | `cli` |
+| `forewarn` | the CLI binary: arguments (module `args`), wiring, the moments of awareness, of the measure and of the check of a run (module `awareness`) and the file of `--awareness` remembering them per CVE (module `awareness_file`), the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`), the error lines naming a file (module `error_line`), `forewarn upload` (module `upload`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`
 crates. `publish = false` stays until the first publication is decided (the path dependencies then need a `version`).

@@ -623,6 +623,10 @@ pub(crate) fn match_json(flagged: &FlaggedMatch, awareness: &Awareness) -> Value
         "aliases": found.aliases,
         "records": records,
         "exploited": exploited,
+        "awareSince": flagged
+            .evidence
+            .first()
+            .map(|evidence| awareness.since(&evidence.cve).to_string()),
         "deadlines": flagged.evidence.first().map(|evidence| {
             let deadlines = awareness.deadlines(&evidence.cve);
             json!({

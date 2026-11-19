@@ -207,12 +207,45 @@ forewarn match --aware-since 2026-11-13T09:30:00Z --measure-available 2026-11-15
 ```
 
 - Instants are RFC 3339; an offset is converted to UTC (`2026-11-13T10:30:00+01:00` is `09:30:00Z`).
-- One moment of awareness applies to every match of the run.
+- One moment of awareness applies to every match of the run, unless `--awareness` remembers one per CVE (below).
 - The human report shows the time left before each deadline (`23h 30m 0s left`, `due now`) or how long it is overdue
   (`overdue by 1d 0h 30m 0s`), at `--now <instant>`, by default the moment of the run. The JSON report gives the
   deadlines and leaves that comparison to its reader.
 - The deadlines are 24 h, 72 h and 14 × 24 h from the moment itself, never later than the periods Regulation 1182/71
   computes (which start at the next hour or day and move to the next working day): reporting by them is never late.
+
+### Remember the moment of awareness across runs
+
+A job that runs `forewarn match` each day would count the 24 h and 72 h from each run again: an exploited CVE left
+unreported would never show overdue. `--awareness <file>` keeps, per product and CVE, the moment a run first flagged
+it:
+
+```sh
+forewarn match --awareness state/awareness.json sbom.cdx.json
+```
+
+- A CVE the file records counts its deadlines from its recorded moment, which prevails over `--aware-since`.
+- A CVE it does not record yet is recorded at the moment of awareness of the run (`--aware-since`, else the moment of
+  the run); the file is created then, with its directories, and rewritten whole only when a CVE is added.
+- An entry is never changed nor removed by a run: to correct a moment, edit the file.
+- The human report gives, above the deadlines of each match, its moment and where it came from (`from <file>`,
+  `--aware-since` or `the moment of the run`); the JSON report gives it as `awareSince` of each match.
+- A file that cannot be read stops the run with exit code 3 before the SBOM is read; one that cannot be written, with
+  7, before any draft is written.
+- Keep the file between CI runs, as the cache: the [CI templates](#in-ci) keep it in their cache directory. A file
+  lost restarts the deadlines of every CVE from the next run.
+
+```json
+{
+  "awareness": [
+    {
+      "awareSince": "2026-11-13T09:30:00Z",
+      "cve": "CVE-2021-44228",
+      "product": "shop"
+    }
+  ]
+}
+```
 
 ## Draft early warnings
 
@@ -391,12 +424,12 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | `osv` | each source of records: `kind` (`archive`, `api`, `local`), `recordCount`, and when it was downloaded or queried, or its path |
 | `exploitedLists` | each list used: `name`, `kind` (`fetched`, `local`), `entryCount`, the catalog's `version` and `released`, and `downloadedAt` or `path` |
 | `awareSince`, `measureAvailable` | the moments of the deadlines, `null` when nothing is actively exploited |
-| `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
+| `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `awareSince` (the moment its deadlines count from, which `--awareness` may have recorded) or `null`, `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
 | `notEvaluated` | each component not evaluated, with its reason (`first-party`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
 | `drafts` | each draft written: `cve`, `path` |
 | `staleDrafts` | each draft of the product left from an earlier run that this run no longer writes: `cve`, `path` |
 | `vex` | each source of verdicts: `kind` (`sbom`, `file`), `verdictCount`, and the `path` of a file |
-| `setAsideCount`, `setAside` | each match a VEX verdict set aside, as in `affected` without `deadlines`, with its `verdict` (`state`, `justification`, `detail`, `source`: `sbom` or the path) |
+| `setAsideCount`, `setAside` | each match a VEX verdict set aside, as in `affected` without `awareSince` and `deadlines`, with its `verdict` (`state`, `justification`, `detail`, `source`: `sbom` or the path) |
 | `unusedVerdicts` | each verdict that names no match: `ids`, `targets`, `source` |
 
 ### Exit codes
@@ -406,11 +439,11 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | 0 | the SBOM is complete (or `--allow-incomplete`) | nothing affected (or `--allow-affected` and nothing actively exploited) | the SBOM is stored, or `--dry-run` |
 | 1 | a component is incomplete | a component is affected, a match set aside by VEX not counted | |
 | 2 | invalid arguments | invalid arguments, an instant refused | invalid arguments, no endpoint or one refused, no `FOREWARN_TOKEN` or one refused (without `--dry-run`), no product name or version |
-| 3 | the SBOM cannot be read | the SBOM or a `--vex` file cannot be read | the SBOM cannot be read |
+| 3 | the SBOM cannot be read | the SBOM, a `--vex` file or the file of `--awareness` cannot be read | the SBOM cannot be read |
 | 4 | the report cannot be written | the report cannot be written | the report cannot be written |
 | 5 | | the OSV records, the KEV catalog or the EUVD list cannot be read, fetched or queried | |
 | 6 | | a match is actively exploited, even with `--allow-affected` | |
-| 7 | | a draft cannot be written, or the directory of the drafts listed; nothing is printed on standard output | |
+| 7 | | the file of `--awareness` or a draft cannot be written, or the directory of the drafts listed; nothing is printed on standard output | |
 | 8 | | | the endpoint cannot be reached |
 | 9 | | | the service refused the credentials (`401`, `403`) |
 | 10 | | | the upload is refused: by the service, or before anything is sent (a name the service would refuse, an SBOM over 10 MiB) |

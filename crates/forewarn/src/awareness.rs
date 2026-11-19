@@ -1,7 +1,10 @@
-//! The moments the CRA reporting deadlines of `forewarn match` count from and are checked at, and their part of the
-//! human report (`specs/cli-match-exploited.md`, MXL-14 to MXL-26).
+//! The moments the CRA reporting deadlines of `forewarn match` count from and are checked at, those a file of
+//! `--awareness` recorded included, and their part of the human report (`specs/cli-match-exploited.md`, MXL-14 to
+//! MXL-26, `specs/cli-match-awareness.md`).
 
+use std::collections::HashMap;
 use std::fmt::Write;
+use std::path::PathBuf;
 use std::time::SystemTime;
 
 use forewarn_domain::date::Moment;
@@ -10,6 +13,8 @@ use forewarn_domain::deadlines::{
 };
 
 use crate::args::{GivenMoment, MatchArgs, moment};
+use crate::awareness_file::{AwarenessFile, FileError};
+use crate::escape::push_escaped_path;
 use crate::report::offset_date_time;
 use crate::usage_error;
 
@@ -25,6 +30,9 @@ pub struct Awareness {
     pub checked_at: Moment,
     /// Whether it was given with `--now`, else read from the clock.
     pub checked_given: bool,
+    /// The file of `--awareness` and the moments it recorded before the run, by CVE, for the product of the SBOM
+    /// (AWR-1).
+    recorded: Option<(PathBuf, HashMap<String, Moment>)>,
 }
 
 impl Awareness {
@@ -75,12 +83,47 @@ impl Awareness {
             measure_available,
             checked_at: given_or_run(args.now.as_ref()),
             checked_given: args.now.is_some(),
+            recorded: None,
         }
     }
 
-    /// The moment of awareness of `cve` (MXL-17).
-    pub fn since(&self, _cve: &str) -> Moment {
-        self.since
+    /// Takes the moment `file` records for `product` and each of `cves`, the CVEs of the actively exploited matches
+    /// of the run, and records the moment of the run for the others, then writes the file when it recorded one
+    /// (AWR-1, AWR-2, AWR-8).
+    ///
+    /// # Errors
+    /// [`FileError`] when the file cannot be written (AWR-11).
+    pub fn remember<'a>(
+        &mut self,
+        mut file: AwarenessFile,
+        product: Option<&str>,
+        cves: impl IntoIterator<Item = &'a str>,
+    ) -> Result<(), FileError> {
+        let mut recorded = HashMap::new();
+        let mut changed = false;
+        for cve in cves {
+            match file.recorded(product, cve) {
+                Some(moment) => {
+                    recorded.insert(cve.to_owned(), moment);
+                }
+                None => changed |= file.record(product, cve, self.since),
+            }
+        }
+        if changed {
+            file.write()?;
+        }
+        self.recorded = Some((file.path().to_owned(), recorded));
+        Ok(())
+    }
+
+    /// The moment of awareness of `cve`: the one the file of `--awareness` recorded before the run, else that of the
+    /// run (MXL-17, AWR-1).
+    pub fn since(&self, cve: &str) -> Moment {
+        self.recorded
+            .as_ref()
+            .and_then(|(_, recorded)| recorded.get(cve))
+            .copied()
+            .unwrap_or(self.since)
     }
 
     /// The reporting deadlines of `cve` (MXL-14 to MXL-16).
@@ -122,6 +165,19 @@ impl Awareness {
     /// Pushes the line of the reporting deadlines of an actively exploited match of `cve`, each with the time left
     /// before it or overdue at the moment of the check (MXL-14 to MXL-16, MXL-22).
     pub fn push_deadlines(&self, text: &mut String, cve: &str) {
+        if let Some((path, recorded)) = &self.recorded {
+            // With `--awareness`, the moment of each match and where it came from (AWR-4).
+            let _ = write!(text, "    aware since {} (", self.since(cve));
+            if recorded.contains_key(cve) {
+                text.push_str("from ");
+                push_escaped_path(text, path);
+            } else if self.given {
+                text.push_str("--aware-since");
+            } else {
+                text.push_str("the moment of the run");
+            }
+            text.push_str(")\n");
+        }
         let deadlines = self.deadlines(cve);
         let state = |deadline| state(DeadlineState::at(deadline, self.checked_at));
         let _ = write!(

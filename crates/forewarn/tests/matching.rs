@@ -135,6 +135,7 @@ fn prints_the_same_result_as_json() {
                 "aliases": ["GHSA-wcg3-cvx6-7396", "RUSTSEC-2020-0071"],
                 "records": [{"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true}],
                 "exploited": [],
+                "awareSince": null,
                 "deadlines": null,
             }],
             "drafts": [],
@@ -618,6 +619,7 @@ fn lists_a_vulnerability_held_by_two_records_once_with_both() {
                 {"id": "RUSTSEC-2020-0071", "source": "RUSTSEC", "affects": true},
             ],
             "exploited": [],
+            "awareSince": null,
             "deadlines": null,
         }])
     );

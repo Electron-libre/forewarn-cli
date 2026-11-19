@@ -43,7 +43,7 @@ exploited or draft its early warning.
   |---|---|
   | `vex` | an array of objects `{"kind": "sbom", "verdictCount"}` then `{"kind": "file", "path", "verdictCount"}` in the order of MVX-2 |
   | `setAsideCount` | the number of matches set aside |
-  | `setAside` | an array, in the order of VEX-10, of objects with the members of an entry of `affected` (MCH-16) but `deadlines`, and `verdict`, an object `{"state", "justification", "detail", "source"}`, `justification` and `detail` a string or `null`, `source` `"sbom"` or the path of the `--vex` file |
+  | `setAside` | an array, in the order of VEX-10, of objects with the members of an entry of `affected` (MCH-16) but `awareSince` and `deadlines`, and `verdict`, an object `{"state", "justification", "detail", "source"}`, `justification` and `detail` a string or `null`, `source` `"sbom"` or the path of the `--vex` file |
   | `unusedVerdicts` | an array of objects `{"ids", "targets", "source"}` of MVX-6, in the order of the verdicts |
 
 - **MVX-9** (deterministic) The human report must print the justification and the detail of a verdict, and the

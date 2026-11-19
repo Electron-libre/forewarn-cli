@@ -160,6 +160,7 @@ pub fn json_members(
             let mut entry = match_json(&aside.found, awareness);
             let verdict = &verdicts.all[aside.verdict];
             if let Value::Object(members) = &mut entry {
+                members.remove("awareSince");
                 members.remove("deadlines");
                 members.insert(
                     "verdict".into(),
