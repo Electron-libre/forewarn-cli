@@ -68,7 +68,8 @@ credentials refused (`401`, `403`), the upload refused and an unreadable answer 
 and version of its `metadata.component` (`--product`, `--product-version` override them) to the endpoint of
 `--endpoint`, else `FOREWARN_ENDPOINT`, with the token of `FOREWARN_TOKEN` (never an option), prints what the service
 stored, and exits with 8 (unreachable), 9 (credentials refused), 10 (upload refused) or 11 (unreadable answer) when it
-is not stored (`specs/cli-upload.md`, module `upload`).
+is not stored (`specs/cli-upload.md`, module `upload`); `--dry-run` prints what it would send, reads no token and
+sends nothing.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`. The workflow
 `.github/workflows/check.yml` runs that command on every push to `main` and every pull request, builds on the toolchain

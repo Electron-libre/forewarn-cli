@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use clap::error::ErrorKind;
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::sbom::Sbom;
-use forewarn_upload::{Endpoint, Stored, Token, UploadError, upload};
+use forewarn_upload::{Endpoint, Stored, Token, UploadError, check_upload, upload};
 
 use crate::args::UploadArgs;
 use crate::escape::{escaped, push_escaped};
@@ -35,17 +35,28 @@ const MISSING: u8 = 2;
 /// Runs `forewarn upload`: the arguments checked first, then the SBOM read, then sent (CUP-10).
 pub(crate) fn run(args: &UploadArgs) -> Result<ExitCode, u8> {
     let endpoint = endpoint(args.endpoint.as_deref(), env::var_os(ENDPOINT_VARIABLE));
-    let token = token(env::var_os(TOKEN_VARIABLE));
+    // A dry run reads no token (CUP-8).
+    let token = (!args.dry_run).then(|| token(env::var_os(TOKEN_VARIABLE)));
     let bytes = read_bytes(&args.sbom)?;
     let sbom =
         read_json(bytes.as_slice()).map_err(|error| unreadable(input_name(&args.sbom), &error))?;
     let (product, version) = names(args, &sbom)?;
-    let stored = upload(&endpoint, &token, &product, &version, &bytes).map_err(|error| {
-        eprintln!("error: {}", escaped(&error.to_string()));
-        exit_code(&error)
-    })?;
-    write_report(&report(&endpoint, &product, &version, &stored))?;
+    let report = if let Some(token) = token {
+        let stored = upload(&endpoint, &token, &product, &version, &bytes)
+            .map_err(|error| failed(&error))?;
+        report(&endpoint, &product, &version, &stored)
+    } else {
+        check_upload(&product, &version, &bytes).map_err(|error| failed(&error))?;
+        dry_run(&endpoint, &product, &version, bytes.len())
+    };
+    write_report(&report)?;
     Ok(ExitCode::SUCCESS)
+}
+
+/// Prints the line of a failed upload and returns its exit code (CUP-9, CUP-11).
+fn failed(error: &UploadError) -> u8 {
+    eprintln!("error: {}", escaped(&error.to_string()));
+    exit_code(error)
 }
 
 /// The endpoint of `--endpoint`, else of the environment when set and not empty (CUP-7); exits with 2 when there is
@@ -158,5 +169,17 @@ fn report(endpoint: &Endpoint, product: &str, version: &str, stored: &Stored) ->
         push_escaped(&mut text, &warning.message);
         text.push('\n');
     }
+    text
+}
+
+/// The report of a dry run: what would be sent, and that nothing was (CUP-5).
+fn dry_run(endpoint: &Endpoint, product: &str, version: &str, size: usize) -> String {
+    let mut text = String::from("Would upload ");
+    push_escaped(&mut text, product);
+    text.push(' ');
+    push_escaped(&mut text, version);
+    text.push_str(" to ");
+    push_escaped(&mut text, endpoint.as_str());
+    let _ = writeln!(text, ": an SBOM of {size} bytes; nothing sent (--dry-run)");
     text
 }

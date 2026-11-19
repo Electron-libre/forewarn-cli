@@ -44,6 +44,10 @@ pub(crate) struct UploadArgs {
     /// The version to upload under, instead of the version of the SBOM's `metadata.component`.
     #[arg(long, value_name = "VERSION")]
     pub(crate) product_version: Option<String>,
+    /// Print the endpoint, the product name, the version and the size of the SBOM, and send nothing; the token is not
+    /// read.
+    #[arg(long)]
+    pub(crate) dry_run: bool,
 }
 
 #[derive(Args)]

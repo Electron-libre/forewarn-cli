@@ -288,6 +288,15 @@ Stored: a new version, 42 components (CycloneDX 1.6), received at 2026-11-19T10:
   The service dates the upload with its own clock; the report prints when it received it, and its warnings (a spec
   version below 1.6, for example).
 
+`--dry-run` prints what would be sent and sends nothing; it needs no token, so a job can check its setup first:
+
+```console
+$ forewarn upload --dry-run --endpoint https://forewarn.example.com sbom.cdx.json
+Would upload acme-gateway 2.4.0 to https://forewarn.example.com: an SBOM of 18342 bytes; nothing sent (--dry-run)
+```
+
+It refuses what an upload would refuse before sending (exit codes 2, 3 and 10).
+
 A request is sent once, never retried, and no redirect is followed; each failure has its exit code (8 to 11, see
 [Exit codes](#exit-codes)): a `503` names the code `unavailable`, after which a rerun is safe.
 
@@ -362,9 +371,9 @@ Never source code. Your own components (first-party) are never matched nor sent.
 
 | Code | `check` | `match` | `upload` |
 |---|---|---|---|
-| 0 | the SBOM is complete (or `--allow-incomplete`) | nothing affected (or `--allow-affected` and nothing actively exploited) | the SBOM is stored |
+| 0 | the SBOM is complete (or `--allow-incomplete`) | nothing affected (or `--allow-affected` and nothing actively exploited) | the SBOM is stored, or `--dry-run` |
 | 1 | a component is incomplete | a component is affected, a match set aside by VEX not counted | |
-| 2 | invalid arguments | invalid arguments, an instant refused | invalid arguments, no endpoint or one refused, no `FOREWARN_TOKEN` or one refused, no product name or version |
+| 2 | invalid arguments | invalid arguments, an instant refused | invalid arguments, no endpoint or one refused, no `FOREWARN_TOKEN` or one refused (without `--dry-run`), no product name or version |
 | 3 | the SBOM cannot be read | the SBOM or a `--vex` file cannot be read | the SBOM cannot be read |
 | 4 | the report cannot be written | the report cannot be written | the report cannot be written |
 | 5 | | the OSV records, the KEV catalog or the EUVD list cannot be read, fetched or queried | |

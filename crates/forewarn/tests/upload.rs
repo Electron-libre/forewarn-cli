@@ -411,3 +411,62 @@ fn a_path_that_cannot_be_read_is_named_escaped() {
     assert!(run.stderr.contains("no\\u{1b}such.json"), "{}", run.stderr);
     assert!(service.requests().is_empty());
 }
+
+// spec: CUP-H3, CUP-5, CUP-8
+#[test]
+fn a_dry_run_prints_what_would_be_sent_and_sends_nothing_without_a_token() {
+    let service = Service::answering(201, &receipt(1, &json!([])));
+    let sbom = gateway();
+    let dir = TempDir::new().expect("a temp dir");
+    let path = dir.path().join("sbom.json");
+    fs::write(&path, &sbom).expect("the SBOM is written");
+    let run = upload(
+        &[
+            "--dry-run",
+            "--endpoint",
+            &service.base,
+            path.to_str().expect("a UTF-8 path"),
+        ],
+        None,
+        &[("FOREWARN_TOKEN", None)],
+    );
+    assert_eq!(run.code, 0, "{}", run.stderr);
+    assert_eq!(run.stderr, "");
+    let size = sbom.len().to_string();
+    for part in [
+        service.base.as_str(),
+        "acme-gateway",
+        "2.4.0",
+        size.as_str(),
+    ] {
+        assert!(run.stdout.contains(part), "{part}: {}", run.stdout);
+    }
+    assert!(service.requests().is_empty());
+}
+
+// spec: CUP-5, CUP-9
+#[test]
+fn a_dry_run_refuses_what_the_upload_would_refuse() {
+    let run = upload(
+        &["--dry-run", "--endpoint", "http://example.com", "-"],
+        Some(&gateway()),
+        &[("FOREWARN_TOKEN", None)],
+    );
+    assert_eq!(run.code, 2, "{}", run.stderr);
+    let service = Service::answering(201, &receipt(1, &json!([])));
+    let run = upload(
+        &[
+            "--dry-run",
+            "--endpoint",
+            &service.base,
+            "--product",
+            "..",
+            "-",
+        ],
+        Some(&gateway()),
+        &[],
+    );
+    assert_eq!(run.code, 10, "{}", run.stderr);
+    assert!(run.stderr.contains("product name"), "{}", run.stderr);
+    assert!(service.requests().is_empty());
+}

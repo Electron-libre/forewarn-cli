@@ -117,11 +117,7 @@ pub fn upload(
     version: &str,
     sbom: &[u8],
 ) -> Result<Stored, UploadError> {
-    let path = sbom_upload_path(product, version).map_err(UploadError::InvalidName)?;
-    let size = u64::try_from(sbom.len()).unwrap_or(u64::MAX);
-    if size > MAX_SBOM_BYTES {
-        return Err(UploadError::TooLarge { size });
-    }
+    let path = checked(product, version, sbom)?;
     let named = || endpoint.as_str().to_owned();
     let unreachable = |error: &ureq::Error| UploadError::Unreachable {
         endpoint: named(),
@@ -170,6 +166,25 @@ pub fn upload(
         }
         Err(error) => Err(unreadable(&error.reason)),
     }
+}
+
+/// Checks an upload as [`upload`] does before anything is sent (UPL-8), for a caller that sends nothing.
+///
+/// # Errors
+/// [`UploadError::InvalidName`] for a product name or a version the contract refuses, [`UploadError::TooLarge`] for
+/// an SBOM over [`MAX_SBOM_BYTES`].
+pub fn check_upload(product: &str, version: &str, sbom: &[u8]) -> Result<(), UploadError> {
+    checked(product, version, sbom).map(|_| ())
+}
+
+/// The route of the upload, once its names and its size are checked (UPL-8).
+fn checked(product: &str, version: &str, sbom: &[u8]) -> Result<String, UploadError> {
+    let path = sbom_upload_path(product, version).map_err(UploadError::InvalidName)?;
+    let size = u64::try_from(sbom.len()).unwrap_or(u64::MAX);
+    if size > MAX_SBOM_BYTES {
+        return Err(UploadError::TooLarge { size });
+    }
+    Ok(path)
 }
 
 /// The refusal with each occurrence of the token in its code and its message written `***` (UPL-12).

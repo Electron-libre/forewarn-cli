@@ -53,9 +53,9 @@ contract leaves the date to the service clock, UPA non-goals); the report prints
    crate, endpoint and token from the options and the environment, SBOM read then sent as is, overrides, the failures
    and their error lines; verified by `crates/forewarn/tests/upload.rs` against a loopback fake service; makes true
    CUP-1 to CUP-4, CUP-6 to CUP-15 (~800 lines). (autonomous)
-2. [ ] `--dry-run`: prints endpoint, product, version, size, sends nothing, reads no token; docs of the whole command
+2. [x] `--dry-run`: prints endpoint, product, version, size, sends nothing, reads no token; docs of the whole command
    (user guide: section, "In CI", "What leaves your machine", exit codes; `docs/architecture.md`; `CLAUDE.md`);
-   verified by the same test file; makes true CUP-5; spec `accepted` (~200 lines).
+   verified by the same test file; makes true CUP-5; spec `accepted` (~200 lines). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -78,3 +78,11 @@ contract leaves the date to the service clock, UPA non-goals); the report prints
   `error: unrecognized subcommand 'upload'` (exit 2) in each of the 15 tests.
 - Code review: no findings
 - not verified: the Windows path of CUP-15 (CI runs the tests on Windows; the test here covers the escaped path only).
+
+### Deliverable 2
+- done: `--dry-run` prints the endpoint, product, version and SBOM size, reads no token, sends nothing, refuses what an
+  upload refuses before sending (`check_upload` of `forewarn-upload`); spec `cli-upload` accepted; guide,
+  architecture, `CLAUDE.md`.
+- red: CUP-5, CUP-8, CUP-9: `error: unexpected argument '--dry-run' found` (exit 2).
+- Code review: no findings
+- not verified: nothing.
