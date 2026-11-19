@@ -143,3 +143,5 @@ its releases as a fallback does (test `a_parent_named_in_the_list_stands_for_its
 not verified: nothing beyond deliverable 2.
 
 decisions needed: none.
+
+Done: the three deliverables are committed; nothing remains.
