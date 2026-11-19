@@ -4,6 +4,18 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.4.1] - 2026-11-19
+
+### Milestones
+
+- CI integration templates
+
+### Added
+
+- a GitHub Actions workflow template, `examples/ci/github-actions.yml`
+- a GitLab CI template, `examples/ci/gitlab-ci.yml`, included without global keys
+- the CI templates install the released version, checked against its `SHA256SUMS`
+
 ## [0.4.0] - 2026-11-19
 
 ### Milestones

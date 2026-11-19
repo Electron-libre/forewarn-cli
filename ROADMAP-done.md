@@ -125,3 +125,16 @@ The released milestones, moved out of the roadmap by `release`, oldest first.
   - [upload_an_sbom_to_the_service](issues/done/upload_an_sbom_to_the_service.md)
   - [cli_upload_command](issues/done/cli_upload_command.md)
   - [tell_refused_credentials_answered_before_the_body](issues/done/tell_refused_credentials_answered_before_the_body.md)
+
+## CI integration templates
+
+- Goal: ready-to-use examples run `forewarn` at each release in GitHub Actions and GitLab CI.
+- Why: lowers the cost of adoption to a copy-paste.
+- State: done
+- Released: v0.4.1
+- Issues:
+  - [github_actions_template](issues/done/github_actions_template.md)
+  - [gitlab_ci_template](issues/done/gitlab_ci_template.md)
+  - [keep_the_templates_on_the_released_version](issues/done/keep_the_templates_on_the_released_version.md)
+  - [run_the_templates_in_ci](issues/done/run_the_templates_in_ci.md)
+  - [run_the_gitlab_template_in_the_tests](issues/done/run_the_gitlab_template_in_the_tests.md)
