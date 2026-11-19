@@ -280,7 +280,7 @@ dependencies = [
 
 [[package]]
 name = "forewarn"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clap",
  "forewarn-cyclonedx",
@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "forewarn-api"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -305,7 +305,7 @@ dependencies = [
 
 [[package]]
 name = "forewarn-cache"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "forewarn-cyclonedx"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "cyclonedx-bom",
  "forewarn-domain",
@@ -324,14 +324,14 @@ dependencies = [
 
 [[package]]
 name = "forewarn-domain"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "semver",
 ]
 
 [[package]]
 name = "forewarn-exploited"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "forewarn-cache",
  "forewarn-domain",
@@ -343,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "forewarn-osv"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "forewarn-cache",
  "forewarn-domain",
@@ -356,7 +356,7 @@ dependencies = [
 
 [[package]]
 name = "forewarn-upload"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "forewarn-api",
  "ureq",

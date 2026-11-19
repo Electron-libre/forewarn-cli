@@ -112,3 +112,16 @@ The released milestones, moved out of the roadmap by `release`, oldest first.
   - [support_windows_paths](issues/done/support_windows_paths.md)
   - [check_the_licenses_and_advisories_of_the_dependencies](issues/done/check_the_licenses_and_advisories_of_the_dependencies.md)
   - [complete_the_sbom_of_the_release_binaries](issues/done/complete_the_sbom_of_the_release_binaries.md)
+
+## Upload from CI
+
+- Goal: `forewarn` uploads the SBOM with product, version and date to a Forewarn service, whose URL is set
+  by `--endpoint` or an environment variable. The AI-BOM upload waits for the service's full registry, after the beta.
+- Why: keeps a vendor's inventory up to date without manual work; only inventories leave the CI, never source code.
+- State: done
+- Released: v0.4.0
+- Issues:
+  - [define_the_sbom_upload_api_types](issues/done/define_the_sbom_upload_api_types.md)
+  - [upload_an_sbom_to_the_service](issues/done/upload_an_sbom_to_the_service.md)
+  - [cli_upload_command](issues/done/cli_upload_command.md)
+  - [tell_refused_credentials_answered_before_the_body](issues/done/tell_refused_credentials_answered_before_the_body.md)

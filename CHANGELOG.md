@@ -4,6 +4,29 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.4.0] - 2026-11-19
+
+### Milestones
+
+- Upload from CI
+
+### Added
+
+- build the route of an SBOM upload to a Forewarn service
+- read the answers of the service to an SBOM upload
+- check the endpoint and the token of an SBOM upload
+- upload an SBOM to a Forewarn service
+- upload an SBOM from the command line
+- preview an SBOM upload with --dry-run
+
+### Fixed
+
+- refuse an answer body that is not a JSON object
+- keep the token of an upload off a proxy and out of errors
+- refuse a blank product and an oversized SBOM first
+- tell refused credentials answered before the SBOM is sent
+- send an upload again without Expect after a 417
+
 ## [0.3.0] - 2026-11-17
 
 ### Milestones
