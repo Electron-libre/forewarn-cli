@@ -12,7 +12,7 @@ reading the whole body. `ureq` then fails while sending the SBOM (broken pipe, c
 the service", against UPL-3 and UPL-9 of `specs/sbom-upload.md`. The upload should report the answer the service gave.
 
 # Findings
-* Found by the `high` review of `issues/upload_an_sbom_to_the_service.md` (reading of the code, not reproduced).
+* Found by the `high` review of `issues/done/upload_an_sbom_to_the_service.md` (reading of the code, not reproduced).
 * The loopback test server of `crates/forewarn-upload/tests/upload.rs` reads the whole body before answering, so no
   test covers an early answer.
 
