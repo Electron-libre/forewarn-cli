@@ -138,7 +138,7 @@ fn aware() -> Moment {
 }
 
 fn draft(report: &FlaggedReport, product: Option<&Product>) -> Vec<EarlyWarning> {
-    draft_early_warnings(report, product, aware(), None).unwrap()
+    draft_early_warnings(report, product, |_| aware(), None).unwrap()
 }
 
 fn component_names(warning: &EarlyWarning) -> Vec<&str> {
@@ -215,6 +215,51 @@ fn drafts_one_early_warning_per_exploited_cve_listing_its_components() {
     );
 }
 
+// spec: EWD-4
+#[test]
+fn drafts_each_cve_from_its_own_moment_of_awareness() {
+    let known = at(2026, 11, 13, 9, 30, 0);
+    let found = at(2026, 11, 16, 8, 0, 0);
+    let warnings = draft_early_warnings(
+        &four_matches(&[kev()]),
+        Some(&shop()),
+        |cve| {
+            if cve == "CVE-2021-44228" {
+                known
+            } else {
+                found
+            }
+        },
+        None,
+    )
+    .unwrap();
+    let drafted: Vec<_> = warnings
+        .iter()
+        .map(|warning| {
+            (
+                warning.cve.as_str(),
+                warning.aware_since.to_string(),
+                warning.deadlines.early_warning.to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        drafted,
+        [
+            (
+                "CVE-2021-44228",
+                "2026-11-13T09:30:00Z".to_owned(),
+                "2026-11-14T09:30:00Z".to_owned()
+            ),
+            (
+                "CVE-2022-0778",
+                "2026-11-16T08:00:00Z".to_owned(),
+                "2026-11-17T08:00:00Z".to_owned()
+            ),
+        ]
+    );
+}
+
 // spec: EWD-2
 #[test]
 fn drafts_nothing_for_matches_no_list_names() {
@@ -287,7 +332,7 @@ fn computes_the_final_report_deadline_from_the_measure() {
     let warnings = draft_early_warnings(
         &log4j_report(&[kev()]),
         Some(&shop()),
-        aware(),
+        |_| aware(),
         Some(measure),
     )
     .unwrap();
@@ -477,11 +522,11 @@ fn carries_the_evidence_of_every_list_naming_the_match() {
 fn refuses_a_deadline_past_the_year_9999() {
     let late = at(9999, 12, 30, 0, 0, 1);
     assert_eq!(
-        draft_early_warnings(&log4j_report(&[kev()]), Some(&shop()), late, None),
+        draft_early_warnings(&log4j_report(&[kev()]), Some(&shop()), |_| late, None),
         Err(DeadlinePastRange(late))
     );
     assert_eq!(
-        draft_early_warnings(&log4j_report(&[]), Some(&shop()), late, None),
+        draft_early_warnings(&log4j_report(&[]), Some(&shop()), |_| late, None),
         Ok(vec![])
     );
 }

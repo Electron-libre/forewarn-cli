@@ -2,6 +2,7 @@
 //! `specs/cli-match.md`, `specs/cli-match-exploited.md`, `specs/cli-upload.md`).
 
 mod args;
+mod awareness;
 mod drafts;
 mod early_warning;
 mod error_line;
@@ -21,7 +22,6 @@ use std::time::{Duration, SystemTime};
 use clap::{CommandFactory, Parser};
 use forewarn_cyclonedx::{ReadError, read_json, read_vex_json};
 use forewarn_domain::completeness::check;
-use forewarn_domain::deadlines::{DeadlinePastRange, reporting_deadlines};
 use forewarn_domain::early_warning::draft_early_warnings;
 use forewarn_domain::exploited::{ExploitedList, FlaggedReport, flag_exploited};
 use forewarn_domain::matching::{ComponentPackage, match_components};
@@ -33,9 +33,10 @@ use forewarn_osv::api::{Api, Package};
 use forewarn_osv::fetch::{Archives, Refresh};
 use forewarn_osv::{ReadError as OsvReadError, read_directory, read_record};
 
-use args::{CheckArgs, Cli, Command, Format, GivenMoment, MatchArgs, moment};
+use args::{CheckArgs, Cli, Command, Format, MatchArgs};
+use awareness::Awareness;
 use error_line::ErrorLine;
-use report::{Awareness, ExploitedSource, Origin, Source};
+use report::{ExploitedSource, Origin, Source};
 
 /// The exit codes of CHK-7 and MCH-10; a usage error exits with 2, through `clap`.
 const FOUND: u8 = 1;
@@ -66,7 +67,7 @@ fn run_check(args: &CheckArgs) -> Result<ExitCode, u8> {
 
 fn run_match(args: &MatchArgs) -> Result<ExitCode, u8> {
     // The arguments are checked before the SBOM is read (MCH-10).
-    let awareness = awareness(args);
+    let awareness = Awareness::of_run(args);
     let fetches_archives = args.osv.is_empty() && !args.osv_api;
     let fetches_kev = args.kev.is_none() && !args.no_kev;
     let fetches_euvd = args.euvd.is_none() && !args.no_euvd;
@@ -198,10 +199,10 @@ fn write_drafts(
     let drafted = draft_early_warnings(
         matching,
         sbom.product.as_ref(),
-        awareness.since,
+        |cve| awareness.since(cve),
         awareness.measure_available,
     )
-    .expect("the deadlines of the moments given were checked before the SBOM was read");
+    .expect("the deadlines of the moments of awareness were checked before the SBOM was read");
     let product = sbom.product.as_ref().map(|product| product.name.as_str());
     drafts::write(directory, product, &drafted).map_err(|error| {
         eprintln!("error: {}", error.line());
@@ -209,67 +210,6 @@ fn write_drafts(
     })
 }
 
-/// The moments the reporting deadlines of the run are computed from, those deadlines and the moment they are checked
-/// at (MXL-14 to MXL-17, MXL-23); exits with 2, naming the option and the value given, when a deadline falls past the
-/// year 9999 (MXL-20).
-fn awareness(args: &MatchArgs) -> Awareness {
-    // The clock is read once, for the moment of awareness and the moment of the check alike (MXL-23).
-    let run = (args.aware_since.is_none() || args.now.is_none()).then(|| {
-        report::offset_date_time(SystemTime::now())
-            .and_then(moment)
-            .unwrap_or_else(|| {
-                let missing = [
-                    (args.aware_since.is_none(), "--aware-since"),
-                    (args.now.is_none(), "--now"),
-                ]
-                .into_iter()
-                .filter_map(|(missing, option)| missing.then_some(option))
-                .collect::<Vec<_>>()
-                .join(" and ");
-                usage_error(
-                    clap::error::ErrorKind::InvalidValue,
-                    &format!(
-                        "the clock of the system gives no moment of the years 1 to 9999: give {missing}"
-                    ),
-                )
-            })
-    });
-    let given_or_run = |given: Option<&GivenMoment>| {
-        given
-            .map(|given| given.moment)
-            .or(run)
-            .expect("the clock is read when a moment is not given")
-    };
-    let since = given_or_run(args.aware_since.as_ref());
-    // The moment of awareness first, so that the error of a final report names the measure (MXL-20).
-    reporting_deadlines(since, None)
-        .unwrap_or_else(|error| past_range("--aware-since", args.aware_since.as_ref(), error));
-    let measure_available = args.measure_available.as_ref().map(|given| given.moment);
-    let deadlines = reporting_deadlines(since, measure_available).unwrap_or_else(|error| {
-        past_range(
-            "--measure-available",
-            args.measure_available.as_ref(),
-            error,
-        )
-    });
-    Awareness {
-        since,
-        given: args.aware_since.is_some(),
-        measure_available,
-        deadlines,
-        checked_at: given_or_run(args.now.as_ref()),
-        checked_given: args.now.is_some(),
-    }
-}
-
-/// Exits with 2 naming the option and the value given whose deadline falls past the year 9999 (MXL-20).
-fn past_range(option: &str, given: Option<&GivenMoment>, error: DeadlinePastRange) -> ! {
-    let text = given.map_or_else(|| error.0.to_string(), |given| given.text.clone());
-    usage_error(
-        clap::error::ErrorKind::InvalidValue,
-        &format!("invalid value '{text}' for '{option}': {error}"),
-    )
-}
 /// The CISA KEV catalog and the EUVD list of a run, the files given read before a list is fetched (MXL-2, MXL-3,
 /// MXL-6, MXL-7).
 fn exploited_lists(

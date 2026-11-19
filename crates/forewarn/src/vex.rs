@@ -9,8 +9,9 @@ use forewarn_domain::sbom::Sbom;
 use forewarn_domain::vex::Verdict;
 use serde_json::{Map, Value, json};
 
+use crate::awareness::Awareness;
 use crate::escape::{push_escaped, push_escaped_path};
-use crate::report::{Awareness, match_json, push_evidence, push_match_header};
+use crate::report::{match_json, push_evidence, push_match_header};
 
 /// Where a verdict was read.
 #[derive(Clone, Copy)]
@@ -156,7 +157,7 @@ pub fn json_members(
         .set_aside()
         .iter()
         .map(|aside| {
-            let mut entry = match_json(&aside.found, &awareness.deadlines);
+            let mut entry = match_json(&aside.found, awareness);
             let verdict = &verdicts.all[aside.verdict];
             if let Value::Object(members) = &mut entry {
                 members.remove("deadlines");

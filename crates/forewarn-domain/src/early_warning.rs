@@ -51,15 +51,16 @@ pub struct EarlyWarning {
 }
 
 /// The draft early warning of each CVE of the actively exploited matches of `report`, in the order its first match
-/// comes (EWD-1, EWD-2), about `product` as the SBOM describes it.
+/// comes (EWD-1, EWD-2), about `product` as the SBOM describes it, each from the moment of awareness `aware_since`
+/// gives its CVE (EWD-4).
 ///
 /// # Errors
-/// [`DeadlinePastRange`] when a deadline from `aware_since` or `measure_available` falls past the year 9999, only
-/// when a match is actively exploited (EWD-11).
+/// [`DeadlinePastRange`] when a deadline from the moment of awareness of a CVE or from `measure_available` falls past
+/// the year 9999, only when a match is actively exploited (EWD-11).
 pub fn draft_early_warnings(
     report: &FlaggedReport,
     product: Option<&Product>,
-    aware_since: Moment,
+    aware_since: impl Fn(&str) -> Moment,
     measure_available: Option<Moment>,
 ) -> Result<Vec<EarlyWarning>, DeadlinePastRange> {
     let product_name = product.and_then(|product| given(Some(&product.name)));
@@ -86,50 +87,50 @@ pub fn draft_early_warnings(
             None => by_cve.push((&first.cve, vec![found])),
         }
     }
-    if by_cve.is_empty() {
-        return Ok(Vec::new());
-    }
-    let deadlines = reporting_deadlines(aware_since, measure_available)?;
-    Ok(by_cve
+    by_cve
         .into_iter()
-        .map(|(cve, matches)| EarlyWarning {
-            product_name: product_name.clone(),
-            product_version: product_version.clone(),
-            manufacturer: manufacturer.clone(),
-            components: matches.iter().fold(Vec::new(), |mut components, flagged| {
-                let affected = AffectedComponent {
-                    component: flagged.found.component.clone(),
-                    vulnerability: flagged.found.id.clone(),
-                };
-                // The same component and id, whatever their `bom-ref`, which the draft does not name (EWD-3).
-                let same = |kept: &AffectedComponent| {
-                    kept.vulnerability == affected.vulnerability
-                        && kept.component.name == affected.component.name
-                        && kept.component.version == affected.component.version
-                        && kept.component.purl == affected.component.purl
-                };
-                if !components.iter().any(same) {
-                    components.push(affected);
-                }
-                components
-            }),
-            cve: cve.to_owned(),
-            euvd: matches[0]
-                .evidence
-                .iter()
-                .filter_map(|evidence| evidence.record.as_ref())
-                .chain(matches.iter().flat_map(|flagged| {
-                    std::iter::once(&flagged.found.id).chain(&flagged.found.aliases)
-                }))
-                .find(|id| is_euvd(id))
-                .cloned(),
-            evidence: matches[0].evidence.clone(),
-            aware_since,
-            measure_available,
-            deadlines,
-            to_complete: to_complete.clone(),
+        .map(|(cve, matches)| {
+            let aware_since = aware_since(cve);
+            let deadlines = reporting_deadlines(aware_since, measure_available)?;
+            Ok(EarlyWarning {
+                product_name: product_name.clone(),
+                product_version: product_version.clone(),
+                manufacturer: manufacturer.clone(),
+                components: matches.iter().fold(Vec::new(), |mut components, flagged| {
+                    let affected = AffectedComponent {
+                        component: flagged.found.component.clone(),
+                        vulnerability: flagged.found.id.clone(),
+                    };
+                    // The same component and id, whatever their `bom-ref`, which the draft does not name (EWD-3).
+                    let same = |kept: &AffectedComponent| {
+                        kept.vulnerability == affected.vulnerability
+                            && kept.component.name == affected.component.name
+                            && kept.component.version == affected.component.version
+                            && kept.component.purl == affected.component.purl
+                    };
+                    if !components.iter().any(same) {
+                        components.push(affected);
+                    }
+                    components
+                }),
+                cve: cve.to_owned(),
+                euvd: matches[0]
+                    .evidence
+                    .iter()
+                    .filter_map(|evidence| evidence.record.as_ref())
+                    .chain(matches.iter().flat_map(|flagged| {
+                        std::iter::once(&flagged.found.id).chain(&flagged.found.aliases)
+                    }))
+                    .find(|id| is_euvd(id))
+                    .cloned(),
+                evidence: matches[0].evidence.clone(),
+                aware_since,
+                measure_available,
+                deadlines,
+                to_complete: to_complete.clone(),
+            })
         })
-        .collect())
+        .collect()
 }
 
 /// The value, `None` when absent or made only of white space (EWD-10).

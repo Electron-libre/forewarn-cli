@@ -25,7 +25,7 @@ document a person copies into the ENISA Single Reporting Platform form.
   (`specs/sbom-reading.md`, SBR-9, SBR-12), and each affected component of its CVE, in the order of the report, with
   its version, its package URL and the id of its match, as the match names them, a component and id listed twice
   in the report named once.
-- **EWD-4** (deterministic) A draft must carry the moment of awareness given to drafting and the deadlines
+- **EWD-4** (deterministic) A draft must carry the moment of awareness given to drafting for its CVE and the deadlines
   `specs/reporting-deadlines.md` computes from it and from the moment a corrective or mitigating measure became
   available, when one is given.
 - **EWD-5** (deterministic) A draft must carry the evidence of exploitation of its first match, as flagging gives it

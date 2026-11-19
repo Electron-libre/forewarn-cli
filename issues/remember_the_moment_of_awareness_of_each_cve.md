@@ -34,3 +34,48 @@ Decided at step 1, weighing a state the CLI keeps against its determinism (same 
 
 # Hints
 * The deadlines are the costliest bug area (`CLAUDE.md`, Testing priority): BDD scenarios for a moment read back.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+`forewarn match --awareness <file>` reads, per product and CVE, the moment a run first flagged an exploited CVE,
+records the new ones, and counts each match's deadlines (reports, drafts) from its own moment. Without the option,
+nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts back, locking the file.
+
+## Plan
+1. [x] Per-CVE moments inside a run, no new behaviour: the domain drafts each CVE from its own moment
+   (`draft_early_warnings` takes the moment of each CVE), the reports take a moment per match; `Awareness`, its human
+   lines and deadlines move from `report.rs` to a module `awareness` (keeps `report.rs` under 800 lines); verified by
+   the existing tests unchanged; makes true nothing new (refactor). (autonomous)
+2. [ ] `--awareness <file>`: read, record the new CVEs (atomic write), deadlines, drafts, human and JSON reports from
+   the moment of each CVE; verified by tests through the binary (`tests/awareness.rs`); makes true AWR-1 to AWR-9,
+   AWR-12, the amended MXL-17, MXL-18 and the MCH-16 row.
+3. [ ] Refusals: the file unreadable or invalid (exit 3 before the SBOM), unwritable (exit 7, no draft); verified by
+   tests through the binary; makes true AWR-10, AWR-11, the MCH-10 rows; sets AWR, MXL, MCH `accepted`.
+4. [ ] CI templates: `--awareness` under the kept cache directory (GitHub `~/.cache/forewarn/awareness.json`, GitLab
+   `.forewarn-cache/awareness.json`), the comment on the deadlines updated; `ci_template_run.rs` and
+   `ci_gitlab_template_run.rs` check that a second daily run reads the moment back and shows the early warning
+   overdue; user guide, architecture, ADR 0019 accepted.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 05bdee2fd4cde94e4643b546db606c7933dc44c6
+- 1 a: a file the user names, `--awareness <file>` (ADR 0019).
+- 2 a: a recorded moment prevails; `--aware-since` gives the moment of the CVEs the file does not hold yet.
+- 3 a: a file that cannot be written exits with 7.
+- 4 a: the CI templates keep the file in the cache directory they already keep.
+- Estimated size: ~250 + ~650 + ~250 + ~300 changed lines.
+
+## Summaries
+
+### 1. Per-CVE moments inside a run
+- done: `draft_early_warnings` takes the moment of each CVE (EWD-4 amended); module `awareness` holds the moments of
+  a run, the deadlines of a CVE and their human lines, moved from `report.rs` and `main.rs`; the reports and drafts
+  ask it per CVE; the drafts of the specs AWR, MXL, MCH and ADR 0019 come with it.
+- red: EWD-4: `expected Moment, found closure` (the domain took one moment for every CVE).
+- Code review: no findings.
+- checks: project-check passed (fmt, clippy, tests, specs).
+- not verified: none.
+- decisions needed: none.

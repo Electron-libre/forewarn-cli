@@ -12,13 +12,13 @@ use forewarn_domain::matching::{
 use forewarn_domain::sbom::{Sbom, SpecVersion};
 use std::time::SystemTime;
 
-use forewarn_domain::date::{Date, Moment};
-use forewarn_domain::deadlines::{DeadlineState, ReportingDeadlines};
+use forewarn_domain::date::Date;
 use forewarn_domain::exploited::ExploitedList;
 use forewarn_osv::api::QueryFreshness;
 use forewarn_osv::fetch::Freshness;
 use serde_json::{Value, json};
 
+use crate::awareness::Awareness;
 use crate::drafts::{DraftFile, Drafts};
 use crate::escape::{push_escaped, push_escaped_path};
 use crate::vex::{self, Verdicts};
@@ -194,21 +194,6 @@ pub enum Origin<'a> {
     Fetched(&'a Freshness),
 }
 
-/// The moments the CRA reporting deadlines of a run are computed from, and those deadlines, the same for every
-/// actively exploited match, and the moment they are checked at (MXL-14 to MXL-17, MXL-23).
-pub struct Awareness {
-    /// The moment of awareness.
-    pub since: Moment,
-    /// Whether it was given with `--aware-since`, else read from the clock.
-    pub given: bool,
-    pub measure_available: Option<Moment>,
-    pub deadlines: ReportingDeadlines,
-    /// The moment the deadlines are checked at (MXL-23).
-    pub checked_at: Moment,
-    /// Whether it was given with `--now`, else read from the clock.
-    pub checked_given: bool,
-}
-
 /// A time of the system clock to the second, UTC; `None` before 1970 or past the range of `time`.
 pub fn offset_date_time(time: SystemTime) -> Option<OffsetDateTime> {
     let elapsed = time.duration_since(SystemTime::UNIX_EPOCH).ok()?;
@@ -287,7 +272,7 @@ pub fn matching_human(report: &MatchReport) -> String {
     }
     vex::push_sources(&mut text, verdicts);
     if matching.exploited_count() > 0 {
-        push_awareness(&mut text, awareness);
+        awareness.push_moments(&mut text);
     }
     let _ = writeln!(
         text,
@@ -302,7 +287,7 @@ pub fn matching_human(report: &MatchReport) -> String {
         text.push('\n');
         if flagged.is_exploited() {
             push_evidence(&mut text, &flagged.evidence);
-            push_deadlines(&mut text, awareness);
+            awareness.push_deadlines(&mut text, &flagged.evidence[0].cve);
         }
     }
     if let Some(drafts) = drafts {
@@ -458,85 +443,6 @@ pub(crate) fn push_evidence(text: &mut String, evidence: &[Evidence]) {
     text.push('\n');
 }
 
-/// Pushes the moments the reporting deadlines are computed from and checked at, and where the moments of awareness
-/// and of the check came from (MXL-18, MXL-26).
-fn push_awareness(text: &mut String, awareness: &Awareness) {
-    let origin = |given, option| {
-        if given {
-            option
-        } else {
-            "the moment of the run"
-        }
-    };
-    let _ = write!(
-        text,
-        "Reporting deadlines (CRA article 14(2)): aware since {} ({}), ",
-        awareness.since,
-        origin(awareness.given, "--aware-since")
-    );
-    match awareness.measure_available {
-        Some(measure) => {
-            let _ = write!(text, "corrective measure available since {measure}");
-        }
-        None => text.push_str("no corrective measure given"),
-    }
-    let _ = writeln!(
-        text,
-        ", checked at {} ({})",
-        awareness.checked_at,
-        origin(awareness.checked_given, "--now")
-    );
-}
-
-/// Pushes the line of the reporting deadlines of an actively exploited match, each with the time left before it or
-/// overdue at the moment of the check (MXL-14 to MXL-16, MXL-22).
-fn push_deadlines(text: &mut String, awareness: &Awareness) {
-    let deadlines = &awareness.deadlines;
-    let state = |deadline| state(DeadlineState::at(deadline, awareness.checked_at));
-    let _ = write!(
-        text,
-        "    report by: early warning {} ({}), notification {} ({}), final report ",
-        deadlines.early_warning,
-        state(deadlines.early_warning),
-        deadlines.notification,
-        state(deadlines.notification)
-    );
-    match deadlines.final_report {
-        Some(final_report) => {
-            let _ = writeln!(text, "{final_report} ({})", state(final_report));
-        }
-        None => text.push_str("14 days after a corrective measure is available\n"),
-    }
-}
-
-/// The time left before a deadline or overdue, `due now` for a deadline reached exactly (MXL-24).
-fn state(state: DeadlineState) -> String {
-    match state {
-        DeadlineState::Left(0) => "due now".to_owned(),
-        DeadlineState::Left(seconds) => format!("{} left", duration(seconds)),
-        DeadlineState::Overdue(seconds) => format!("overdue by {}", duration(seconds)),
-    }
-}
-
-/// Seconds in days, hours, minutes and seconds, the units before the first non-zero one left out (`1h 0m 0s`, MXL-24).
-fn duration(seconds: u64) -> String {
-    let units = [
-        (seconds / 86_400, 'd'),
-        (seconds / 3600 % 24, 'h'),
-        (seconds / 60 % 60, 'm'),
-        (seconds % 60, 's'),
-    ];
-    let first = units
-        .iter()
-        .position(|&(count, _)| count > 0)
-        .unwrap_or(units.len() - 1);
-    units[first..]
-        .iter()
-        .map(|(count, unit)| format!("{count}{unit}"))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
 /// Pushes the component of a match, its id and its aliases (MCH-1).
 pub(crate) fn push_match_header(text: &mut String, found: &Match) {
     push_component_ref(text, &found.component);
@@ -619,7 +525,7 @@ pub fn matching_json(report: &MatchReport) -> String {
     let affected: Vec<Value> = matching
         .matches()
         .iter()
-        .map(|flagged| match_json(flagged, &awareness.deadlines))
+        .map(|flagged| match_json(flagged, awareness))
         .collect();
     let not_evaluated: Vec<Value> = matching
         .not_evaluated()
@@ -684,7 +590,7 @@ fn exploited_list_json(source: &ExploitedSource) -> Value {
 
 /// A match in the JSON report, with its records, the evidence of the lists naming it and, when one does, its reporting
 /// deadlines (MCH-16, MXL-14).
-pub(crate) fn match_json(flagged: &FlaggedMatch, deadlines: &ReportingDeadlines) -> Value {
+pub(crate) fn match_json(flagged: &FlaggedMatch, awareness: &Awareness) -> Value {
     let found = &flagged.found;
     let records: Vec<Value> = found
         .records
@@ -717,11 +623,14 @@ pub(crate) fn match_json(flagged: &FlaggedMatch, deadlines: &ReportingDeadlines)
         "aliases": found.aliases,
         "records": records,
         "exploited": exploited,
-        "deadlines": flagged.is_exploited().then(|| json!({
-            "earlyWarning": deadlines.early_warning.to_string(),
-            "notification": deadlines.notification.to_string(),
-            "finalReport": deadlines.final_report.map(|moment| moment.to_string()),
-        })),
+        "deadlines": flagged.evidence.first().map(|evidence| {
+            let deadlines = awareness.deadlines(&evidence.cve);
+            json!({
+                "earlyWarning": deadlines.early_warning.to_string(),
+                "notification": deadlines.notification.to_string(),
+                "finalReport": deadlines.final_report.map(|moment| moment.to_string()),
+            })
+        }),
     })
 }
 
