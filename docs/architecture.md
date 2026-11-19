@@ -31,11 +31,13 @@ flowchart TD
     cache["forewarn-cache<br/>(download cache)"]
     domain["forewarn-domain<br/>(rules, no I/O)"]
     api["forewarn-api<br/>(upload contract, no I/O)"]
+    upl["forewarn-upload<br/>(upload adapter)"]
 
     cli --> cdx & osv & exp & domain
     cdx --> domain
     osv --> domain & cache
     exp --> domain & cache
+    upl --> api
 ```
 
 | Crate | Role | Main modules |
@@ -46,6 +48,7 @@ flowchart TD
 | `forewarn-exploited` | Reads or fetches the exploited lists into `ExploitedList` | `kev`, `euvd` |
 | `forewarn-cache` | Refresh policy, freshness, the files of each download, a file lock per entry | single module |
 | `forewarn-api` | The contract of an SBOM upload, shared with the service: the route of a product version, the names it accepts, the answers of the service, read from a status and a body ([upload-api](../specs/upload-api.md), [ADR 0017](adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md)) | `lib` (route), `answer` |
+| `forewarn-upload` | The upload adapter: the endpoint of a service (HTTPS, or a loopback host in plain HTTP) and the bearer token, checked before anything is sent ([sbom-upload](../specs/sbom-upload.md), [ADR 0018](adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md)) | `endpoint`, `token` |
 | `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` (the characters both writers escape, a path's own way), `error_line` (the error lines naming a file) |
 
 The dependency direction is enforced: `crates/forewarn/tests/workspace_policy.rs` fails when the domain depends on
@@ -128,6 +131,7 @@ One directory (`$XDG_CACHE_HOME/forewarn/osv` by default) holds an entry per dow
 | add an exploited list | a module of `forewarn-exploited`, a `--<list>` / `--no-<list>` pair in the CLI |
 | change a report's layout | `crates/forewarn/src/report.rs` (the JSON report is the stable one) |
 | change the contract of an SBOM upload | `forewarn-api` and `specs/upload-api.md`, within `/api/v1` only by adding (ADR 0017) |
+| change how an SBOM is sent to the service | `forewarn-upload` and `specs/sbom-upload.md` (ADR 0018) |
 | follow a new version of the ENISA glossary | `crates/forewarn/src/early_warning.rs` and the field table of `specs/early-warning-draft.md`; the domain only when a new field needs new data |
 
 ## Decisions
@@ -153,3 +157,4 @@ Every structural decision is an ADR in [`docs/adr/`](adr/):
 | [0015](adr/0015-distribute-release-binaries-on-github-before-crates-io.md) | Release binaries built on each tag and attached to a GitHub release, before any crates.io publication |
 | [0016](adr/0016-complete-the-sbom-of-the-release-binaries-after-cargo-cyclonedx.md) | The release SBOMs completed by a `jq` step (manufacturer, crates.io as supplier, source hash of the workspace crates) and refused when `forewarn check` finds them incomplete |
 | [0017](adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md) | The upload contract shared with the service in a crate of plain types: the SBOM as the body, the product and version in the path, the version of the contract in the path |
+| [0018](adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md) | The upload sent by an adapter crate of its own, not a feature of the contract crate: HTTPS or loopback HTTP, a redacted token, no redirect, no retry |

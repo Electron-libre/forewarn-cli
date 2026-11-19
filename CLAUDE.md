@@ -58,7 +58,10 @@ product version, `/api/v1/products/{product}/versions/{version}/sbom`, its names
 would refuse refused first, and the answers of the service read from a status and a body: the receipt of a version
 created (`201`) or replaced (`200`) with its warnings, a refusal with its error code and message, an unknown code kept
 with its text, the account of a token (`specs/upload-api.md`, ADR
-[0017](docs/adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md)); no command uploads yet.
+[0017](docs/adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md)). The crate `forewarn-upload`, its
+adapter, checks the endpoint of a service (HTTPS, or plain HTTP to a loopback host, no user information) and the bearer
+token, never written in a debug form or an error (`specs/sbom-upload.md`, ADR
+[0018](docs/adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md)); no command uploads yet.
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`. The workflow
 `.github/workflows/check.yml` runs that command on every push to `main` and every pull request, builds on the toolchain
@@ -95,6 +98,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-cache` | the cache of the downloads: refresh policy, freshness and the files of each download (ADR 0010), a file lock per entry (ADR 0008), one `GET` or the download of the source (ADR 0009) | `feeds` |
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read or paged into a cache, into the domain's exploited lists | `feeds` |
 | `forewarn-api` | the contract of an SBOM upload shared with the service, no I/O: the route of a product version and the names it accepts, the answers of the service (module `answer`) (`specs/upload-api.md`, ADR 0017) | `api` |
+| `forewarn-upload` | upload adapter: the endpoint of a service and the bearer token, checked (modules `endpoint`, `token`) (`specs/sbom-upload.md`, ADR 0018) | `api` |
 | `forewarn` | the CLI binary: arguments (module `args`), wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`), the error lines naming a file (module `error_line`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`

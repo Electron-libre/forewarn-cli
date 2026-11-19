@@ -8,6 +8,7 @@ members = [
     "crates/forewarn-domain",
     "crates/forewarn-exploited",
     "crates/forewarn-osv",
+    "crates/forewarn-upload",
 ]
 
 [workspace.package]
