@@ -51,10 +51,10 @@ writes the fixture SBOM, so the shell of `forewarn-sbom` (tag resolution, `git c
    rewrites of `forewarn match` and `forewarn upload`, the product directory with its isolated environment, `git`, the
    report) into `crates/forewarn/tests/ci_template/mod.rs`, the template named by the caller; no change of behaviour;
    verified by `ci_template_run.rs` still green. (autonomous)
-2. [ ] Run the GitLab template: `crates/forewarn/tests/ci_gitlab_template_run.rs` reads the jobs (`script`,
+2. [x] Run the GitLab template: `crates/forewarn/tests/ci_gitlab_template_run.rs` reads the jobs (`script`,
    `before_script`, `extends`), checks each job with a `script` is run and each `before_script` replaced, and runs the
    two scenarios; fixtures README, `CLAUDE.md` and the docs updated; verified by the new tests (red first on a
-   template step they do not run yet).
+   template step they do not run yet). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -70,3 +70,13 @@ writes the fixture SBOM, so the shell of `forewarn-sbom` (tag resolution, `git c
 - red: none (no change of behaviour, the three GitHub tests unchanged and green).
 - Code review: no findings (the `low` review reads no test file, and this diff holds only test files).
 - checks: `project-check` green (fmt, clippy, tests, specs); size 382 lines.
+
+### 2. Run the GitLab template
+- done: `tests/ci_gitlab_template_run.rs` reads the jobs of the template (`extends`, `variables`, `before_script`,
+  `script`), runs the `before_script` items after `cd "$CI_PROJECT_DIR"` and the `script` with `sh` (`errexit`,
+  `pipefail` when the shell has it), `syft` a stub that records its arguments; the shared match rewrite also drops
+  `--cache`, refused when nothing is fetched. `CLAUDE.md`, the docs map and the fixtures README name the new run.
+- red: none (no spec); first run: `the line of forewarn match is rewritten word by word: ... --cache .forewarn-cache \`
+  (the line continued with `\`, now unfolded), then `--cache and --refresh apply to what is fetched` (exit 2, not 6).
+- Code review: no findings.
+- checks: `project-check` green (fmt, clippy, tests, specs); size 457 lines; no file over the size limit.

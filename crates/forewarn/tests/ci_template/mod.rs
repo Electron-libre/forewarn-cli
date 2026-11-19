@@ -64,21 +64,30 @@ fn rewritten(
     block.replace(line, &format!("{head}{prefix}{}", tokens.join(" ")))
 }
 
+/// The positions of `option` and its value in `tokens`, given as `option value` or `option=value`, if it is there.
+fn option_at(tokens: &[&str], option: &str) -> Option<std::ops::RangeInclusive<usize>> {
+    let at = tokens.iter().position(|token| {
+        *token == option
+            || token
+                .strip_prefix(option)
+                .is_some_and(|rest| rest.starts_with('='))
+    })?;
+    Some(if tokens[at] == option {
+        at..=at + 1
+    } else {
+        at..=at
+    })
+}
+
 /// The match of `block`, a shell block of `template`, with the feeds given as files, so that nothing is fetched; its
-/// refresh policy is dropped, as `forewarn` refuses one when nothing is fetched.
+/// refresh policy and its cache directory, if it gives one, are dropped, as `forewarn` refuses them when nothing is
+/// fetched.
 pub fn with_local_feeds(template: &str, block: &str) -> String {
     rewritten(template, block, "match", |tokens| {
-        let at = tokens
-            .iter()
-            .position(|token| *token == "--refresh" || token.starts_with("--refresh="))
-            .unwrap_or_else(|| {
-                panic!("{template}: the match gives a refresh policy, dropped here: {tokens:?}")
-            });
-        let refresh = if tokens[at] == "--refresh" {
-            at..=at + 1
-        } else {
-            at..=at
-        };
+        let refresh = option_at(&tokens, "--refresh").unwrap_or_else(|| {
+            panic!("{template}: the match gives a refresh policy, dropped here: {tokens:?}")
+        });
+        let cache = option_at(&tokens, "--cache");
         let mut args: Vec<String> = [
             ("--osv", "crates/forewarn-osv/tests/fixtures"),
             ("--osv", "crates/forewarn/tests/fixtures/ci-template/osv"),
@@ -95,7 +104,9 @@ pub fn with_local_feeds(template: &str, block: &str) -> String {
             tokens
                 .iter()
                 .enumerate()
-                .filter(|(i, _)| !refresh.contains(i))
+                .filter(|(i, _)| {
+                    !refresh.contains(i) && !cache.as_ref().is_some_and(|cache| cache.contains(i))
+                })
                 .map(|(_, token)| (*token).to_owned()),
         );
         args

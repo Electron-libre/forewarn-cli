@@ -1,8 +1,9 @@
 # The fixtures of the CI template run
 
-The product a run of `examples/ci/github-actions.yml` checks in `../../ci_template_run.rs`, in place of the SBOM `syft`
-would write, and the OSV record it is matched against with the OSV records of `forewarn-osv/tests/fixtures`, the KEV
-catalog and the EUVD list of `forewarn-exploited/tests/fixtures`.
+The product a run of `examples/ci/github-actions.yml` (`../../ci_template_run.rs`) or of `examples/ci/gitlab-ci.yml`
+(`../../ci_gitlab_template_run.rs`) checks, in place of the SBOM `syft` would write, and the OSV record it is matched
+against with the OSV records of `forewarn-osv/tests/fixtures`, the KEV catalog and the EUVD list of
+`forewarn-exploited/tests/fixtures`.
 
 | File | What it shows |
 |---|---|
