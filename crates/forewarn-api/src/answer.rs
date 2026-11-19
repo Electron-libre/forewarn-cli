@@ -7,9 +7,6 @@ use std::fmt;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-/// The route of the account of a token, relative to the root of the service (UPA-12).
-pub const ACCOUNT_PATH: &str = "/api/v1/account";
-
 /// The answer of the service to an upload (UPA-3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum UploadAnswer {
@@ -18,7 +15,14 @@ pub enum UploadAnswer {
     /// `200`: the SBOM replaced the one of a known version.
     Replaced(Receipt),
     /// Any other status: nothing is stored (UPA-8).
-    Refused { status: u16, body: ErrorBody },
+    Refused(Refusal),
+}
+
+/// A refusal of the service: its status and the body it gave (UPA-8).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Refusal {
+    pub status: u16,
+    pub body: ErrorBody,
 }
 
 /// What the service stored of an upload (UPA-7).
@@ -46,9 +50,11 @@ pub struct Warning {
     pub message: String,
 }
 
-/// The code of a warning (UPA-9), or one the contract does not name, kept with its text (UPA-4).
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// The code of a warning (UPA-9), or one the contract does not name, kept with its text (UPA-4). Two codes are equal
+/// when they are written alike, an `Unknown` holding a named code included.
+#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 #[serde(from = "String", into = "String")]
+#[non_exhaustive]
 pub enum WarningCode {
     /// The CycloneDX version of the SBOM is older than 1.6, the minimum of BSI TR-03183-2.
     SpecVersionBelowMinimum,
@@ -66,12 +72,18 @@ impl WarningCode {
     }
 }
 
+impl PartialEq for WarningCode {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
 impl From<String> for WarningCode {
     fn from(code: String) -> Self {
-        match code.as_str() {
-            "spec_version_below_minimum" => Self::SpecVersionBelowMinimum,
-            _ => Self::Unknown(code),
-        }
+        [Self::SpecVersionBelowMinimum]
+            .into_iter()
+            .find(|named| named.as_str() == code)
+            .unwrap_or(Self::Unknown(code))
     }
 }
 
@@ -89,9 +101,11 @@ pub struct ErrorBody {
     pub message: Option<String>,
 }
 
-/// The code of a refusal (UPA-9), or one the contract does not name, kept with its text (UPA-4).
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// The code of a refusal (UPA-9), or one the contract does not name, kept with its text (UPA-4). Two codes are equal
+/// when they are written alike, an `Unknown` holding a named code included.
+#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 #[serde(from = "String", into = "String")]
+#[non_exhaustive]
 pub enum ErrorCode {
     /// The product name or the version is refused.
     InvalidName,
@@ -109,6 +123,17 @@ pub enum ErrorCode {
     Unavailable,
     Unknown(String),
 }
+
+/// The codes the contract names (UPA-9).
+const NAMED_ERROR_CODES: [ErrorCode; 7] = [
+    ErrorCode::InvalidName,
+    ErrorCode::UnreadableBody,
+    ErrorCode::Unauthorized,
+    ErrorCode::TooLarge,
+    ErrorCode::UnreadableSbom,
+    ErrorCode::InvalidComponent,
+    ErrorCode::Unavailable,
+];
 
 impl ErrorCode {
     /// The code as the service writes it.
@@ -129,7 +154,7 @@ impl ErrorCode {
     /// The status the service answers with this code; `None` for a code the contract does not name.
     #[must_use]
     pub fn status(&self) -> Option<u16> {
-        match self {
+        match Self::from(self.as_str().to_owned()) {
             Self::InvalidName | Self::UnreadableBody => Some(400),
             Self::Unauthorized => Some(401),
             Self::TooLarge => Some(413),
@@ -140,18 +165,18 @@ impl ErrorCode {
     }
 }
 
+impl PartialEq for ErrorCode {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
 impl From<String> for ErrorCode {
     fn from(code: String) -> Self {
-        match code.as_str() {
-            "invalid_name" => Self::InvalidName,
-            "unreadable_body" => Self::UnreadableBody,
-            "unauthorized" => Self::Unauthorized,
-            "too_large" => Self::TooLarge,
-            "unreadable_sbom" => Self::UnreadableSbom,
-            "invalid_component" => Self::InvalidComponent,
-            "unavailable" => Self::Unavailable,
-            _ => Self::Unknown(code),
-        }
+        NAMED_ERROR_CODES
+            .into_iter()
+            .find(|named| named.as_str() == code)
+            .unwrap_or(Self::Unknown(code))
     }
 }
 
@@ -167,7 +192,7 @@ pub enum AccountAnswer {
     /// `200`: the name of the account of the token.
     Account(String),
     /// Any other status (UPA-8).
-    Refused { status: u16, body: ErrorBody },
+    Refused(Refusal),
 }
 
 /// The body of the answer `200` to the account of a token (UPA-12).
@@ -203,7 +228,7 @@ pub fn read_upload_answer(status: u16, body: &[u8]) -> Result<UploadAnswer, Unre
     match status {
         201 => read(status, body).map(UploadAnswer::Created),
         200 => read(status, body).map(UploadAnswer::Replaced),
-        _ => read(status, body).map(|body| UploadAnswer::Refused { status, body }),
+        _ => read(status, body).map(|body| UploadAnswer::Refused(Refusal { status, body })),
     }
 }
 
@@ -215,13 +240,18 @@ pub fn read_account_answer(status: u16, body: &[u8]) -> Result<AccountAnswer, Un
     if status == 200 {
         read::<Account>(status, body).map(|body| AccountAnswer::Account(body.account))
     } else {
-        read(status, body).map(|body| AccountAnswer::Refused { status, body })
+        read(status, body).map(|body| AccountAnswer::Refused(Refusal { status, body }))
     }
 }
 
+/// The body as the JSON object `T`: an array is refused, which the derived readers of `serde` would take field by
+/// field (UPA-10).
 fn read<T: DeserializeOwned>(status: u16, body: &[u8]) -> Result<T, UnreadableAnswer> {
-    serde_json::from_slice(body).map_err(|error| UnreadableAnswer {
-        status,
-        reason: error.to_string(),
-    })
+    let unreadable = |reason: String| UnreadableAnswer { status, reason };
+    let value: serde_json::Value =
+        serde_json::from_slice(body).map_err(|error| unreadable(error.to_string()))?;
+    if !value.is_object() {
+        return Err(unreadable("not a JSON object".to_owned()));
+    }
+    serde_json::from_value(value).map_err(|error| unreadable(error.to_string()))
 }

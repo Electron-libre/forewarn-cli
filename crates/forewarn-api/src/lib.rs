@@ -9,12 +9,22 @@ use std::fmt;
 mod answer;
 
 pub use answer::{
-    ACCOUNT_PATH, Account, AccountAnswer, ErrorBody, ErrorCode, Receipt, UnreadableAnswer,
-    UploadAnswer, Warning, WarningCode, read_account_answer, read_upload_answer,
+    Account, AccountAnswer, ErrorBody, ErrorCode, Receipt, Refusal, UnreadableAnswer, UploadAnswer,
+    Warning, WarningCode, read_account_answer, read_upload_answer,
 };
 
+/// The path of the contract version every route lives under, as a literal for `concat!`.
+macro_rules! api_root {
+    () => {
+        "/api/v1"
+    };
+}
+
 /// The path of the contract version every route lives under (UPA-1).
-pub const API_ROOT: &str = "/api/v1";
+pub const API_ROOT: &str = api_root!();
+
+/// The route of the account of a token, relative to the root of the service (UPA-12).
+pub const ACCOUNT_PATH: &str = concat!(api_root!(), "/account");
 
 /// The most characters (Unicode scalar values) a product name or a version may hold (UPA-6).
 pub const MAX_NAME_CHARS: usize = 255;
@@ -43,6 +53,7 @@ pub enum Name {
 
 /// Why a name of an upload is refused (UPA-6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum NameProblem {
     /// Empty or only white space.
     Blank,

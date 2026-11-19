@@ -2,7 +2,7 @@
 //! back as the JSON they are read from (`specs/upload-api.md`).
 
 use forewarn_api::{
-    AccountAnswer, ErrorBody, ErrorCode, Receipt, UploadAnswer, Warning, WarningCode,
+    AccountAnswer, ErrorBody, ErrorCode, Receipt, Refusal, UploadAnswer, Warning, WarningCode,
     read_account_answer, read_upload_answer, sbom_upload_path,
 };
 
@@ -27,13 +27,13 @@ fn receipt(warnings: Vec<Warning>) -> Receipt {
 }
 
 fn refused(status: u16, error: ErrorCode, message: Option<&str>) -> UploadAnswer {
-    UploadAnswer::Refused {
+    UploadAnswer::Refused(Refusal {
         status,
         body: ErrorBody {
             error,
             message: message.map(str::to_owned),
         },
-    }
+    })
 }
 
 // spec: UPA-H1
@@ -136,6 +136,18 @@ fn an_unknown_error_code_is_kept_with_its_text() {
     assert_eq!(ErrorCode::Unknown("rate_limited".to_owned()).status(), None);
 }
 
+// spec: UPA-4, UPA-13
+#[test]
+fn an_unknown_code_holding_a_named_code_is_that_code() {
+    let built = ErrorCode::Unknown("unauthorized".to_owned());
+    assert_eq!(built, ErrorCode::Unauthorized);
+    assert_eq!(built.status(), Some(401));
+    assert_eq!(
+        WarningCode::Unknown("spec_version_below_minimum".to_owned()),
+        WarningCode::SpecVersionBelowMinimum
+    );
+}
+
 // spec: UPA-4
 #[test]
 fn an_unknown_warning_code_is_kept_with_its_text() {
@@ -152,8 +164,10 @@ fn an_unknown_warning_code_is_kept_with_its_text() {
 // spec: UPA-10
 #[test]
 fn a_body_that_is_not_the_object_of_its_status_fails_naming_the_status() {
-    let cases: [(u16, &[u8]); 5] = [
+    let cases: [(u16, &[u8]); 7] = [
         (502, b"<html>Bad Gateway</html>"),
+        (401, br#"["unauthorized"]"#),
+        (201, br#"["acme-gateway", "2.4.0", "1.6", 3, "t", "t", []]"#),
         (201, br#"{"error": "unauthorized"}"#),
         (200, br#"{"product": "acme-gateway"}"#),
         (422, br#"{"message": "no code"}"#),
@@ -195,20 +209,22 @@ fn the_account_of_a_token_is_read() {
     );
     assert_eq!(
         read_account_answer(401, br#"{"error": "unauthorized"}"#),
-        Ok(AccountAnswer::Refused {
+        Ok(AccountAnswer::Refused(Refusal {
             status: 401,
             body: ErrorBody {
                 error: ErrorCode::Unauthorized,
                 message: None
             }
-        })
+        }))
     );
-    assert_eq!(
-        read_account_answer(200, br#"{"name": "acme"}"#)
-            .expect_err("no account")
-            .status,
-        200
-    );
+    for body in [&br#"{"name": "acme"}"#[..], br#"["acme"]"#] {
+        assert_eq!(
+            read_account_answer(200, body)
+                .expect_err("no account")
+                .status,
+            200
+        );
+    }
 }
 
 // spec: UPA-13

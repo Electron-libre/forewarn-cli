@@ -92,7 +92,7 @@ and the service through the crate `forewarn-api`, so that both build and read th
 ## Non-goals
 
 - The transport: sending the request, the root of the service, the credentials and the headers belong to the upload
-  adapter (`specs/sbom-upload.md`); this crate performs no I/O.
+  adapter, a capability of its own; this crate performs no I/O.
 - A date or a sending tool in the request: the service dates the upload with its own clock.
 - Parsing `received_at` and `first_uploaded_at` into moments: they are kept as the service writes them.
 - Checking the SBOM before it is sent: the CLI reads it with the CycloneDX adapter; the contract adds no rule.

@@ -25,7 +25,8 @@ or with a status and an error code. The CLI and the service are released apart.
   next to the former one.
 - **How the contract evolves within `v1`**: a field the reader does not name is ignored, and an error or a warning code
   it does not name is kept as unknown with its text, so adding a field or a code keeps `v1`. Removing or renaming a
-  field, making one required or changing what a field or a code means takes `v2`.
+  field, making one required or changing what a field or a code means takes `v2`. The code enums are `#[non_exhaustive]`, so a
+  new code does not break a crate that matches them.
 - **The dates of the receipt stay text**, as the service writes them (RFC 3339 with a fraction of a second): the
   domain's `Moment` counts whole seconds (ADR 0011), and the CLI only shows them.
 
@@ -35,3 +36,5 @@ or with a status and an error code. The CLI and the service are released apart.
   dependency is pinned to a tag of this repository).
 - A test of this repository proves the contract without a network; the HTTP statuses it reads are plain numbers.
 - An SBOM in XML, or a date given by the CI, would need a change of the contract.
+- A product name holding `/` (`@acme/gateway`) travels as `%2F` inside a segment: a proxy in front of the service must
+  pass an encoded slash through undecoded, or the route is not found.

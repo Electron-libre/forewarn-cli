@@ -85,3 +85,20 @@ Out of scope: sending the request (next issue).
   docs (`CLAUDE.md`, `docs/architecture.md`).
 - red: UPA-3, UPA-4, UPA-7, UPA-8, UPA-9, UPA-10, UPA-11, UPA-12, UPA-13, UPA-H1, UPA-H2: `unresolved imports forewarn_api::AccountAnswer, ErrorBody, ErrorCode, Receipt, UploadAnswer, Warning, WarningCode, read_account_answer, read_upload_answer`
 - Code review: no findings
+
+## Deliverable 3: issue review fixes
+
+- done: a body that is a JSON array refused (UPA-10); `ErrorCode`/`WarningCode` equal when written alike, one table of
+  the named error codes, `#[non_exhaustive]` code enums; one `Refusal` type for both answers; `ACCOUNT_PATH` built on
+  `API_ROOT` in `lib.rs`; dead spec link removed; ADR 0017 notes the encoded slash and the non-exhaustive codes.
+- red: UPA-10, UPA-13: `read_account_answer(200, ["acme"])` read as an account; `Unknown("unauthorized") != Unauthorized`
+- Code review (high, issue): 10 findings: 8 fixed (array body, `Unknown` equality, non-exhaustive enums, duplicate
+  code tables, `ACCOUNT_PATH`, shared refusal, dead link, the encoded slash noted in ADR 0017); 2 not fixed: control
+  characters beyond Cc and white space around a name, because the client mirrors the name rules of the service
+  (UPA-6) and must not refuse a name the service stores.
+- Code review: no findings
+
+## Status
+
+Done: every deliverable committed, spec `upload-api` and ADR 0017 accepted. Follow-up for
+`issues/cli_upload_command.md`: its step 3 (a date sent with `--now`) no longer applies, the service dates the upload.
