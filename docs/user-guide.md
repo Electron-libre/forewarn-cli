@@ -356,7 +356,8 @@ On a tag, it then uploads the SBOM whatever the match found (secrets `FOREWARN_E
 the step without a service). The daily run matters: a dependency becomes actively exploited without a change of your
 code, and the 24 h deadline runs from the moment you know it. The deadlines of each exploited CVE count from the first
 run that flagged it, [remembered](#remember-the-moment-of-awareness-across-runs) in the cache: a later run shows them
-left or overdue; a cache evicted (unused for 7 days on GitHub) restarts them from the next run. `syft` names your product without a package URL, so your own packages
+left or overdue; a cache evicted (unused for 7 days on GitHub) restarts them from the next run, and a CVE a tag run
+flags first is recorded again by the next daily run (GitHub keeps the cache of a tag run with its tag). `syft` names your product without a package URL, so your own packages
 are matched as third-party ones; the SBOM tool of your ecosystem (`cargo cyclonedx`, `cdxgen`) avoids it.
 
 [`examples/ci/gitlab-ci.yml`](../examples/ci/gitlab-ci.yml) does the same in GitLab CI: copy it into your project and
@@ -424,7 +425,7 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | `specVersion`, `componentCount`, `cleanCount`, `exploitedCount` | the SBOM and the counts |
 | `osv` | each source of records: `kind` (`archive`, `api`, `local`), `recordCount`, and when it was downloaded or queried, or its path |
 | `exploitedLists` | each list used: `name`, `kind` (`fetched`, `local`), `entryCount`, the catalog's `version` and `released`, and `downloadedAt` or `path` |
-| `awareSince`, `measureAvailable` | the moments of the deadlines, `null` when nothing is actively exploited |
+| `awareSince`, `measureAvailable` | the moment of awareness of the run (a CVE `--awareness` recorded keeps its own, in `affected`) and of the measure, `null` when nothing is actively exploited |
 | `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `awareSince` (the moment its deadlines count from, which `--awareness` may have recorded) or `null`, `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
 | `notEvaluated` | each component not evaluated, with its reason (`first-party`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
 | `drafts` | each draft written: `cve`, `path` |

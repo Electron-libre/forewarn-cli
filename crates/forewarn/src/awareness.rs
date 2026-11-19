@@ -22,7 +22,7 @@ use crate::usage_error;
 /// that of the check (MXL-23).
 pub struct Awareness {
     /// The moment of awareness of the run.
-    pub since: Moment,
+    pub run_since: Moment,
     /// Whether it was given with `--aware-since`, else read from the clock.
     pub given: bool,
     pub measure_available: Option<Moment>,
@@ -78,7 +78,7 @@ impl Awareness {
             )
         });
         Self {
-            since,
+            run_since: since,
             given: args.aware_since.is_some(),
             measure_available,
             checked_at: given_or_run(args.now.as_ref()),
@@ -100,15 +100,21 @@ impl Awareness {
         cves: impl IntoIterator<Item = &'a str>,
     ) -> Result<(), FileError> {
         let mut recorded = HashMap::new();
-        let mut changed = false;
+        let mut added = Vec::new();
         for cve in cves {
             match file.recorded(product, cve) {
-                Some(moment) => {
+                // A CVE of several matches this run added is not recorded before the run (AWR-4).
+                Some(moment) if !added.contains(&cve) => {
                     recorded.insert(cve.to_owned(), moment);
                 }
-                None => changed |= file.record(product, cve, self.since),
+                Some(_) => {}
+                None => {
+                    file.record(product, cve, self.run_since);
+                    added.push(cve);
+                }
             }
         }
+        let changed = !added.is_empty();
         if changed {
             file.write()?;
         }
@@ -123,7 +129,7 @@ impl Awareness {
             .as_ref()
             .and_then(|(_, recorded)| recorded.get(cve))
             .copied()
-            .unwrap_or(self.since)
+            .unwrap_or(self.run_since)
     }
 
     /// The reporting deadlines of `cve` (MXL-14 to MXL-16).
@@ -145,7 +151,7 @@ impl Awareness {
         let _ = write!(
             text,
             "Reporting deadlines (CRA article 14(2)): aware since {} ({}), ",
-            self.since,
+            self.run_since,
             origin(self.given, "--aware-since")
         );
         match self.measure_available {

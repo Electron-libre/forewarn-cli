@@ -48,8 +48,9 @@ into it or read with `--euvd`), with its CRA reporting deadlines from `--aware-s
 run) and `--measure-available`, each with the time left before it or how long it is overdue at `--now` (by default the
 moment of the run), and exits with 6 on such a match (`specs/cli-match-exploited.md`); with `--awareness <file>`, it
 counts the deadlines of each such CVE from the moment the file records for the product and the CVE, records the
-moment of the run for those it does not, and rewrites the file whole then (module `awareness_file`), exiting with 3
-when the file cannot be read, 7 when it cannot be written (`specs/cli-match-awareness.md`, ADR
+moment of awareness of the run (`--aware-since`, else the moment of the run) for those it does not, and rewrites the
+file whole then (module `awareness_file`), exiting with 3 when the file cannot be read, 7 when it cannot be written
+(`specs/cli-match-awareness.md`, ADR
 [0019](docs/adr/0019-remember-the-moments-of-awareness-in-a-file-the-user-names.md)); with `--drafts <dir>`, it
 writes the draft early warning of each such CVE into `<dir>/<product>-<CVE>.md` (module `drafts`), names the files in
 the report, names apart the stale drafts of the product it no longer writes, left in place, and exits with 7 when one
@@ -99,9 +100,8 @@ for its own decision.
 release, `syft`, `check`, `match`, upload on a tag); `crates/forewarn/tests/ci_templates.rs` checks each option they
 give `forewarn` exists and that they install an archive the release builds; `crates/forewarn/tests/ci_template_run.rs`
 runs the `run:` blocks of the GitHub template with `bash` (Unix) against the binary of the commit, a fixture product
-(`tests/fixtures/ci-template`) and local feeds: a daily run on the latest tag exits with 6 on an exploited match, the next one counting its deadlines from
-the moment the first recorded in the cache kept (`--awareness`), a tag
-run passes on a match not exploited and uploads with `--dry-run`; a new step with a `run:` must be run or replaced there.
+(`tests/fixtures/ci-template`) and local feeds: a daily run on the latest tag exits with 6 on an exploited match, the
+next one counting its deadlines from the moment recorded in the cache kept (`--awareness`), a tag run passes on a match not exploited and uploads with `--dry-run`; a new step with a `run:` must be run or replaced there.
 `crates/forewarn/tests/ci_gitlab_template_run.rs` runs the `script` of each GitLab job the same way, with `sh`, its
 `before_script` replaced up to `cd "$CI_PROJECT_DIR"` and `syft` by a stub writing the fixture SBOM, and checks the
 `needs`, `artifacts` and `rules` that carry the SBOM between its jobs on a schedule and a tag; a new job with a

@@ -91,10 +91,11 @@ forewarn-sbom:
 forewarn-match:
   extends: .forewarn
   needs: [forewarn-sbom]
-  # The OSV archives, the CISA KEV catalog, the EUVD list and the moments of awareness, kept between pipelines and saved even when the job
-  # fails. A cache is kept per runner unless your runners share a distributed cache.
+  # The OSV archives, the CISA KEV catalog, the EUVD list and the moments of awareness, kept between pipelines and
+  # saved even when the job fails, one cache per job (a copy of this job for another release line keeps its own). A
+  # cache is kept per runner unless your runners share a distributed cache.
   cache:
-    key: forewarn-feeds
+    key: forewarn-feeds-$CI_JOB_NAME
     paths: [.forewarn-cache/]
     when: always
   script:

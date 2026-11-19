@@ -158,15 +158,17 @@ fn parse(document: &Value) -> Result<BTreeMap<(Option<String>, String), Moment>,
     for (index, entry) in entries.iter().enumerate() {
         let at = |why: &str| format!("entry {index}: {why}");
         let entry: &Map<String, Value> = entry.as_object().ok_or_else(|| at("not an object"))?;
+        // As a run names them, so that an entry edited by hand matches (AWR-13).
         let product = match entry.get("product") {
             Some(Value::Null) => None,
-            Some(Value::String(product)) => Some(product.clone()),
+            Some(Value::String(product)) => product_key(Some(product)),
             _ => return Err(at("`product` is neither a string nor null")),
         };
         let cve = entry
             .get("cve")
             .and_then(Value::as_str)
-            .ok_or_else(|| at("no string `cve`"))?;
+            .ok_or_else(|| at("no string `cve`"))?
+            .to_uppercase();
         let text = entry
             .get("awareSince")
             .and_then(Value::as_str)
@@ -175,7 +177,7 @@ fn parse(document: &Value) -> Result<BTreeMap<(Option<String>, String), Moment>,
             .map_err(|why| at(&format!("`awareSince` {text} is not {why}")))?
             .moment;
         reporting_deadlines(moment, None).map_err(|error| at(&error.to_string()))?;
-        if moments.insert((product, cve.to_owned()), moment).is_some() {
+        if moments.insert((product, cve.clone()), moment).is_some() {
             return Err(at(&format!("{cve} recorded twice for its product")));
         }
     }

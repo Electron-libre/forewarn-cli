@@ -303,13 +303,15 @@ fn a_daily_run_checks_the_latest_tag_and_fails_on_an_actively_exploited_match() 
         .strip_prefix(kept)
         .unwrap_or_else(|| panic!("{TEMPLATE}: the moments of awareness under {kept}: {file}"));
     let file = job.sandbox.home().join(".cache/forewarn").join(relative);
-    let first = ci_template::recorded_and_reported(&file, &report, "CVE-2021-44228");
+    ci_template::recorded_and_reported(&file, &report, "CVE-2021-44228");
+    // A moment earlier than the clock of any run, so that the next run gives it only when it reads it back.
+    ci_template::record_earlier(&file);
     job.step(MATCH, with_local_feeds, &[], 6);
     let next = job.sandbox.report();
     assert_eq!(
         ci_template::recorded_and_reported(&file, &next, "CVE-2021-44228"),
-        first,
-        "the next run counts from the moment of the first"
+        ci_template::EARLIER,
+        "the next run counts from the moment recorded"
     );
 }
 

@@ -433,7 +433,7 @@ fn records_null_for_an_sbom_naming_no_product_and_the_trimmed_name_of_a_product(
     );
 }
 
-// spec: AWR-7
+// spec: AWR-4, AWR-7
 #[test]
 fn records_a_cve_of_two_matches_once() {
     let work = Work::new();
@@ -451,6 +451,54 @@ fn records_a_cve_of_two_matches_once() {
     assert_eq!(
         read(&file),
         moments(&[entry(Some("shop"), LOG4J, "2026-11-13T09:30:00Z")])
+    );
+    assert_eq!(
+        run.stdout
+            .matches("    aware since 2026-11-13T09:30:00Z (--aware-since)\n")
+            .count(),
+        2,
+        "both matches take the moment given, none the file's: {}",
+        run.stdout
+    );
+}
+
+// spec: AWR-13
+#[test]
+fn reads_an_entry_edited_by_hand_with_its_cve_in_capitals_and_its_product_trimmed() {
+    let work = Work::new();
+    let file = work.file("awareness.json");
+    write(
+        &file,
+        &moments(&[entry(
+            Some(" shop "),
+            "cve-2021-44228",
+            "2026-11-01T00:00:00Z",
+        )]),
+    );
+    let before = fs::read(&file).expect("the file is read");
+    let run = work.run(&["--awareness", path(&file), "--format", "json"], &shop());
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    assert_eq!(
+        affected(&json_report(&run), "log4j-core", "awareSince"),
+        "2026-11-01T00:00:00Z"
+    );
+    assert_eq!(
+        fs::read(&file).expect("the file is read"),
+        before,
+        "untouched"
+    );
+    write(
+        &file,
+        &moments(&[
+            entry(Some("  "), LOG4J, "2026-11-01T00:00:00Z"),
+            entry(None, "cve-2021-44228", "2026-11-02T00:00:00Z"),
+        ]),
+    );
+    let run = work.run(&["--awareness", path(&file)], &shop());
+    assert_eq!(
+        run.code, 3,
+        "the same product and CVE twice: {}",
+        run.stderr
     );
 }
 

@@ -423,13 +423,15 @@ fn a_scheduled_run_checks_the_latest_tag_and_fails_on_an_actively_exploited_matc
         "{TEMPLATE}: the moments of awareness {file} under the cache kept {kept:?}"
     );
     let file = pipeline.sandbox.product.join(file);
-    let first = ci_template::recorded_and_reported(&file, &report, "CVE-2021-44228");
+    ci_template::recorded_and_reported(&file, &report, "CVE-2021-44228");
+    // A moment earlier than the clock of any run, so that the next run gives it only when it reads it back.
+    ci_template::record_earlier(&file);
     pipeline.job(MATCH, with_local_feeds, &[], 6);
     let next = pipeline.sandbox.report();
     assert_eq!(
         ci_template::recorded_and_reported(&file, &next, "CVE-2021-44228"),
-        first,
-        "the next run counts from the moment of the first"
+        ci_template::EARLIER,
+        "the next run counts from the moment recorded"
     );
 }
 

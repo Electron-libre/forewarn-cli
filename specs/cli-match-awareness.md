@@ -58,6 +58,9 @@ The exit codes (3 for a file of moments that cannot be read, 7 for one that cann
 - **AWR-12** (deterministic) The JSON report must give, in each object of `affected` (MCH-16), the member
   `awareSince`: the moment of awareness its deadlines count from, as MXL-21 writes it, or `null` when no list names
   the match; the top-level `awareSince` stays the moment of awareness of the run (MXL-17).
+- **AWR-13** (deterministic) An entry of the file must be read with its CVE id in capitals and its product without
+  its leading and trailing white space, a product made only of white space read as `null`, so that an entry edited by
+  hand names the CVE and the product of a run.
 
 ## Scenarios
 
@@ -86,6 +89,9 @@ The exit codes (3 for a file of moments that cannot be read, 7 for one that cann
   null`; given the product ` shop\n`, its entry gives `"product": "shop"` and a later run of `shop` reads it back.
 - (AWR-7) Given two exploited matches of one CVE in two components, when the run records it, then the file holds one
   entry for that CVE.
+- (AWR-13, AWR-10) Given a file recording `cve-2021-44228` for ` shop `, when the SBOM of `shop` is matched, then its
+  deadlines count from that entry and the file is left untouched; given entries of `  ` and of `null` for one CVE, the
+  command exits with 3.
 - (AWR-8) Given `--awareness a/b/awareness.json` where `a` does not exist and no match actively exploited, when the
   SBOM is matched, then nothing is created; given an exploited match, `a/b/` is created with the file.
 - (AWR-10, MCH-10) Given a directory, a file that is not JSON, a file `{}`, an entry whose `awareSince` is `2026-11-13`, two

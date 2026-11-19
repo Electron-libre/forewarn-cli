@@ -549,7 +549,7 @@ pub fn matching_json(report: &MatchReport) -> String {
         "exploitedLists": exploited_lists,
         "exploitedCount": matching.exploited_count(),
         // Only with an exploited match, so that a run reading the clock gives the same report as long as none is.
-        "awareSince": exploited_any.then(|| awareness.since.to_string()),
+        "awareSince": exploited_any.then(|| awareness.run_since.to_string()),
         "measureAvailable": awareness
             .measure_available
             .filter(|_| exploited_any)

@@ -80,14 +80,14 @@ jobs:
         run: |
           syft scan dir:. --source-name "$PRODUCT" --source-version "$VERSION" -o cyclonedx-json=sbom.cdx.json
 
-      # The OSV archives, the CISA KEV catalog, the EUVD list and the moments of awareness, kept between runs: each run restores the latest copy
-      # and saves its own, even when the job fails (a key cannot be overwritten, so one per run; GitHub evicts the
-      # oldest).
+      # The OSV archives, the CISA KEV catalog, the EUVD list and the moments of awareness, kept between runs: each
+      # run restores the latest copy of its job and saves its own, even when the job fails (a key cannot be
+      # overwritten, so one per run and per job, a copy of this job keeping its own; GitHub evicts the oldest).
       - uses: actions/cache/restore@v6
         with:
           path: ~/.cache/forewarn
-          key: forewarn-feeds-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: forewarn-feeds-
+          key: forewarn-feeds-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: forewarn-feeds-${{ github.job }}-
 
       # The gaps of the SBOM (supplier, license, hashes), reported without failing the job.
       - name: Check the SBOM
@@ -98,7 +98,8 @@ jobs:
       # than 12 hours, so a daily run never matches against the lists of the day before.
       # The 24 h and 72 h deadlines of each exploited CVE count from the first run that flagged it: --awareness keeps
       # that moment, kept with the feeds, so a later run shows the deadlines left or overdue. A cache GitHub evicted
-      # (unused for 7 days) restarts them from the next run.
+      # (unused for 7 days) restarts them from the next run. The cache of a tag run stays with its tag: a CVE it flags
+      # first is recorded again by the next daily run, which restores the cache of the default branch only.
       - name: Match the SBOM against the vulnerabilities
         run: |
           forewarn match --allow-affected --refresh 12h --awareness ~/.cache/forewarn/awareness.json \
@@ -108,7 +109,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/forewarn
-          key: forewarn-feeds-${{ github.run_id }}-${{ github.run_attempt }}
+          key: forewarn-feeds-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Keep the SBOM, the report and the drafts
         if: ${{ !cancelled() && steps.sbom.outcome == 'success' }}

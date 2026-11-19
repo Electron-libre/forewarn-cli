@@ -58,6 +58,7 @@ nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts bac
    `.forewarn-cache/awareness.json`), the comment on the deadlines updated; `ci_template_run.rs` and
    `ci_gitlab_template_run.rs` check that a second daily run reads the moment back and shows the early warning
    overdue; user guide, architecture, ADR 0019 accepted. (autonomous)
+5. [x] Docs of the whole issue and the fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -105,4 +106,20 @@ nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts bac
 - Code review: no findings.
 - checks: project-check passed.
 - not verified: the eviction of the GitHub cache after 7 days unused, a property of GitHub.
+- decisions needed: none.
+
+### 5. Docs of the whole issue and fixes of the `high` review
+- done: docs reread over the issue (flow of the architecture, `awareSince` of the reference); fixes of the `high`
+  review: a CVE of several matches added by the run no longer reads as recorded before it (AWR-4); an entry edited by
+  hand is read with its CVE in capitals and its product trimmed (AWR-13, new); the field of the run's moment renamed
+  `run_since`; the cache of each template keyed per job, so a copy of the job keeps its own moments; the GitHub
+  template and the user guide say a tag run's cache stays with its tag; the template runs seed an earlier moment
+  before the second run; CLAUDE.md wording and wrapping.
+- red: AWR-4: `both matches take the moment given, none the file's` (the second match read `(from <file>)`); AWR-13:
+  `left: "2026-11-19T18:12:42Z", right: "2026-11-01T00:00:00Z"`.
+- `high` review: 9 findings; fixed 8; not fixed: the temporary file resets the mode of the file to 0600, as it
+  already does for the drafts (MXL-34), harmless for the single-user cache of a CI job.
+- Code review: no findings.
+- checks: project-check passed.
+- not verified: GitHub's scoping of the cache of a tag run, read from its documentation, not run.
 - decisions needed: none.

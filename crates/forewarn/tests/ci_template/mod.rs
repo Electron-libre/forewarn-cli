@@ -189,6 +189,20 @@ pub fn awareness_file(template: &str, block: &str) -> String {
         .to_owned()
 }
 
+/// A moment of awareness before any run of the tests.
+pub const EARLIER: &str = "2026-11-01T00:00:00Z";
+
+/// Rewrites `file` with every moment it records set to [`EARLIER`].
+pub fn record_earlier(file: &Path) {
+    let mut moments: Value =
+        serde_json::from_str(&fs::read_to_string(file).expect("the file of moments is read"))
+            .expect("the file of moments is JSON");
+    for entry in moments["awareness"].as_array_mut().expect("an array") {
+        entry["awareSince"] = Value::from(EARLIER);
+    }
+    fs::write(file, format!("{moments:#}\n")).expect("the file of moments is written");
+}
+
 /// The moment of awareness `file` records for the product `acme-app` and `cve`, and the one the report of the match
 /// gives its match of `cve`, which must be the same.
 pub fn recorded_and_reported(file: &Path, report: &Value, cve: &str) -> String {

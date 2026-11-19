@@ -78,7 +78,7 @@ flowchart LR
 2. **SBOM.** The CycloneDX adapter returns the product (`metadata.component`), its manufacturer and the components,
    nested ones included, each tagged first-party or file when it is one, with its `bom-ref`
    ([spec](../specs/sbom-reading.md)), and the VEX verdicts of its `vulnerabilities`
-   ([vex-verdicts](../specs/vex-verdicts.md)).
+   ([vex-verdicts](../specs/vex-verdicts.md)). The file of `--awareness` is read just before it.
 3. **Vulnerabilities.** From the cached archive of each ecosystem the SBOM uses, from local files, or from the OSV API
    ([osv-reading](../specs/osv-reading.md), [osv-fetching](../specs/osv-fetching.md)).
 4. **Exploited lists.** The CISA KEV catalog, then the EUVD exploited list, each read from a file or fetched into the
@@ -92,7 +92,7 @@ flowchart LR
    ([vex-verdicts](../specs/vex-verdicts.md), [ADR 0014](adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md)); its CRA article 14(2) deadlines are computed from the
    moment of awareness of its CVE ([reporting-deadlines](../specs/reporting-deadlines.md)); the early warning's fields are filled
    or marked to complete ([early-warning-draft](../specs/early-warning-draft.md)).
-6. **Output.** With `--awareness`, the file read before the SBOM takes the moment of each CVE it records and is
+6. **Output.** With `--awareness`, each exploited CVE takes the moment the file records for it, and the file is
    rewritten with the CVEs it did not hold ([cli-match-awareness](../specs/cli-match-awareness.md),
    [ADR 0019](adr/0019-remember-the-moments-of-awareness-in-a-file-the-user-names.md)). The stale drafts of the directory are listed, then the drafts written, so that a failure
    leaves standard output empty; then the report; then the exit code ([cli-match](../specs/cli-match.md), [cli-match-exploited](../specs/cli-match-exploited.md)).
