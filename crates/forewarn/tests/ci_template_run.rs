@@ -289,6 +289,28 @@ fn a_daily_run_checks_the_latest_tag_and_fails_on_an_actively_exploited_match() 
             .is_file(),
         "the draft early warning of the exploited CVE is written"
     );
+
+    // The moment of awareness is kept with the feeds, so that the next daily run counts the deadlines from it.
+    let file = ci_template::awareness_file(TEMPLATE, &job.template_step(MATCH).run);
+    let kept = "~/.cache/forewarn/";
+    let template = fs::read_to_string(fixture(TEMPLATE)).expect("the template is read");
+    assert_eq!(
+        template.matches("path: ~/.cache/forewarn\n").count(),
+        2,
+        "{TEMPLATE}: the cache restored and saved"
+    );
+    let relative = file
+        .strip_prefix(kept)
+        .unwrap_or_else(|| panic!("{TEMPLATE}: the moments of awareness under {kept}: {file}"));
+    let file = job.sandbox.home().join(".cache/forewarn").join(relative);
+    let first = ci_template::recorded_and_reported(&file, &report, "CVE-2021-44228");
+    job.step(MATCH, with_local_feeds, &[], 6);
+    let next = job.sandbox.report();
+    assert_eq!(
+        ci_template::recorded_and_reported(&file, &next, "CVE-2021-44228"),
+        first,
+        "the next run counts from the moment of the first"
+    );
 }
 
 #[test]

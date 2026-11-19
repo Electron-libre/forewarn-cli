@@ -1,6 +1,6 @@
 # 0019. Remember the moments of awareness in a file the user names
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-19
 
 ## Context

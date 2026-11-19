@@ -343,8 +343,8 @@ intermediary that refuses the expectation) is the only answer after which the re
 `.github/workflows/` of your product, each step commented. On each tag `v*`, and each day on the latest tag `v*`, it
 installs the release `FOREWARN_VERSION` pins (the latest one here; raise it in your copy to upgrade) checked against
 its `SHA256SUMS`, produces the SBOM with `syft` (named after the repository and the tag), keeps the cache of the feeds
-between runs, reports the gaps of the SBOM without failing, and runs
-`forewarn match --allow-affected --refresh 12h`:
+and the moments of awareness between runs, reports the gaps of the SBOM without failing, and runs
+`forewarn match --allow-affected --refresh 12h --awareness ~/.cache/forewarn/awareness.json`:
 
 | `forewarn match` exits with | The job |
 |---|---|
@@ -354,8 +354,9 @@ between runs, reports the gaps of the SBOM without failing, and runs
 
 On a tag, it then uploads the SBOM whatever the match found (secrets `FOREWARN_ENDPOINT` and `FOREWARN_TOKEN`; remove
 the step without a service). The daily run matters: a dependency becomes actively exploited without a change of your
-code, and the 24 h deadline runs from the moment you know it. Each run counts the deadlines from itself: keep the drafts
-of the first run that fails, the moment you knew. `syft` names your product without a package URL, so your own packages
+code, and the 24 h deadline runs from the moment you know it. The deadlines of each exploited CVE count from the first
+run that flagged it, [remembered](#remember-the-moment-of-awareness-across-runs) in the cache: a later run shows them
+left or overdue; a cache evicted (unused for 7 days on GitHub) restarts them from the next run. `syft` names your product without a package URL, so your own packages
 are matched as third-party ones; the SBOM tool of your ecosystem (`cargo cyclonedx`, `cdxgen`) avoids it.
 
 [`examples/ci/gitlab-ci.yml`](../examples/ci/gitlab-ci.yml) does the same in GitLab CI: copy it into your project and
@@ -363,8 +364,8 @@ are matched as third-party ones; the SBOM tool of your ecosystem (`cargo cyclone
 jobs run on an `alpine` image (x86_64 or aarch64 runners) in the stage `test` (add it to your `stages:` when your list
 leaves it out, or change their `stage:`): `forewarn-sbom`, then `forewarn-match`
 and `forewarn-upload`, the latter needing the SBOM only, so it runs on a tag whatever the match found. Add a daily pipeline schedule for the daily run; the variables `FOREWARN_ENDPOINT` and `FOREWARN_TOKEN` are
-masked and protected, with the tags `v*` protected. The cache of the feeds is kept per runner unless the runners share
-a distributed cache.
+masked and protected, with the tags `v*` protected. The cache of the feeds, with the moments of awareness
+(`.forewarn-cache/awareness.json`), is kept per runner unless the runners share a distributed cache.
 
 The exit codes let a job fail on what matters:
 

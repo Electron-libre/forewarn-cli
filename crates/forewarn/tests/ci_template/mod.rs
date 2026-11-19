@@ -170,6 +170,52 @@ pub fn with_local_feeds(template: &str, block: &str, cache_kept: Option<&str>) -
     })
 }
 
+/// The value of `--awareness` of the match of `block`, a shell block of `template`: the file of the moments of
+/// awareness the job must keep between runs.
+pub fn awareness_file(template: &str, block: &str) -> String {
+    let block = unfolded(block);
+    let line = block
+        .lines()
+        .find(|line| line.contains("forewarn match "))
+        .unwrap_or_else(|| panic!("{template}: a `forewarn match` in:\n{block}"));
+    let tokens: Vec<&str> = line.split_whitespace().collect();
+    let at = option_at(&tokens, "--awareness").unwrap_or_else(|| {
+        panic!("{template}: the match remembers the moments of awareness: {line}")
+    });
+    let value = tokens[*at.end()];
+    value
+        .strip_prefix("--awareness=")
+        .unwrap_or(value)
+        .to_owned()
+}
+
+/// The moment of awareness `file` records for the product `acme-app` and `cve`, and the one the report of the match
+/// gives its match of `cve`, which must be the same.
+pub fn recorded_and_reported(file: &Path, report: &Value, cve: &str) -> String {
+    let moments: Value = serde_json::from_str(
+        &fs::read_to_string(file).unwrap_or_else(|e| panic!("{}: {e}", file.display())),
+    )
+    .expect("the file of moments is JSON");
+    let recorded = moments["awareness"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .find(|entry| entry["product"] == "acme-app" && entry["cve"] == cve)
+        .unwrap_or_else(|| panic!("{cve} of acme-app is recorded: {moments}"))["awareSince"]
+        .as_str()
+        .expect("a moment")
+        .to_owned();
+    let reported = report["affected"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .find(|found| found["exploited"][0]["cve"] == cve)
+        .unwrap_or_else(|| panic!("{cve} is exploited: {report}"))["awareSince"]
+        .clone();
+    assert_eq!(reported, recorded.as_str(), "{report}");
+    recorded
+}
+
 /// The upload of `block`, a shell block of `template`, as a dry run: nothing sent, no token read.
 pub fn as_dry_run(template: &str, block: &str) -> String {
     rewritten(template, block, "upload", |tokens| {
@@ -211,6 +257,11 @@ impl Sandbox {
                 .map(|(name, value)| (*name, (*value).to_owned()))
                 .collect(),
         }
+    }
+
+    /// The `HOME` of the job, where `~` leads.
+    pub fn home(&self) -> &Path {
+        &self.home
     }
 
     /// The directory that holds the product, for the files of the test around it.

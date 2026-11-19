@@ -54,10 +54,10 @@ nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts bac
    AWR-12, the amended MXL-17, MXL-18 and the MCH-16 row. (autonomous)
 3. [x] Refusals: the file unreadable or invalid (exit 3 before the SBOM), unwritable (exit 7, no draft); verified by
    tests through the binary; makes true AWR-10, AWR-11, the MCH-10 rows; sets AWR, MXL, MCH `accepted`. (autonomous, with 2)
-4. [ ] CI templates: `--awareness` under the kept cache directory (GitHub `~/.cache/forewarn/awareness.json`, GitLab
+4. [x] CI templates: `--awareness` under the kept cache directory (GitHub `~/.cache/forewarn/awareness.json`, GitLab
    `.forewarn-cache/awareness.json`), the comment on the deadlines updated; `ci_template_run.rs` and
    `ci_gitlab_template_run.rs` check that a second daily run reads the moment back and shows the early warning
-   overdue; user guide, architecture, ADR 0019 accepted.
+   overdue; user guide, architecture, ADR 0019 accepted. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -94,4 +94,15 @@ nothing changes. Out of scope: a per-CVE `--aware-since`, reading the drafts bac
 - checks: project-check passed; `tests/matching.rs` (848 lines, over 800 before) gets only `awareSince` in two
   expectations, not split here.
 - not verified: none.
+- decisions needed: none.
+
+### 4. CI templates
+- done: both templates pass `--awareness` under the cache they keep (GitHub `~/.cache/forewarn/awareness.json`,
+  GitLab `.forewarn-cache/awareness.json`), their comment on the deadlines rewritten; the runs of the templates check
+  the file lies in the cache kept and a second daily run counts from the moment of the first; user guide (In CI),
+  CLAUDE.md; ADR 0019 accepted.
+- red: none traced (template tests): `examples/ci/gitlab-ci.yml: the match remembers the moments of awareness`.
+- Code review: no findings.
+- checks: project-check passed.
+- not verified: the eviction of the GitHub cache after 7 days unused, a property of GitHub.
 - decisions needed: none.

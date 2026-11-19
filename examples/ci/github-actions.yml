@@ -80,7 +80,7 @@ jobs:
         run: |
           syft scan dir:. --source-name "$PRODUCT" --source-version "$VERSION" -o cyclonedx-json=sbom.cdx.json
 
-      # The OSV archives, the CISA KEV catalog and the EUVD list, kept between runs: each run restores the latest copy
+      # The OSV archives, the CISA KEV catalog, the EUVD list and the moments of awareness, kept between runs: each run restores the latest copy
       # and saves its own, even when the job fails (a key cannot be overwritten, so one per run; GitHub evicts the
       # oldest).
       - uses: actions/cache/restore@v6
@@ -96,10 +96,13 @@ jobs:
       # Exits with 0 when components are affected but none is actively exploited, with 6 when one is: the job fails
       # then, and the drafts of the early warnings are ready to complete. The feeds are downloaded again when older
       # than 12 hours, so a daily run never matches against the lists of the day before.
-      # The 24 h and 72 h deadlines count from the moment of the run (`--aware-since`): the first run that fails is
-      # the moment you knew; each later run counts from itself again, so keep the drafts of that first one.
+      # The 24 h and 72 h deadlines of each exploited CVE count from the first run that flagged it: --awareness keeps
+      # that moment, kept with the feeds, so a later run shows the deadlines left or overdue. A cache GitHub evicted
+      # (unused for 7 days) restarts them from the next run.
       - name: Match the SBOM against the vulnerabilities
-        run: forewarn match --allow-affected --refresh 12h --format json --drafts drafts sbom.cdx.json > forewarn.json
+        run: |
+          forewarn match --allow-affected --refresh 12h --awareness ~/.cache/forewarn/awareness.json \
+            --format json --drafts drafts sbom.cdx.json > forewarn.json
 
       - if: ${{ always() }}
         uses: actions/cache/save@v6

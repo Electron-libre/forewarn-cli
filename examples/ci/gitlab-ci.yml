@@ -85,12 +85,13 @@ forewarn-sbom:
 # Exits with 0 when components are affected but none is actively exploited, with 6 when one is: the job fails then,
 # and the drafts of the early warnings are ready to complete. The feeds are downloaded again when older than 12 hours,
 # so a daily run never matches against the lists of the day before.
-# The 24 h and 72 h deadlines count from the moment of the run (`--aware-since`): the first run that fails is the
-# moment you knew; each later run counts from itself again, so keep the drafts of that first one.
+# The 24 h and 72 h deadlines of each exploited CVE count from the first run that flagged it: --awareness keeps that
+# moment, kept with the feeds, so a later run shows the deadlines left or overdue. A cache cleared restarts them from
+# the next run.
 forewarn-match:
   extends: .forewarn
   needs: [forewarn-sbom]
-  # The OSV archives, the CISA KEV catalog and the EUVD list, kept between pipelines and saved even when the job
+  # The OSV archives, the CISA KEV catalog, the EUVD list and the moments of awareness, kept between pipelines and saved even when the job
   # fails. A cache is kept per runner unless your runners share a distributed cache.
   cache:
     key: forewarn-feeds
@@ -101,7 +102,7 @@ forewarn-match:
     - forewarn check --allow-incomplete sbom.cdx.json
     - |
       forewarn match --allow-affected --refresh 12h --cache .forewarn-cache \
-        --format json --drafts drafts sbom.cdx.json > forewarn.json
+        --awareness .forewarn-cache/awareness.json --format json --drafts drafts sbom.cdx.json > forewarn.json
   artifacts:
     when: always
     paths: [forewarn.json, drafts/]

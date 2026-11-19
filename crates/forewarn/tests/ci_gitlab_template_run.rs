@@ -410,6 +410,27 @@ fn a_scheduled_run_checks_the_latest_tag_and_fails_on_an_actively_exploited_matc
             .is_file(),
         "the draft early warning of the exploited CVE is written"
     );
+    // The moment of awareness is kept with the feeds, so that the next scheduled run counts the deadlines from it.
+    let job = pipeline.template_job(MATCH);
+    let kept = job
+        .map("cache", "paths")
+        .map(inline_list)
+        .expect("the match keeps a cache");
+    let file = ci_template::awareness_file(TEMPLATE, &job.list("script").join("\n"));
+    assert!(
+        kept.iter()
+            .any(|dir| file.starts_with(&format!("{}/", dir.trim_end_matches('/')))),
+        "{TEMPLATE}: the moments of awareness {file} under the cache kept {kept:?}"
+    );
+    let file = pipeline.sandbox.product.join(file);
+    let first = ci_template::recorded_and_reported(&file, &report, "CVE-2021-44228");
+    pipeline.job(MATCH, with_local_feeds, &[], 6);
+    let next = pipeline.sandbox.report();
+    assert_eq!(
+        ci_template::recorded_and_reported(&file, &next, "CVE-2021-44228"),
+        first,
+        "the next run counts from the moment of the first"
+    );
 }
 
 #[test]

@@ -99,7 +99,8 @@ for its own decision.
 release, `syft`, `check`, `match`, upload on a tag); `crates/forewarn/tests/ci_templates.rs` checks each option they
 give `forewarn` exists and that they install an archive the release builds; `crates/forewarn/tests/ci_template_run.rs`
 runs the `run:` blocks of the GitHub template with `bash` (Unix) against the binary of the commit, a fixture product
-(`tests/fixtures/ci-template`) and local feeds: a daily run on the latest tag exits with 6 on an exploited match, a tag
+(`tests/fixtures/ci-template`) and local feeds: a daily run on the latest tag exits with 6 on an exploited match, the next one counting its deadlines from
+the moment the first recorded in the cache kept (`--awareness`), a tag
 run passes on a match not exploited and uploads with `--dry-run`; a new step with a `run:` must be run or replaced there.
 `crates/forewarn/tests/ci_gitlab_template_run.rs` runs the `script` of each GitLab job the same way, with `sh`, its
 `before_script` replaced up to `cd "$CI_PROJECT_DIR"` and `syft` by a stub writing the fixture SBOM, and checks the
