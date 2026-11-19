@@ -124,11 +124,12 @@ Clean: 0 of 2 components
 
 - By package URL and version, each ecosystem's versions in their own ordering (SemVer, PEP 440, Maven, RubyGems,
   NuGet, Composer, Debian).
-- The Debian packages of a container image (`pkg:deb/debian/…`, as Syft or Trivy list them) against the advisories of
-  their release, read from the `distro` qualifier (`distro=debian-13.7` → `Debian:13`), under their source package
-  and its version when the `upstream` qualifier names them (`libssl3t64` under `openssl`). Without a `distro`
-  qualifier the release is unknown: the package is listed not evaluated, `unknown release`. Other distributions
-  (Ubuntu, Alpine, RPM) are not matched yet: `unknown ecosystem`.
+- The Debian packages of a container image (`pkg:deb/debian/…`, as Syft lists them) against the advisories of their
+  release, read from the `distro` qualifier (`distro=debian-13.7` → `Debian:13`), under their source package and its
+  version when the `upstream` qualifier names them (`libssl3t64` under `openssl`); a Debian advisory (`DSA-`, `DLA-`,
+  `DEBIAN-CVE-`) is reported under the CVE it names. Without a `distro` qualifier the release is unknown: the package
+  is listed not evaluated, `unknown release`. Other distributions (Ubuntu, Alpine, RPM) are not matched yet:
+  `unknown ecosystem`.
 - One line per vulnerability: the records of one vulnerability that name each other (a `RUSTSEC` advisory and its
   `GHSA` mirror) are grouped, under its CVE when it has one; two CVEs are never merged. Each record is listed with
   what it says: `affected per`, `not affected per`, `not evaluated per`.

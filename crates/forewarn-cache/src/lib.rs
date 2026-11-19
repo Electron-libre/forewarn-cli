@@ -192,7 +192,7 @@ impl Cache {
     ///
     /// The [`Error`] that stops the fetch; a failed download leaves the copy the cache held before unchanged. A `name`
     /// that is empty, starts with `.` (the scratch paths of the cache do), or holds a character other than an ASCII
-    /// letter, a digit, `.`, `-` and `_` fails with [`Error::Cache`] before the cache is touched.
+    /// letter, a digit, `.`, `-`, `_` and `%` fails with [`Error::Cache`] before the cache is touched.
     pub fn fetch<T, E>(
         &self,
         agent: &ureq::Agent,

@@ -150,6 +150,8 @@ struct Record {
     id: String,
     schema_version: Option<Value>,
     aliases: Option<Vec<String>>,
+    /// The ids this record is the downstream of: a Debian advisory names its CVE only there (OSR-42).
+    upstream: Option<Vec<String>>,
     withdrawn: Option<String>,
     affected: Option<Vec<Affected>>,
 }
@@ -219,7 +221,7 @@ impl TryFrom<RawEvent> for OsvEvent {
 
 impl From<Record> for Vulnerability {
     /// Reads the id and each alias without the ASCII whitespace around them (OSR-34), an alias left empty dropped
-    /// (OSR-35).
+    /// (OSR-35), the `upstream` ids after the aliases, each id once (OSR-42).
     fn from(record: Record) -> Self {
         let id = trimmed(record.id);
         let source = id
@@ -228,15 +230,21 @@ impl From<Record> for Vulnerability {
             .filter(|prefix| !prefix.is_empty())
             .unwrap_or(&id)
             .to_owned();
+        let mut aliases: Vec<String> = Vec::new();
+        for alias in record
+            .aliases
+            .into_iter()
+            .chain(record.upstream)
+            .flatten()
+            .map(trimmed)
+        {
+            if !alias.is_empty() && !aliases.contains(&alias) {
+                aliases.push(alias);
+            }
+        }
         Self {
             source,
-            aliases: record
-                .aliases
-                .unwrap_or_default()
-                .into_iter()
-                .map(trimmed)
-                .filter(|alias| !alias.is_empty())
-                .collect(),
+            aliases,
             withdrawn: record.withdrawn.is_some(),
             affected: record
                 .affected

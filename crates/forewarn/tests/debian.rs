@@ -114,3 +114,52 @@ fn matches_the_debian_packages_of_an_image_against_the_advisories_of_their_relea
     assert_eq!(not_evaluated, [json!(["tzdata", "unknown release"])]);
     assert_eq!(report["cleanCount"], json!(1));
 }
+
+// spec: OSR-42, VMT-21, VMT-16
+#[test]
+fn a_debian_advisory_is_reported_and_flagged_under_the_cve_it_names_upstream() {
+    let osv = TempDir::new().expect("a temporary directory");
+    let mut dsa = debian_record("DSA-6001-1", "13", "openssl", "3.5.7-1~deb13u4");
+    dsa["upstream"] = json!(["CVE-2026-0001", "DEBIAN-CVE-2026-0001"]);
+    let mut debian_cve = debian_record("DEBIAN-CVE-2026-0001", "13", "openssl", "3.5.7-1~deb13u4");
+    debian_cve["upstream"] = json!(["CVE-2026-0001"]);
+    for record in [dsa, debian_cve] {
+        fs::write(
+            osv.path()
+                .join(format!("{}.json", record["id"].as_str().expect("an id"))),
+            record.to_string(),
+        )
+        .expect("the record is written");
+    }
+    let kev = osv.path().with_extension("kev.json");
+    fs::write(
+        &kev,
+        json!({
+            "catalogVersion": "2026.11.18",
+            "dateReleased": "2026-11-18T18:00:00.000Z",
+            "vulnerabilities": [{"cveID": "CVE-2026-0001", "dateAdded": "2026-11-18"}],
+        })
+        .to_string(),
+    )
+    .expect("the catalog is written");
+    let run = run(
+        &[
+            "match",
+            "--no-euvd",
+            "--kev",
+            kev.to_str().expect("UTF-8 path"),
+            "--format",
+            "json",
+            "--osv",
+            osv.path().to_str().expect("UTF-8 path"),
+            "-",
+        ],
+        Some(&image_sbom()),
+    );
+    fs::remove_file(&kev).expect("the catalog is removed");
+    assert_eq!(run.code, 6, "{}", run.stderr);
+    let report = json_report(&run);
+    assert_eq!(report["affected"].as_array().map(Vec::len), Some(1));
+    assert_eq!(report["affected"][0]["id"], json!("CVE-2026-0001"));
+    assert_eq!(report["exploitedCount"], json!(1));
+}

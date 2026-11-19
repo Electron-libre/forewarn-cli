@@ -271,6 +271,25 @@ fn an_alias_left_empty_is_dropped() {
     assert_eq!(vulnerability.aliases, ["CVE-2026-49977".to_owned()]);
 }
 
+// spec: OSR-42, OSR-4
+#[test]
+fn the_upstream_ids_of_a_record_are_read_as_aliases_after_its_aliases() {
+    let upstream = json!(["CVE-2024-6387", " DEBIAN-CVE-2024-6387", ""]);
+    let dsa =
+        read_value(&json!({"id": "DSA-5724-1", "upstream": upstream})).expect("the record is read");
+    assert_eq!(dsa.aliases, ["CVE-2024-6387", "DEBIAN-CVE-2024-6387"]);
+    let both = read_value(&json!({
+        "id": "DSA-5724-1",
+        "aliases": ["GHSA-x", "CVE-2024-6387"],
+        "upstream": upstream,
+    }))
+    .expect("the record is read");
+    assert_eq!(
+        both.aliases,
+        ["GHSA-x", "CVE-2024-6387", "DEBIAN-CVE-2024-6387"]
+    );
+}
+
 // spec: OSR-36
 #[test]
 fn a_record_whose_id_is_empty_or_blank_is_invalid() {

@@ -335,6 +335,8 @@ fn reports_a_debian_package_without_a_release_as_unknown_release() {
         "pkg:deb/debian/libc6@2.41-12?distro=debian-",
         "pkg:deb/debian/libc6@2.41-12?distro=ubuntu-24.04",
         "pkg:deb/debian/libc6@2.41-12?distro=",
+        "pkg:deb/debian/libc6@2.11.3-4?distro=debian-6",
+        "pkg:deb/debian/libc6@2.11.3-4?distro=debian-6.",
     ] {
         assert_eq!(
             ComponentPackage::of(&component(purl, None)),
@@ -416,4 +418,19 @@ fn matches_a_debian_package_at_the_version_of_its_source() {
 fn compares_debian_names_exactly() {
     assert!(same_name("Debian:13", "glibc", "glibc"));
     assert!(!same_name("Debian:13", "glibc", "GLIBC"));
+}
+
+// spec: VMT-10, VMT-35
+#[test]
+fn reports_a_debian_qualifier_that_does_not_decode_as_an_invalid_package_url() {
+    for purl in [
+        "pkg:deb/debian/libssl3@3.0.11-1?distro=debian-12&upstream=openssl%4",
+        "pkg:deb/debian/libssl3@3.0.11-1?distro=debian-1%2",
+    ] {
+        assert_eq!(
+            ComponentPackage::of(&component(purl, None)),
+            Err(ComponentReason::InvalidPackageUrl),
+            "{purl}"
+        );
+    }
 }

@@ -89,16 +89,22 @@ pub fn points_to_local_path(purl: &str) -> bool {
 }
 
 /// The value of the first qualifier of a package URL whose key is `key` in any ASCII case, percent-decoded, or `None`
-/// when it has none or its value does not decode (VMT-5).
-#[must_use]
-pub fn qualifier(purl: &str, key: &str) -> Option<String> {
+/// when it has none (VMT-5).
+///
+/// # Errors
+///
+/// [`InvalidPackageUrl`] when its value does not percent-decode.
+pub fn qualifier(purl: &str, key: &str) -> Result<Option<String>, InvalidPackageUrl> {
     let purl = purl.split_once('#').map_or(purl, |(before, _)| before);
-    let (_, qualifiers) = purl.split_once('?')?;
+    let Some((_, qualifiers)) = purl.split_once('?') else {
+        return Ok(None);
+    };
     qualifiers
         .split('&')
         .filter_map(|qualifier| qualifier.split_once('='))
         .find(|(name, _)| name.eq_ignore_ascii_case(key))
-        .and_then(|(_, value)| decode(value).ok())
+        .map(|(_, value)| decode(value))
+        .transpose()
 }
 
 /// The first `length` bytes of a value, percent-decoded, a `%` not followed by two hexadecimal digits kept as it is.

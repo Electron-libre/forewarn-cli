@@ -62,6 +62,10 @@ the archive URL and the cache directory. Ubuntu and other distributions, and cod
 2. [x] Fetch `Debian:13`: `:` accepted (OSF-17), written `%3A` in the URL (OSF-14) and in the cache directory
    (OSF-21); verified by `forewarn-osv/tests/fetching.rs` (a fake server) and a `forewarn match` test reading the
    cached archive; makes true OSF-14, OSF-17, OSF-21. (autonomous)
+3. [x] Fixes of the `high` review: the `upstream` of an OSV record read as aliases (Debian advisories name their CVE
+   only there), the releases before 7 named `Debian:<major>.<minor>` as OSV names them, a `distro` or `upstream` that
+   does not decode reported invalid, the doc of `Cache::fetch`; verified by `forewarn-osv/tests/reading.rs`,
+   `tests/component_package.rs`, `tests/debian.rs`; makes true OSR-42, VMT-32, VMT-35. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -121,3 +125,30 @@ Code review: no findings
 not verified: the real OSV bucket serving `Debian%3A13/all.zip` (no test reaches the network).
 
 decisions needed: none.
+
+## Deliverable 3: fixes of the `high` review
+
+done: the `upstream` ids of an OSV record read as aliases after its `aliases` (OSV's Debian advisories name their CVE
+only there: `DSA-5724-1`, `DEBIAN-CVE-2024-6387`, checked on api.osv.dev); the releases before 7 named
+`Debian:<major>.<minor>` (OSV publishes `Debian:3.0` to `Debian:6.0`, checked on the bucket); a `distro` or
+`upstream` that does not decode reported invalid package URL; the doc of `Cache::fetch` names `%`.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | VMT, OSR accepted, `check-specs` clean |
+| docs | user guide (advisories under their CVE) |
+| code review | see below |
+
+red: OSR-42: `forewarn match` exited 1 instead of 6 on a DSA naming a KEV CVE in `upstream`; VMT-32, VMT-35:
+`pkg:deb/debian/libc6@2.11.3-4?distro=debian-6` gave `Ok(… "Debian:6" …)`, `upstream=openssl%4` gave `Ok(…)`.
+
+`high` review findings left to the user: Trivy SBOMs (no `upstream` qualifier, the source in properties) and the
+release OSV publishes no archive of (`Debian:14`, 404, fails the run).
+
+Code review: no findings
+
+not verified: a real Syft SBOM against the real `Debian:13` archive.
+
+decisions needed: Trivy SBOMs; a release with no OSV archive (see above).
