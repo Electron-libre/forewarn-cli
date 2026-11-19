@@ -301,7 +301,8 @@ A request is sent once, never retried, and no redirect is followed; each failure
 [Exit codes](#exit-codes)): a `503` names the code `unavailable`, after which a rerun is safe. The request asks
 `Expect: 100-continue` and sends the SBOM once the service agrees, or after 1 s without an answer, so a token the
 service refuses within that second, before reading the SBOM, exits with 9, not 8; a proxy that agrees in the place
-of the service lets the SBOM go, and a refusal while it is sent exits with 8.
+of the service lets the SBOM go, and a refusal while it is sent exits with 8. A `417 Expectation Failed` (an
+intermediary that refuses the expectation) is the only answer after which the request is sent again, without it.
 
 ## In CI
 

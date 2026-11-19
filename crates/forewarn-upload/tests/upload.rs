@@ -45,6 +45,8 @@ enum Mode {
     NeverContinue,
     /// The answer as soon as the head is read, then the connection closed with the body unread.
     AnswerFirst,
+    /// `417 Expectation Failed` to a request asking it, the answer to any other once its body is read.
+    RefuseExpectation,
 }
 
 impl Server {
@@ -96,7 +98,19 @@ impl Server {
                 let mut body = Vec::new();
                 match mode {
                     Mode::AnswerFirst => {}
-                    Mode::Continue | Mode::NeverContinue => {
+                    Mode::RefuseExpectation if expects => {
+                        seen.lock().expect("the requests").push(Request {
+                            method,
+                            path,
+                            headers,
+                            body,
+                        });
+                        let _ = reader.into_inner().write_all(
+                            b"HTTP/1.1 417 Expectation Failed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        );
+                        continue;
+                    }
+                    Mode::Continue | Mode::NeverContinue | Mode::RefuseExpectation => {
                         if mode == Mode::Continue && expects {
                             let _ = reader.get_mut().write_all(b"HTTP/1.1 100 Continue\r\n\r\n");
                         }
@@ -407,4 +421,42 @@ fn a_service_that_never_answers_100_continue_receives_the_sbom() {
     let requests = server.requests();
     assert_eq!(requests.len(), 1, "{requests:?}");
     assert_eq!(requests[0].body, sbom);
+}
+
+// spec: UPL-15, UPL-1
+#[test]
+fn a_request_refusing_the_expectation_is_sent_again_without_it() {
+    let server = Server::start(Mode::RefuseExpectation, 201, &[], &receipt(4));
+    let sbom = br#"{"bomFormat": "CycloneDX"}"#;
+    let stored = send(&server.base, sbom).expect("stored");
+    assert!(
+        matches!(&stored, Stored::Created(receipt) if receipt.components == 4),
+        "{stored:?}"
+    );
+    let requests = server.requests();
+    assert_eq!(requests.len(), 2, "{requests:?}");
+    assert_eq!(requests[0].header("expect"), Some("100-continue"));
+    assert_eq!(requests[1].header("expect"), None);
+    assert_eq!(
+        requests[1].header("authorization"),
+        Some("Bearer fw_secret")
+    );
+    assert_eq!(requests[1].body, sbom);
+}
+
+// spec: UPL-15, UPL-9
+#[test]
+fn a_second_417_is_read_as_any_answer() {
+    let server = Server::start(
+        Mode::AnswerFirst,
+        417,
+        &[],
+        "<html>Expectation Failed</html>",
+    );
+    let error = send(&server.base, b"{}").expect_err("the upload fails");
+    assert!(
+        matches!(&error, UploadError::UnreadableAnswer { status: 417, .. }),
+        "{error:?}"
+    );
+    assert_eq!(server.requests().len(), 2);
 }

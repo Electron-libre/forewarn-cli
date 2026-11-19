@@ -54,9 +54,12 @@ of scope: a refusal after a `100 Continue` (a proxy that buffers the body), a no
 2. [x] Fixes of the `high` review: the CLI and proxy test servers answer `100 Continue` (no 1 s wait), one test
    `Server` with three modes, `CONTINUE_TIMEOUT` documented on its own, the user guide names the case of a proxy
    that agrees in the place of the service; verified by `project-check`. (autonomous)
+3. [x] `417 Expectation Failed`: the request sent once more without `Expect: 100-continue` (RFC 9110); verified by
+   tests of a service refusing the expectation then storing, and of two `417`; makes true UPL-15. (autonomous)
 
 ## Decisions
 - Mode: autonomous
+- `417` (finding of the `high` review): sent once more without the expectation (user, answer `1 a`).
 - Base commit: 00a906aa524997be62051b4058b06d1c4de5153b
 
 ## Deliverable 1
@@ -74,5 +77,12 @@ of scope: a refusal after a `100 Continue` (a proxy that buffers the body), a no
 - red: none (no new behaviour).
 - `high` review: 7 findings; fixed: test wait, duplication, `CONTINUE_TIMEOUT` doc, ureq default pinned on purpose
   (said in its doc), user guide; not fixed: an early answer later than 1 s on a loaded runner (a scheduling delay of
-  over 1 s, accepted); open: a `417 Expectation Failed` is not resent without the expectation (decision for the user).
+  over 1 s, accepted); open: a `417 Expectation Failed` is not resent without the expectation (decided: deliverable 3).
+- Code review: no findings
+
+## Deliverable 3
+- done: a `417` is answered by a second `PUT` without the expectation (UPL-15, UPL-1 and the non-goal amended); ADR
+  0018, user guide and CLAUDE.md state it.
+- red: UPL-15, UPL-1: `assertion left == right failed, left: 1, right: 2` (one request, no second without `Expect`).
+- not verified: a real intermediary answering `417`.
 - Code review: no findings

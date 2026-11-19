@@ -28,7 +28,9 @@ upload and an unreadable answer differently.
   the service answers `100 Continue` or after 1 s (an answer before it, such as credentials refused, is read instead
   of lost in a reset), sending the body 5 min, waiting for the answer 2 min, reading it
   1 min; the cache's agent (`forewarn_cache::agent`) follows redirects and waits 30 min for a body.
-- **No retry**: the request is sent once; the code `unavailable` tells the caller a retry is safe.
+- **No retry**: the request is sent once; the code `unavailable` tells the caller a retry is safe. Only a `417
+  Expectation Failed`, which an intermediary gives without passing the request on, is sent again without the
+  expectation, as RFC 9110 asks.
 - **The SBOM is refused over 10 MiB before it is sent**, the limit of the service (UPA-9), rather than uploaded to be
   refused; the limit is `forewarn_api::MAX_SBOM_BYTES`, shared with the service.
 

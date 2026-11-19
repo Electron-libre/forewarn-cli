@@ -109,7 +109,7 @@ impl fmt::Display for Described<'_> {
 
 /// Uploads the SBOM of `version` of `product` to the service at `endpoint` with `token` (UPL-1, UPL-5): one `PUT`,
 /// no retry, no redirect followed (UPL-10), the SBOM sent once the service answered `100 Continue` or after 1 s
-/// (UPL-14).
+/// (UPL-14), sent again without the expectation after a `417` (UPL-15).
 ///
 /// # Errors
 /// [`UploadError`]: a name or a size refused before anything is sent (UPL-8), the service unreachable, the
@@ -127,14 +127,25 @@ pub fn upload(
         endpoint: named(),
         reason: token.redact(&error.to_string()),
     };
-    let response = agent(endpoint)
-        .put(format!("{endpoint}{path}"))
-        .header("Authorization", format!("Bearer {}", token.expose()))
-        .header("Content-Type", CONTENT_TYPE)
+    let agent = agent(endpoint);
+    let put = |expect: bool| {
+        let request = agent
+            .put(format!("{endpoint}{path}"))
+            .header("Authorization", format!("Bearer {}", token.expose()))
+            .header("Content-Type", CONTENT_TYPE);
         // An answer before the body (credentials checked first) is read, not lost in a reset (UPL-14).
-        .header("Expect", "100-continue")
-        .send(sbom)
-        .map_err(|error| unreachable(&error))?;
+        let request = if expect {
+            request.header("Expect", "100-continue")
+        } else {
+            request
+        };
+        request.send(sbom).map_err(|error| unreachable(&error))
+    };
+    let mut response = put(true)?;
+    if response.status() == ureq::http::StatusCode::EXPECTATION_FAILED {
+        // The service did not process the request, only refused its expectation (UPL-15).
+        response = put(false)?;
+    }
     let status = response.status().as_u16();
     let unreadable = |reason: &str| UploadError::UnreadableAnswer {
         endpoint: named(),

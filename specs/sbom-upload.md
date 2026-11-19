@@ -17,7 +17,8 @@ differently.
 
 ### Behaviour
 
-- **UPL-1** (deterministic) An upload must send the SBOM file as is, once, to the route of its product version under
+- **UPL-1** (deterministic) An upload must send the SBOM file as is, once (a second request only after a `417`,
+  UPL-15), to the route of its product version under
   the endpoint, and return the receipt the service answered, telling a new version from a replaced SBOM.
 - **UPL-2** (deterministic) An upload must refuse, before anything is sent, an endpoint that is not HTTPS, unless it
   names a loopback host, so that the SBOM and the token never travel in clear over a network.
@@ -59,6 +60,8 @@ differently.
   the request, or gave no answer within 1 second, and read an answer the service gives before, then closing the
   connection, as UPL-9 maps it, so that credentials refused before the body are not reported as an
   endpoint it cannot reach.
+- **UPL-15** (deterministic) An upload whose request is answered `417 Expectation Failed` must send it once more without
+  `Expect: 100-continue`, and read the answer to that second request as UPL-9 maps it.
 
 ## Scenarios
 
@@ -100,10 +103,15 @@ differently.
   given `413` with `{"error": "too_large"}`, with upload refused.
 - (UPL-14, UPL-1) Given a service that never answers `100 Continue`, the SBOM is sent after 1 second and its receipt
   read.
+- (UPL-15, UPL-1) Given a service that answers `417` to a request asking `Expect: 100-continue` and `201` to one that
+  does not, the SBOM is stored; the service receives two requests, the second without the expectation, with the SBOM.
+- (UPL-15, UPL-9) Given a service that answers `417` with an HTML page to every request, it receives two requests and
+  the upload fails with unreadable answer naming `417`.
 
 ## Non-goals
 
-- A retry: a request is sent once; a `503` is reported with its code, which says a retry is safe.
+- A retry: a request is sent once, but for the `417` of UPL-15, which the service did not process; a `503` is
+  reported with its code, which says a retry is safe.
 - Reading the token or the endpoint from the environment or the command line: the caller's (`forewarn upload`).
 - Checking the SBOM: the caller reads it with the CycloneDX adapter before the upload.
 - The account of a token (`/api/v1/account`): no command asks for it yet.
