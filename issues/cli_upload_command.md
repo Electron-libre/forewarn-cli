@@ -56,6 +56,7 @@ contract leaves the date to the service clock, UPA non-goals); the report prints
 2. [x] `--dry-run`: prints endpoint, product, version, size, sends nothing, reads no token; docs of the whole command
    (user guide: section, "In CI", "What leaves your machine", exit codes; `docs/architecture.md`; `CLAUDE.md`);
    verified by the same test file; makes true CUP-5; spec `accepted` (~200 lines). (autonomous)
+3. [x] The fixes of the `high` review of the issue; verified by `crates/forewarn/tests/upload.rs`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -84,5 +85,18 @@ contract leaves the date to the service clock, UPA non-goals); the report prints
   upload refuses before sending (`check_upload` of `forewarn-upload`); spec `cli-upload` accepted; guide,
   architecture, `CLAUDE.md`.
 - red: CUP-5, CUP-8, CUP-9: `error: unexpected argument '--dry-run' found` (exit 2).
+- Code review: no findings
+- not verified: nothing.
+
+### Deliverable 3: high review of the issue
+- done: a blank product name or version of the SBOM counts as none (exit 2 naming the option); the SBOM is read no
+  further than 10 MiB + 1 byte, the rest counted, an SBOM over the limit refused (10) before it is read as
+  CycloneDX; the exit codes name each refusal; `main` and `upload` open the input through one `open_input`; the
+  unreachable test keeps its port bound; the guide names `127.0.0.0/8`. CUP-9, CUP-10 amended.
+- red: CUP-9, CUP-10, CUP-11: `cannot upload: the version is blank` (exit 10, not 2); `not JSON: expected value`
+  (exit 3, not 10) for an SBOM over the limit.
+- High review: 7 findings; 6 fixed; not fixed: the endpoint error escaped over the adapter's quoted form doubles its
+  backslashes, kept: the line is escaped like every adapter error line and still reads back to one value through
+  both forms.
 - Code review: no findings
 - not verified: nothing.

@@ -4,7 +4,6 @@
 use std::env;
 use std::ffi::OsString;
 use std::fmt::Write as _;
-use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
 use std::process::ExitCode;
@@ -12,11 +11,11 @@ use std::process::ExitCode;
 use clap::error::ErrorKind;
 use forewarn_cyclonedx::{ReadError, read_json};
 use forewarn_domain::sbom::Sbom;
-use forewarn_upload::{Endpoint, Stored, Token, UploadError, check_upload, upload};
+use forewarn_upload::{Endpoint, MAX_SBOM_BYTES, Stored, Token, UploadError, check_upload, upload};
 
 use crate::args::UploadArgs;
 use crate::escape::{escaped, push_escaped};
-use crate::{input_name, is_stdin, subcommand_usage_error, unreadable, write_report};
+use crate::{input_name, open_input, subcommand_usage_error, unreadable, write_report};
 
 /// The environment variable of the endpoint, read when `--endpoint` is not given (CUP-7).
 const ENDPOINT_VARIABLE: &str = "FOREWARN_ENDPOINT";
@@ -97,21 +96,30 @@ fn usage_error(kind: ErrorKind, message: &str) -> ! {
     subcommand_usage_error("upload", kind, message)
 }
 
-/// The bytes of the SBOM, read whole so that they are sent as read (CUP-1, CUP-4).
+/// The bytes of the SBOM, read whole so that they are sent as read (CUP-1, CUP-4), or, over [`MAX_SBOM_BYTES`],
+/// counted without being kept, the upload refused naming the size (CUP-9, CUP-10).
 fn read_bytes(path: &Path) -> Result<Vec<u8>, u8> {
-    let read = if is_stdin(path) {
-        let mut bytes = Vec::new();
-        io::stdin().lock().read_to_end(&mut bytes).map(|_| bytes)
-    } else {
-        fs::read(path)
-    };
-    read.map_err(|error| unreadable(input_name(path), &ReadError::Io(error.to_string())))
+    let io_error =
+        |error: io::Error| unreadable(input_name(path), &ReadError::Io(error.to_string()));
+    let mut input = open_input(path).map_err(io_error)?;
+    let mut bytes = Vec::new();
+    (&mut input)
+        .take(MAX_SBOM_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(io_error)?;
+    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > MAX_SBOM_BYTES {
+        let rest = io::copy(&mut input, &mut io::sink()).map_err(io_error)?;
+        let size = (MAX_SBOM_BYTES + 1).saturating_add(rest);
+        return Err(failed(&UploadError::TooLarge { size }));
+    }
+    Ok(bytes)
 }
 
 /// The product name and the version of the upload: those of the options, else of the SBOM's product (CUP-1, CUP-3);
-/// prints the option to give and returns 2 when neither gives one (CUP-11).
+/// prints the option to give and returns 2 when neither gives one, a blank one of the SBOM counted as none (CUP-11).
 fn names(args: &UploadArgs, sbom: &Sbom) -> Result<(String, String), u8> {
     let product = sbom.product.as_ref();
+    let given = |value: &String| !value.trim().is_empty();
     let missing = |what: &str, option: &str| {
         eprintln!("error: the SBOM gives no {what} in metadata.component: give it with {option}");
         MISSING
@@ -119,24 +127,34 @@ fn names(args: &UploadArgs, sbom: &Sbom) -> Result<(String, String), u8> {
     let name = args
         .product
         .clone()
-        .or_else(|| product.map(|product| product.name.clone()))
+        .or_else(|| product.map(|product| product.name.clone()).filter(given))
         .ok_or_else(|| missing("product", "--product"))?;
     let version = args
         .product_version
         .clone()
-        .or_else(|| product.and_then(|product| product.version.clone()))
+        .or_else(|| {
+            product
+                .and_then(|product| product.version.clone())
+                .filter(given)
+        })
         .ok_or_else(|| missing("product version", "--product-version"))?;
     Ok((name, version))
 }
 
 /// The exit code of a failed upload (CUP-9).
+#[expect(
+    clippy::match_same_arms,
+    reason = "the refusals are named apart from a variant a later adapter adds, so that each mapping is a choice"
+)]
 fn exit_code(error: &UploadError) -> u8 {
     match error {
         UploadError::Unreachable { .. } => UNREACHABLE,
         UploadError::CredentialsRefused { .. } => CREDENTIALS_REFUSED,
         UploadError::UnreadableAnswer { .. } => UNREADABLE_ANSWER,
-        // A name or a size refused before anything is sent, a refusal of the service, and a failure a later version
-        // of the adapter may add.
+        UploadError::InvalidName(_)
+        | UploadError::TooLarge { .. }
+        | UploadError::Refused { .. } => REFUSED,
+        // A failure a later version of the adapter may add: nothing stored, nothing known of a retry.
         _ => REFUSED,
     }
 }

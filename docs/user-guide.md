@@ -278,11 +278,11 @@ Stored: a new version, 42 components (CycloneDX 1.6), received at 2026-11-19T10:
 ```
 
 - **The endpoint**: `--endpoint`, else the environment variable `FOREWARN_ENDPOINT`; HTTPS, or plain HTTP to a
-  loopback host (`localhost`, `127.0.0.1`, `[::1]`) only, without credentials, a query or a fragment.
+  loopback host (`localhost`, an address of `127.0.0.0/8`, `[::1]`) only, without credentials, a query or a fragment.
 - **The token**: the environment variable `FOREWARN_TOKEN` only, never an option, so that it shows in no process list
   nor shell history; no output prints it.
 - **The product and the version**: those of the SBOM's `metadata.component`; `--product` and `--product-version`
-  override each. A run whose SBOM gives neither and no option stops, naming the option to give.
+  override each. When the SBOM lacks one and its option is not given, the run stops, naming the option.
 - **The SBOM**: read first, as `check` reads it (a CycloneDX 1.2 file is refused, nothing sent), then sent as is, up
   to 10 MiB. Uploading a version again replaces its SBOM: the report says `replaced the SBOM of a known version`.
   The service dates the upload with its own clock; the report prints when it received it, and its warnings (a spec
@@ -330,6 +330,7 @@ when one is. Keep the cache between jobs (a CI cache keyed on the day, for examp
 | `forewarn match` (default) | the names of the ecosystems of the SBOM (OSV archives); requests for the KEV catalog and the EUVD list, naming no component |
 | `forewarn match --osv … --kev … --euvd …` or `--refresh offline` | nothing |
 | `forewarn match --osv-api` | the ecosystem, name and version of each component, except your own code |
+| `forewarn upload --dry-run` | nothing |
 | `forewarn upload` | the SBOM itself, as given, with the product name, the version and the token, to the endpoint only |
 
 Never source code. Your own components (first-party) are never matched nor sent.

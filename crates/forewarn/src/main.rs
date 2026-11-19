@@ -506,14 +506,19 @@ fn exit(found: bool) -> ExitCode {
 
 /// Reads the SBOM, or prints why it cannot be read on standard error (CHK-8, MCH-14).
 fn read_sbom(path: &Path) -> Result<Sbom, u8> {
-    let sbom = if is_stdin(path) {
-        read_json(io::stdin().lock())
+    open_input(path)
+        .map_err(|e| ReadError::Io(e.to_string()))
+        .and_then(read_json)
+        .map_err(|error| unreadable(input_name(path), &error))
+}
+
+/// The input of a command: standard input for `-`, else the file at `path`.
+fn open_input(path: &Path) -> io::Result<Box<dyn io::Read>> {
+    Ok(if is_stdin(path) {
+        Box::new(io::stdin().lock())
     } else {
-        File::open(path)
-            .map_err(|e| ReadError::Io(e.to_string()))
-            .and_then(read_json)
-    };
-    sbom.map_err(|error| unreadable(input_name(path), &error))
+        Box::new(File::open(path)?)
+    })
 }
 
 /// Prints why the CycloneDX document of `path` cannot be read and returns the code 3 (MCH-14, MVX-7).

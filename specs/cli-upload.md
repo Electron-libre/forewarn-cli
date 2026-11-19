@@ -41,9 +41,10 @@ not go through.
   | Situation | Exit code |
   |---|---|
   | the arguments are invalid (unknown option, no SBOM given, no endpoint, an endpoint UPL-6 refuses, no `FOREWARN_TOKEN` or a token UPL-7 refuses without `--dry-run`) | 2 |
+  | the SBOM is over 10,485,760 bytes (UPL-8) | 10 |
   | the SBOM cannot be read (any error of SBR-7) | 3 |
-  | the SBOM gives no product name and `--product` is not given, or no product version and `--product-version` is not given | 2 |
-  | the product name or the version is one the contract refuses (UPA-6), or the SBOM is over 10,485,760 bytes (UPL-8) | 10 |
+  | the SBOM gives no product name, or a blank one, and `--product` is not given, or no product version, or a blank one, and `--product-version` is not given | 2 |
+  | the product name or the version is one the contract refuses (UPA-6) | 10 |
   | the endpoint cannot be reached (UPL-9) | 8 |
   | the service refused the credentials (UPL-9) | 9 |
   | the service refused the upload (UPL-9) | 10 |
@@ -51,8 +52,9 @@ not go through.
   | the report cannot be written to standard output, a closed pipe aside (CHK-13) | 4 |
   | the SBOM was stored, or `--dry-run` | 0 |
 
-- **CUP-10** (deterministic) The arguments, the endpoint and the token must be checked before the SBOM is read, and the
-  SBOM, its product and version, their names and its size before anything is sent.
+- **CUP-10** (deterministic) The arguments, the endpoint and the token must be checked before the SBOM is read, its size
+  before it is read as CycloneDX, holding no more than 10,485,761 of its bytes in memory, and the SBOM, its product
+  and version and their names before anything is sent.
 - **CUP-11** (deterministic) An error must print nothing on standard output and one line on standard error: the line of
   SBR-7 naming the path for an SBOM that cannot be read (CHK-8), the error of the upload adapter (UPL-3, UPL-8, UPL-11)
   for an upload not stored, and the option to give for a product name or version missing (`--product`,
@@ -92,9 +94,11 @@ not go through.
   reads no SBOM.
 - (CUP-2, CUP-9, CUP-10) Given a CycloneDX 1.2 SBOM, the command exits with 3 and the service receives nothing.
 - (CUP-9, CUP-11) Given an SBOM with no `metadata.component` version and no `--product-version`, the command exits with
-  2 and standard error names `--product-version`; with no `metadata.component`, it names `--product`.
+  2 and standard error names `--product-version`; with a version `""`, the same; with no `metadata.component`, it
+  names `--product`.
 - (CUP-9, CUP-10) Given `--product ..`, the command exits with 10 naming the product name and sends nothing.
-- (CUP-9) Given an SBOM over 10,485,760 bytes, the command exits with 10 naming its size and sends nothing.
+- (CUP-9, CUP-10) Given an SBOM over 10,485,760 bytes, the command exits with 10 naming its size and sends nothing;
+  given a file of that size that is not JSON, the same.
 - (CUP-6, CUP-9) Given an endpoint on a loopback port where nothing listens, the command exits with 8; given the
   service answers `422` `unreadable_sbom`, it exits with 10 and standard error names the code and the message; given
   `502` with an HTML page, it exits with 11.

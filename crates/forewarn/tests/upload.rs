@@ -81,12 +81,18 @@ impl Service {
     }
 }
 
-/// A loopback endpoint where nothing listens.
-fn nothing_listening() -> String {
+/// A loopback endpoint that closes each connection without an answer, kept bound for the whole test so that no other
+/// server of a test running alongside takes its port.
+fn closing() -> (TcpListener, String) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("a loopback port");
     let base = format!("http://{}", listener.local_addr().expect("an address"));
-    drop(listener);
-    base
+    let accepting = listener.try_clone().expect("a listener");
+    thread::spawn(move || {
+        for stream in accepting.incoming() {
+            drop(stream);
+        }
+    });
+    (listener, base)
 }
 
 /// A receipt of `components` components carrying `warnings`.
@@ -228,7 +234,7 @@ fn an_sbom_piped_is_sent_as_read() {
 #[test]
 fn the_endpoint_option_wins_over_the_environment_and_an_empty_variable_is_unset() {
     let service = Service::answering(201, &receipt(1, &json!([])));
-    let unreachable = nothing_listening();
+    let (_listener, unreachable) = closing();
     let run = upload(
         &["--endpoint", &service.base, "-"],
         Some(&gateway()),
@@ -292,8 +298,16 @@ fn an_sbom_the_adapter_refuses_is_not_sent() {
 fn a_missing_product_name_or_version_names_the_option_to_give() {
     let service = Service::answering(201, &receipt(1, &json!([])));
     let no_version = sbom_of(Some(json!({"type": "application", "name": "acme-gateway"})));
+    let blank_version = sbom_of(Some(
+        json!({"type": "application", "name": "acme-gateway", "version": " "}),
+    ));
+    let blank_name = sbom_of(Some(
+        json!({"type": "application", "name": "", "version": "2.4.0"}),
+    ));
     for (sbom, option) in [
         (no_version, "--product-version"),
+        (blank_version, "--product-version"),
+        (blank_name, "--product"),
         (sbom_of(None), "--product"),
     ] {
         let run = upload_file(&service.base, &sbom, &[]);
@@ -325,6 +339,18 @@ fn a_name_or_a_size_the_contract_refuses_exits_with_10_and_sends_nothing() {
     let run = upload_file(&service.base, &large, &[]);
     assert_eq!(run.code, 10, "{}", run.stderr);
     assert!(run.stderr.contains("10485761"), "{}", run.stderr);
+
+    // The size first: a file over the limit is refused as such, never read as CycloneDX.
+    let run = upload_file(&service.base, &vec![b'x'; 10 * 1024 * 1024 + 3], &[]);
+    assert_eq!(run.code, 10, "{}", run.stderr);
+    assert!(run.stderr.contains("10485763"), "{}", run.stderr);
+    let run = upload(
+        &["--endpoint", &service.base, "-"],
+        Some(&vec![b'x'; 10 * 1024 * 1024 + 3]),
+        &[],
+    );
+    assert_eq!(run.code, 10, "{}", run.stderr);
+    assert!(run.stderr.contains("10485763"), "{}", run.stderr);
     assert!(service.requests().is_empty());
 }
 
@@ -344,7 +370,8 @@ fn refused_credentials_exit_with_9_naming_the_endpoint_and_no_token() {
 // spec: CUP-6, CUP-9, CUP-11
 #[test]
 fn each_failure_of_the_upload_exits_with_its_own_code() {
-    let run = upload_file(&nothing_listening(), &gateway(), &[]);
+    let (_listener, unreachable) = closing();
+    let run = upload_file(&unreachable, &gateway(), &[]);
     assert_eq!(run.code, 8, "{}", run.stderr);
 
     let service = Service::answering(
