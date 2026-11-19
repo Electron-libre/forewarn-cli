@@ -1,0 +1,22 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "acme-app",
+      "name": "acme-app",
+      "version": "1.2.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "time",
+      "name": "time",
+      "version": "0.1.43",
+      "purl": "pkg:cargo/time@0.1.43"
+    }
+  ]
+}

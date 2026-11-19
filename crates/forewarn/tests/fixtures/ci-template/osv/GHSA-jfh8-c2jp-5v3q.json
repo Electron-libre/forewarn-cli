@@ -1,0 +1,28 @@
+{
+  "id": "GHSA-jfh8-c2jp-5v3q",
+  "modified": "2021-12-10T00:00:00Z",
+  "aliases": [
+    "CVE-2021-44228"
+  ],
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.apache.logging.log4j:log4j-core"
+      },
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "2.0-beta9"
+            },
+            {
+              "fixed": "2.15.0"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

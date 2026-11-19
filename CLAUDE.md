@@ -93,7 +93,10 @@ the notices or that program builds without publishing. crates.io waits
 for its own decision.
 `examples/ci/github-actions.yml` and `examples/ci/gitlab-ci.yml` are the CI templates vendors copy (install a pinned
 release, `syft`, `check`, `match`, upload on a tag); `crates/forewarn/tests/ci_templates.rs` checks each option they
-give `forewarn` exists and that they install an archive the release builds.
+give `forewarn` exists and that they install an archive the release builds; `crates/forewarn/tests/ci_template_run.rs`
+runs the `run:` blocks of the GitHub template with `bash` (Unix) against the binary of the commit, a fixture product
+(`tests/fixtures/ci-template`) and local feeds: a daily run on the latest tag exits with 6 on an exploited match, a tag
+run passes on a match not exploited and uploads with `--dry-run`; a new step with a `run:` must be run or replaced there.
 
 ## Layout
 
