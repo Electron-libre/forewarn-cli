@@ -53,7 +53,7 @@ In CI, fail only on what must be reported:
 forewarn match --allow-affected --format json --drafts drafts/ sbom.cdx.json > forewarn.json   # exits 6 if exploited
 ```
 
-A GitHub Actions workflow ready to copy: [`examples/ci/github-actions.yml`](examples/ci/github-actions.yml).
+Ready to copy: a [GitHub Actions workflow](examples/ci/github-actions.yml) and [GitLab CI jobs](examples/ci/gitlab-ci.yml).
 
 ## Documentation
 

@@ -1,0 +1,117 @@
+# forewarn in GitLab CI: copy these jobs into the `.gitlab-ci.yml` of your product's project.
+#
+# On each release tag, and on a pipeline schedule against the latest release tag, it produces the CycloneDX SBOM of
+# the release, reports the components missing what the CRA expects, matches them against OSV, the CISA KEV catalog and
+# EUVD, and fails when one is affected by an actively exploited vulnerability, the report and the draft early warnings
+# kept as artifacts. On a tag, it also uploads the SBOM to a Forewarn service. Only the inventory leaves the runner,
+# never the source code.
+#
+# Add a daily schedule (Build > Pipeline schedules): a vulnerability becomes actively exploited without a change of your
+# code, and CRA article 14 gives 24 hours from the moment you know it for the early warning.
+#
+# Documentation: https://github.com/Electron-libre/forewarn-cli/blob/main/docs/user-guide.md#in-ci
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+variables:
+  # The release of forewarn to install, and the archive of the runner's platform (`aarch64-unknown-linux-musl` on an
+  # ARM64 runner).
+  FOREWARN_VERSION: 0.4.0
+  TARGET: x86_64-unknown-linux-musl
+  SYFT_VERSION: 1.57.2
+
+stages: [sbom, forewarn]
+
+default:
+  image: alpine:3
+
+# forewarn, checked against the SHA256SUMS of its release and installed outside the project directory, so the SBOM
+# of your product does not take in forewarn and its files.
+.forewarn:
+  before_script:
+    - apk add --no-cache curl
+    - cd /tmp
+    - base="https://github.com/Electron-libre/forewarn-cli/releases/download/v$FOREWARN_VERSION"
+    - curl -fsSL -O "$base/forewarn-$TARGET.tar.gz" -O "$base/SHA256SUMS"
+    - grep " forewarn-$TARGET.tar.gz\$" SHA256SUMS | sha256sum -c -
+    - tar -xzf "forewarn-$TARGET.tar.gz"
+    - install "forewarn-$TARGET/forewarn" /usr/local/bin/
+    - cd "$CI_PROJECT_DIR"
+    - forewarn --version
+
+# The release to check: the pushed tag, else the latest tag `v*` of the history, so the scheduled run checks what your
+# users have, not the default branch; before a first tag, the commit checked out.
+# forewarn reads an SBOM, it does not detect dependencies. syft scans the checkout, but names your product without a
+# package URL: forewarn then cannot tell your own packages from the third-party ones and matches them too. The tool of
+# your ecosystem names it (`cargo cyclonedx` for Rust, `cdxgen` for many languages): prefer it, writing CycloneDX JSON
+# to sbom.cdx.json.
+sbom:
+  stage: sbom
+  variables:
+    GIT_DEPTH: 0
+  before_script:
+    - apk add --no-cache curl git
+    - cd /tmp
+    # The archive of the runner's architecture: amd64 or arm64.
+    - archive="syft_${SYFT_VERSION}_linux_$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/').tar.gz"
+    - base="https://github.com/anchore/syft/releases/download/v$SYFT_VERSION"
+    - curl -fsSL -O "$base/$archive" -O "$base/syft_${SYFT_VERSION}_checksums.txt"
+    - grep " $archive\$" "syft_${SYFT_VERSION}_checksums.txt" | sha256sum -c -
+    - tar -xzf "$archive" syft
+    - install syft /usr/local/bin/
+    - cd "$CI_PROJECT_DIR"
+  script:
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        version=${CI_COMMIT_TAG#v}
+      elif tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null); then
+        git checkout --quiet "$tag"
+        version=${tag#v}
+      else
+        echo "no tag v* yet: checking the commit $CI_COMMIT_SHA"
+        version=$CI_COMMIT_SHA
+      fi
+      syft scan dir:. --source-name "$CI_PROJECT_NAME" --source-version "$version" -o cyclonedx-json=sbom.cdx.json
+  artifacts:
+    paths: [sbom.cdx.json]
+
+# Exits with 0 when components are affected but none is actively exploited, with 6 when one is: the job fails then,
+# and the drafts of the early warnings are ready to complete. The feeds are downloaded again when older than 12 hours,
+# so a daily run never matches against the lists of the day before.
+# The 24 h and 72 h deadlines count from the moment of the run (`--aware-since`): the first run that fails is the
+# moment you knew; each later run counts from itself again, so keep the drafts of that first one.
+match:
+  stage: forewarn
+  extends: .forewarn
+  needs: [sbom]
+  # The OSV archives, the CISA KEV catalog and the EUVD list, kept between pipelines and saved even when the job
+  # fails. A cache is kept per runner unless your runners share a distributed cache.
+  cache:
+    key: forewarn-feeds
+    paths: [.forewarn-cache/]
+    when: always
+  script:
+    # The gaps of the SBOM (supplier, license, hashes), reported without failing the job.
+    - forewarn check --allow-incomplete sbom.cdx.json
+    - |
+      forewarn match --allow-affected --refresh 12h --cache .forewarn-cache \
+        --format json --drafts drafts sbom.cdx.json > forewarn.json
+  artifacts:
+    when: always
+    paths: [sbom.cdx.json, forewarn.json, drafts/]
+
+# On a tag, the SBOM is uploaded whatever the match found: this job needs the SBOM only, not the match. Set the CI/CD
+# variables FOREWARN_ENDPOINT and FOREWARN_TOKEN (masked; protected, with the tags `v*` protected); remove this job
+# without a service.
+upload:
+  stage: forewarn
+  extends: .forewarn
+  needs: [sbom]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  script:
+    - forewarn upload sbom.cdx.json

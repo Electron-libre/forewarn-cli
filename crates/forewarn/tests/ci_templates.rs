@@ -10,7 +10,11 @@ use std::path::{Path, PathBuf};
 
 use common::run;
 
-const GITHUB_ACTIONS: &str = "examples/ci/github-actions.yml";
+/// The templates: GitHub Actions and GitLab CI.
+const TEMPLATES: [&str; 2] = [
+    "examples/ci/github-actions.yml",
+    "examples/ci/gitlab-ci.yml",
+];
 
 /// The commands a template must run: the whole of a release check.
 const COMMANDS: [&str; 3] = ["check", "match", "upload"];
@@ -90,23 +94,25 @@ fn describes(help: &str, option: &str) -> bool {
 }
 
 #[test]
-fn the_github_actions_template_runs_each_command_with_options_the_binary_has() {
-    let found = invocations(&read(GITHUB_ACTIONS));
+fn each_template_runs_each_command_with_options_the_binary_has() {
+    for template in TEMPLATES {
+        let found = invocations(&read(template));
 
-    let commands: BTreeSet<&str> = found.iter().map(|(command, _)| command.as_str()).collect();
-    assert_eq!(
-        commands,
-        BTreeSet::from(COMMANDS),
-        "commands run: {found:?}"
-    );
-    for (command, options) in &found {
-        let help = run(&[command, "--help"], None);
-        assert_eq!(help.code, 0, "forewarn {command} --help: {}", help.stderr);
-        for option in options {
-            assert!(
-                describes(&help.stdout, option),
-                "{GITHUB_ACTIONS}: forewarn {command} has no option {option}"
-            );
+        let commands: BTreeSet<&str> = found.iter().map(|(command, _)| command.as_str()).collect();
+        assert_eq!(
+            commands,
+            BTreeSet::from(COMMANDS),
+            "{template}: commands run: {found:?}"
+        );
+        for (command, options) in &found {
+            let help = run(&[command, "--help"], None);
+            assert_eq!(help.code, 0, "forewarn {command} --help: {}", help.stderr);
+            for option in options {
+                assert!(
+                    describes(&help.stdout, option),
+                    "{template}: forewarn {command} has no option {option}"
+                );
+            }
         }
     }
 }
@@ -131,11 +137,14 @@ fn released_targets() -> BTreeSet<String> {
 }
 
 #[test]
-fn the_github_actions_template_installs_an_archive_the_release_builds() {
-    let target = template_target(&read(GITHUB_ACTIONS));
+fn each_template_installs_an_archive_the_release_builds() {
+    let released = released_targets();
+    for template in TEMPLATES {
+        let target = template_target(&read(template));
 
-    assert!(
-        released_targets().contains(&target),
-        "{GITHUB_ACTIONS} installs {target}, which no release builds"
-    );
+        assert!(
+            released.contains(&target),
+            "{template} installs {target}, which no release builds"
+        );
+    }
 }
