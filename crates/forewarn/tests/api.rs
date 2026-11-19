@@ -220,6 +220,45 @@ fn a_vendor_s_own_crate_is_not_sent_to_the_osv_api() {
     );
 }
 
+// spec: MCH-44, MCH-16, VMT-10, VMT-11
+#[test]
+fn a_file_component_carrying_a_package_url_is_not_sent_to_the_osv_api() {
+    let api = OsvApi::new(None);
+    let mut lock_file = component("/Cargo.lock", "0.1.43", Some("pkg:cargo/time@0.1.43"));
+    lock_file["type"] = json!("file");
+    let sbom = bom(
+        "1.6",
+        &json!([
+            lock_file,
+            component("serde", "1.0.0", Some("pkg:cargo/serde@1.0.0"))
+        ]),
+    );
+
+    let json = query(&api, &["--format", "json"], &sbom);
+    let human = query(&api, &[], &sbom);
+
+    assert_eq!(json.code, 0, "{}", json.stderr);
+    assert_eq!(
+        api.requests()[0].1,
+        Some(json!({"queries": [
+            {"package": {"ecosystem": "crates.io", "name": "serde"}, "version": "1.0.0"},
+        ]}))
+    );
+    let report = json_report(&json);
+    assert_eq!(report["affected"], json!([]));
+    assert_eq!(report["notEvaluated"][0]["name"], "/Cargo.lock");
+    assert_eq!(report["notEvaluated"][0]["reason"], "file");
+    assert_eq!(human.code, 0, "{}", human.stderr);
+    assert!(
+        human
+            .stdout
+            .lines()
+            .any(|line| line.contains("/Cargo.lock") && line.contains("file")),
+        "{}",
+        human.stdout
+    );
+}
+
 // spec: MCH-16, MCH-26
 #[test]
 fn the_json_report_gives_the_api_as_the_source() {

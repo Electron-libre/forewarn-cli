@@ -290,9 +290,10 @@ when one is. Keep the cache between jobs (a CI cache keyed on the day, for examp
 | `forewarn check` | nothing |
 | `forewarn match` (default) | the names of the ecosystems of the SBOM (OSV archives); requests for the KEV catalog and the EUVD list, naming no component |
 | `forewarn match --osv … --kev … --euvd …` or `--refresh offline` | nothing |
-| `forewarn match --osv-api` | the ecosystem, name and version of each component, except your own code |
+| `forewarn match --osv-api` | the ecosystem, name and version of each component, except your own code and the files (manifests, lock files) |
 
-Never source code. Your own components (first-party) are never matched nor sent.
+Never source code. Your own components (first-party) and the file components (type `file`, a manifest or a lock file
+a tool read) are never matched nor sent.
 
 ## Reference
 
@@ -320,7 +321,7 @@ Never source code. Your own components (first-party) are never matched nor sent.
 | `exploitedLists` | each list used: `name`, `kind` (`fetched`, `local`), `entryCount`, the catalog's `version` and `released`, and `downloadedAt` or `path` |
 | `awareSince`, `measureAvailable` | the moments of the deadlines, `null` when nothing is actively exploited |
 | `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
-| `notEvaluated` | each component not evaluated, with its reason (`first-party`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
+| `notEvaluated` | each component not evaluated, with its reason (`first-party`, `file`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
 | `drafts` | each draft written: `cve`, `path` |
 | `staleDrafts` | each draft of the product left from an earlier run that this run no longer writes: `cve`, `path` |
 | `vex` | each source of verdicts: `kind` (`sbom`, `file`), `verdictCount`, and the `path` of a file |

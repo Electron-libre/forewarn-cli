@@ -731,6 +731,7 @@ fn reason(reason: &Reason) -> (&'static str, Option<&str>) {
         Reason::Component(reason) => (
             match reason {
                 ComponentReason::FirstParty => "first-party",
+                ComponentReason::File => "file",
                 ComponentReason::NoPackageUrl => "no package URL",
                 ComponentReason::InvalidPackageUrl => "invalid package URL",
                 ComponentReason::UnknownEcosystem => "unknown ecosystem",

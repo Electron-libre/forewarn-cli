@@ -101,7 +101,7 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   | `drafts` | an array of objects `{"cve", "path"}` of the draft files written (MXL-28), in the order of EWD-1, `path` the path written, empty without `--drafts` or when no match is actively exploited |
   | `staleDrafts` | an array of objects `{"cve", "path"}` of the stale drafts of MXL-36, sorted by file name, `path` the directory of `--drafts` joined to the file name, empty without `--drafts` or when there is none |
   | `vex`, `setAsideCount`, `setAside`, `unusedVerdicts` | as MVX-8 says |
-  | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"first-party"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
+  | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"first-party"`, `"file"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
 - **MCH-18** (deterministic) The human report must print each control character, each character that hides or reorders
@@ -122,6 +122,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
 - **MCH-42** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only
   first-party components (SBR-14) map to, nor, with `--osv-api`, send the ecosystem, name or version of a first-party
   component to the OSV API; each is printed not evaluated, first-party (VMT-10, VMT-11).
+- **MCH-44** (deterministic) `forewarn match <sbom>` must neither fetch the OSV archive of an ecosystem only file
+  components (SBR-15) map to, nor, with `--osv-api`, send the ecosystem, name or version of a file component to the
+  OSV API; each is printed not evaluated, file (VMT-10, VMT-11).
 - **MCH-43** (deterministic) Each path the human report or an error line prints (an `--osv` path, a `--vex` file, a
   draft, the file of an error) must be printed as CHK-16 says: escaped as MCH-18 says, except each backslash of a
   path on Windows, printed as it is.
@@ -156,6 +159,9 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   not evaluated, first-party.
 - (MCH-42) Given an SBOM whose only component is a module nested in the product, an empty cache and `--refresh offline`, when
   it is matched, then no archive is read and the command exits with 0.
+- (MCH-44) Given an SBOM whose file component `/Cargo.lock` carries `pkg:cargo/time@0.1.43`, beside the library
+  `serde`, and an OSV API mirror naming `time` 0.1.43 as vulnerable, when it is matched with `--osv-api`, then the
+  `querybatch` request names `serde` alone, `/Cargo.lock` is printed not evaluated, file, and the command exits with 0.
 - (MCH-5, MCH-11) Given a cache filled by a previous run, when `forewarn match --refresh offline` runs on the same
   SBOM, then no request is sent and the report gives the download time of the previous run.
 - (MCH-5) Given an SBOM whose components have no package URL, when it is matched without `--osv`, then no OSV archive

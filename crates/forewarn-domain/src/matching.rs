@@ -47,6 +47,9 @@ pub enum ComponentReason {
     /// The component is the vendor's own code (`specs/sbom-reading.md`, SBR-14), which the vulnerabilities of a
     /// published package of the same name do not affect.
     FirstParty,
+    /// The component is a file (`specs/sbom-reading.md`, SBR-15), a manifest or a lock file a tool read, not a
+    /// package the vulnerabilities of the package its package URL names affect.
+    File,
     /// The component has no package URL.
     NoPackageUrl,
     /// The package URL does not follow the specification, or lacks a namespace its type requires.
@@ -566,6 +569,9 @@ impl ComponentPackage {
     pub fn of(component: &Component) -> Result<Self, ComponentReason> {
         if component.first_party {
             return Err(ComponentReason::FirstParty);
+        }
+        if component.file {
+            return Err(ComponentReason::File);
         }
         let purl = component
             .purl
