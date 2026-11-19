@@ -75,6 +75,9 @@ the archive URL and the cache directory. Ubuntu and other distributions, and cod
 - `:` written `%3A` in the cache directory name, not dropped or replaced: injective, and a valid name on Windows.
 - 2026-11-19: the ordering and the mapping make one deliverable (planned as 1 and 2): the ordering is only
   observable through the matching of a `deb` component, which needs the mapping.
+- 2026-11-19, `high` review findings left out (the user's answer `1 a, 2 a`): Trivy SBOMs go to
+  `issues/match_the_debian_packages_of_a_trivy_sbom.md`, a release with no OSV archive to
+  `issues/keep_a_debian_release_without_an_osv_archive_out.md`.
 - No ADR: the mapping extends the VMT-4 table, no new boundary.
 
 ## Deliverable 1: match `deb` components
@@ -152,3 +155,5 @@ Code review: no findings
 not verified: a real Syft SBOM against the real `Debian:13` archive.
 
 decisions needed: Trivy SBOMs; a release with no OSV archive (see above).
+
+Done: the three deliverables are committed; what remains is in the two issues named in `## Decisions`.
