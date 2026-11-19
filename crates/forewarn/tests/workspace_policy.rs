@@ -1,7 +1,7 @@
 //! The workspace policy of `CLAUDE.md` and ADR 0001: every crate inherits the license and the lints of the workspace
 //! root, and the domain crate depends on no other crate of the workspace. Also the version of the last release:
 //! `cardinal run release <version>` writes the `CHANGELOG.md` section and, through the `release_version_command` of
-//! `.claude/cardinal.toml` (`just set-version`), the `[workspace.package] version` that `forewarn --version` prints.
+//! `.claude/cardinal.toml` (`just set-version`), the `[workspace.package] version` that `forewarn --version` prints and each CI template of `examples/ci` pins.
 //! And one license policy: the licenses `deny.toml` allows every dependency are those `about.toml` accepts in the
 //! release binaries.
 
@@ -158,6 +158,45 @@ fn the_workspace_version_is_the_newest_release_of_the_changelog() {
         "[workspace.package] version differs from the newest release of CHANGELOG.md: run \
          `just set-version <version>` (the release_version_command of `cardinal run release`)"
     );
+}
+
+/// The versions each CI template of `examples/ci` pins on a `FOREWARN_VERSION: X.Y.Z` line, by template name.
+fn template_pins() -> Vec<(String, Vec<String>)> {
+    let dir = workspace_root().join("examples/ci");
+    let mut entries: Vec<PathBuf> = fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
+        .map(|entry| entry.expect("examples/ci: an entry").path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "yml"))
+        .collect();
+    entries.sort();
+    entries
+        .into_iter()
+        .map(|path| {
+            let text =
+                fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            let pins = text
+                .lines()
+                .filter_map(|line| line.trim_start().strip_prefix("FOREWARN_VERSION: "))
+                .map(|version| version.trim().to_owned())
+                .collect();
+            let name = path.file_name().expect("a file name").to_string_lossy();
+            (name.into_owned(), pins)
+        })
+        .collect()
+}
+
+#[test]
+fn each_ci_template_pins_the_workspace_version() {
+    let pins = template_pins();
+    assert!(!pins.is_empty(), "examples/ci holds no template");
+    for (template, versions) in pins {
+        assert_eq!(
+            versions,
+            [workspace_version()],
+            "examples/ci/{template} must pin the workspace version on one `FOREWARN_VERSION: X.Y.Z` line: \
+             run `just set-version <version>`"
+        );
+    }
 }
 
 #[test]
