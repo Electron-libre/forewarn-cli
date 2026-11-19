@@ -69,18 +69,17 @@ own tools would.
 - **VOR-H1** (happy; VOR-1, VOR-2) Given an SBOM with `pkg:pypi/django@2.1` and a record affecting `PyPI` `django` in
   the `ECOSYSTEM` range introduced `0`, fixed `3.0`, when the components are matched, then `django` 2.1 is reported
   as affected.
-- **VOR-H2** (happy; VOR-1, VOR-3) Given `pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1` and an `ECOSYSTEM`
-  range introduced `2.0-beta9`, fixed `2.15.0`, when it is matched, then it is affected; at `2.15.0` or `2.0-alpha1`
-  it is not.
 - (VOR-1) Given `pkg:golang/github.com/x/y@v1.2.2` and an `ECOSYSTEM` range introduced `0`, fixed `1.2.3`, when it
   is matched, then it is affected; at `v1.2.3` it is not.
-- (VOR-1, VOR-2) Given `pkg:pypi/django@2.1` and an `ECOSYSTEM` range introduced `0`, fixed `3.0`, when it is
-  matched, then it is affected; at `3.0.0` or `3.0.post1` it is not, at `3.0rc1` or `3.0.dev2` it is.
+- (VOR-2) Given the range of VOR-H1, when `django` is matched at `3.0.0` or `3.0.post1`, then it is not affected; at
+  `3.0rc1` or `3.0.dev2` it is.
 - (VOR-2) Given the `PyPI` versions `1.0.dev1`, `1.0a1`, `1.0b2.post3`, `1.0c1`, `1.0`, `1.0+local.7`, `1.0.post1`,
   `1!0.5`, when they are ordered, then they come in this order; `1.0-ALPHA.1` equals `1.0a1`, `v1.0-1` equals
   `1.0.post1`.
 - (VOR-2, VMT-10) Given a `PyPI` component at `not a version` and an `ECOSYSTEM` range naming its package, when it is
   matched, then the pair is reported as invalid version.
+- (VOR-1, VOR-3) Given `pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1` and an `ECOSYSTEM` range introduced
+  `2.0-beta9`, fixed `2.15.0`, when it is matched, then it is affected; at `2.15.0` or `2.0-alpha1` it is not.
 - (VOR-3) Given the `Maven` versions `1-alpha-1`, `1-beta2`, `1-milestone`, `1-RC1`, `1-SNAPSHOT`, `1`, `1-sp`,
   `1-xyz`, `1.0.1`, `1.1`, when they are ordered, then they come in this order; `1.0.0`, `1-ga`, `1-final` and
   `1-release` equal `1`, `1-cr1` equals `1-rc1`, `1-a1` equals `1-alpha-1`.

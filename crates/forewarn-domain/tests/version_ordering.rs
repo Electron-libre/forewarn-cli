@@ -197,7 +197,7 @@ fn reports_a_pypi_version_pep_440_does_not_read_as_invalid() {
     }
 }
 
-// spec: VOR-H2, VMT-9, VOR-1, VOR-3
+// spec: VMT-9, VOR-1, VOR-3
 #[test]
 fn evaluates_an_ecosystem_range_of_maven_by_its_ordering() {
     let window = [introduced("2.0-beta9"), fixed("2.15.0")];

@@ -13,8 +13,8 @@ verdicts of the SBOM's `vulnerabilities` and of a VEX document apart (`read_vex_
 matches every verdict naming them (by `bom-ref`, else package URL, and id or alias) says do not affect the product,
 keeping their evidence (`specs/vex-verdicts.md`, ADR
 [0014](docs/adr/0014-apply-the-vex-verdicts-in-the-domain-after-the-flagging.md)). The domain also matches components against OSV-shaped vulnerabilities by package
-URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems, NuGet, Composer,
-`specs/version-ordering.md`), grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
+URL and version, each ecosystem's versions in its own ordering (Semantic Versioning, PEP 440, Maven, RubyGems, NuGet, Composer)
+(`specs/version-ordering.md`), grouping the records of one vulnerability that name each other, one CVE per match (`specs/vulnerability-matching.md`),
 and flags a match as actively exploited when a list of exploited vulnerabilities names its CVE, with the list and the
 date it gives as evidence (`specs/exploited-flagging.md`), and computes the CRA article 14(2) deadlines of such a
 vulnerability, 24 h and 72 h from the moment of awareness and 14 days from the moment a corrective measure is
