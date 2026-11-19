@@ -61,6 +61,8 @@ unreadable answer). Out of scope: the `upload` command, the environment variable
 - Mode: autonomous
 - Base commit: 6d1f79a3ed554018504e25420485eaed3229fef7
 - An adapter crate of its own, not a feature of `forewarn-api` (ADR 0018); commit scope `api`.
+- Finding 7 of the high review: a `401`/`403` whose body is not the contract's JSON stays an unreadable answer, as the
+  table of UPL-9 says (validated by the user).
 - Content type `application/vnd.cyclonedx+json`; `401` and `403` are credentials refused; `localhost` accepted in
   plain HTTP (answers 1 a, 2 a, 3 a).
 
