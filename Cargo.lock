@@ -357,6 +357,7 @@ dependencies = [
 name = "forewarn-upload"
 version = "0.3.0"
 dependencies = [
+ "forewarn-api",
  "ureq",
 ]
 

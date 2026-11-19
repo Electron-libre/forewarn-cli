@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+forewarn-api = { path = "../forewarn-api" }
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [lints]

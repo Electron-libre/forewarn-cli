@@ -48,10 +48,10 @@ unreadable answer). Out of scope: the `upload` command, the environment variable
 1. [x] Crate `forewarn-upload`, its endpoint and token checks: `Endpoint::parse` (HTTPS or loopback HTTP, no user
    information, query or fragment, named without credentials), `Token` (visible ASCII, `Debug` redacted); verified by
    `crates/forewarn-upload/tests/endpoint.rs`; makes true UPL-2, UPL-6, UPL-7, UPL-11. (autonomous)
-2. [ ] The upload itself: its own `ureq` agent (no redirect), the `PUT`, the answer mapped to a receipt or an error,
+2. [x] The upload itself: its own `ureq` agent (no redirect), the `PUT`, the answer mapped to a receipt or an error,
    the token redacted from the service's messages; verified by `crates/forewarn-upload/tests/upload.rs` against a
    loopback server; makes true UPL-1, UPL-3, UPL-4, UPL-5, UPL-8, UPL-9, UPL-10, UPL-12; docs (architecture, CLAUDE.md), ADR
-   0018 accepted, spec accepted.
+   0018 accepted, spec accepted. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -67,3 +67,14 @@ unreadable answer). Out of scope: the `upload` command, the environment variable
 - red: UPL-2, UPL-6, UPL-7, UPL-11, UPL-4: `https://example.com is accepted` (8 of 9 tests failed on the stubs).
 - Code review: no findings
 - not verified: the TLS path (no network in tests).
+
+## Deliverable 2 summary
+- done: `upload` in module `send`: its own agent (no redirect), one `PUT` with the bearer token and the CycloneDX
+  content type, the answer mapped to `Stored` or `UploadError`, the token redacted from the service's code and message;
+  spec UPL and ADR 0018 accepted; CLAUDE.md and architecture.
+- red: UPL-H1, UPL-H2, UPL-1, UPL-3, UPL-4, UPL-5, UPL-8, UPL-9, UPL-10, UPL-11, UPL-12: `stored: TooLarge { size: 0 }`
+  (13 of 13 tests failed on the stub).
+- Code review: no findings
+- not verified: the TLS path and the timeouts (no network, no wait in tests).
+- note: a `401` or `403` whose body is not the contract's JSON (a proxy's HTML page) is an unreadable answer, as the
+  table of UPL-9 says, not credentials refused.

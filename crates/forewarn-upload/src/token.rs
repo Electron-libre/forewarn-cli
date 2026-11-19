@@ -42,6 +42,16 @@ impl Token {
             Ok(Self(token))
         }
     }
+
+    /// The token, for the header of a request only.
+    pub(crate) fn expose(&self) -> &str {
+        &self.0
+    }
+
+    /// `text` with each occurrence of the token written `***` (UPL-12).
+    pub(crate) fn redact(&self, text: &str) -> String {
+        text.replace(&self.0, "***")
+    }
 }
 
 impl fmt::Debug for Token {
