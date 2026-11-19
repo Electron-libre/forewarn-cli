@@ -1,6 +1,7 @@
 //! The CI templates of `examples/ci/` a vendor copies: each `forewarn` command they run, and each option they give it,
 //! exists in the binary, so renaming an option breaks this build instead of the vendors' pipelines; and the archive
-//! they install is one the release workflow builds.
+//! they install is one the release workflow builds, of the workspace version that `just set-version` moves at each
+//! release.
 
 mod common;
 
@@ -186,5 +187,34 @@ fn each_template_installs_an_archive_the_release_builds() {
                 "{template} installs {target}, which no release builds"
             );
         }
+    }
+}
+
+/// The versions a template pins, the values of its lines `FOREWARN_VERSION: ...` (indented with spaces only), the
+/// lines `just set-version` rewrites.
+fn pinned_versions(template: &str) -> Vec<String> {
+    template
+        .lines()
+        .filter_map(|line| {
+            line.trim_start_matches(' ')
+                .strip_prefix("FOREWARN_VERSION: ")
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn each_template_pins_the_workspace_version() {
+    for template in templates() {
+        assert!(
+            Path::new(&template).extension() == Some("yml".as_ref()),
+            "{template}: `just set-version` rewrites the templates named `*.yml` only"
+        );
+        assert_eq!(
+            pinned_versions(&read(&template)),
+            [env!("CARGO_PKG_VERSION")],
+            "{template} must pin the workspace version on one line `FOREWARN_VERSION: X.Y.Z`, with nothing after \
+             it: run `just set-version <version>`"
+        );
     }
 }

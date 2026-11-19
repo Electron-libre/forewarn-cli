@@ -47,6 +47,11 @@ fails when they differ. Pinning stays (approach 1): a copied template installs o
    each `examples/ci/*.yml` and checks it wrote it; a test of `workspace_policy.rs` checks that each template has exactly
    one such line and that it is the workspace version; CLAUDE.md and the user guide say so; verified by that test (red
    against a template edited to another version) and a `just set-version` run on a scratch copy. (autonomous)
+2. [x] Fixes of the `high` review of the issue: the pin test moved to `ci_templates.rs` (its template listing, the
+   crate version), matching the lines as `set-version` does; `set-version` checks the templates before writing
+   anything and compares the version written literally; the user guide says a copy keeps its version; verified by the
+   test (red on a pin line with a comment) and `just set-version` on a scratch copy (refused, nothing written, on a
+   template with two pin lines). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -61,4 +66,16 @@ fails when they differ. Pinning stays (approach 1): a copied template installs o
 - red: none (no spec): `examples/ci/github-actions.yml must pin the workspace version on one FOREWARN_VERSION: X.Y.Z
   line: run just set-version <version>` (left ["0.3.0"], right ["0.4.0"]).
 - Verified: `just set-version 0.9.1` on a scratch copy wrote 0.9.1 in both templates and `Cargo.toml`.
+- Code review: no findings
+
+## Summary of deliverable 2
+- done: the 9 findings of the `high` review of `ca3fa41..ab01bda`.
+- red: none (no spec): `examples/ci/github-actions.yml must pin the workspace version on one line FOREWARN_VERSION:
+  X.Y.Z, with nothing after it` (left ["0.4.0  # pinned"]).
+- Findings: fixed: the half-bumped tree on a refused template (checked before any write), the duplicated template
+  listing and its case handling (test moved to `ci_templates.rs`, a template not named `*.yml` refused), the
+  whitespace mismatch (spaces only, as the recipe), a trailing comment or quote (the test refuses it, the recipe would
+  drop it), the `grep -x` regex (now `grep -Fqx`), the guide's wording (a copy keeps its version), the long doc line
+  (`workspace_policy.rs` back to its base). Not fixed: the window between the release commit on `main` and the tag's
+  assets, accepted by the issue's Hints (a template is read from the tagged commit).
 - Code review: no findings

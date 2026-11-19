@@ -308,8 +308,9 @@ intermediary that refuses the expectation) is the only answer after which the re
 
 [`examples/ci/github-actions.yml`](../examples/ci/github-actions.yml) is a GitHub Actions workflow to copy into
 `.github/workflows/` of your product, each step commented. On each tag `v*`, and each day on the latest tag `v*`, it
-installs the release it was published with (`FOREWARN_VERSION`, moved at each release) checked against its `SHA256SUMS`, produces the SBOM with `syft` (named after the repository
-and the tag), keeps the cache of the feeds between runs, reports the gaps of the SBOM without failing, and runs
+installs the release `FOREWARN_VERSION` pins (the latest one here; raise it in your copy to upgrade) checked against
+its `SHA256SUMS`, produces the SBOM with `syft` (named after the repository and the tag), keeps the cache of the feeds
+between runs, reports the gaps of the SBOM without failing, and runs
 `forewarn match --allow-affected --refresh 12h`:
 
 | `forewarn match` exits with | The job |

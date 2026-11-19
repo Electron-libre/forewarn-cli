@@ -79,7 +79,7 @@ of `rust-version` (read from `Cargo.toml`), runs the tests on macOS and Windows 
 `.claude/cardinal.toml`, `just set-version <version>`, which writes `[workspace.package] version`, `Cargo.lock` and the
 `FOREWARN_VERSION` the CI templates pin:
 `forewarn --version` prints it, and `crates/forewarn/tests/workspace_policy.rs` checks it is the newest release of the
-changelog and that each template pins it.
+changelog, `crates/forewarn/tests/ci_templates.rs` that each template pins it.
 Pushing the tag `v<version>` (X.Y.Z) runs `.github/workflows/release.yml` (ADR
 [0015](docs/adr/0015-distribute-release-binaries-on-github-before-crates-io.md)): it refuses a tag that is not the
 workspace version, builds `forewarn-<target>.tar.gz` for Linux (musl, x86_64 and aarch64) and macOS, each with the
