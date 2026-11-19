@@ -12,7 +12,7 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 - Why: keeps a vendor's inventory up to date without manual work; only inventories leave the CI, never source code.
 - State: in issues
 - Issues:
-  - [define_the_sbom_upload_api_types](issues/define_the_sbom_upload_api_types.md)
+  - [define_the_sbom_upload_api_types](issues/done/define_the_sbom_upload_api_types.md)
   - [upload_an_sbom_to_the_service](issues/upload_an_sbom_to_the_service.md)
   - [cli_upload_command](issues/cli_upload_command.md)
 
