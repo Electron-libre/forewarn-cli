@@ -648,6 +648,7 @@ fn reason(reason: &Reason) -> (&'static str, Option<&str>) {
                 ComponentReason::InvalidPackageUrl => "invalid package URL",
                 ComponentReason::LocalPath => "local path",
                 ComponentReason::UnknownEcosystem => "unknown ecosystem",
+                ComponentReason::UnknownRelease => "unknown release",
                 ComponentReason::NoVersion => "no version",
             },
             None,

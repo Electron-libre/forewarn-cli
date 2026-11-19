@@ -27,6 +27,7 @@ own tools would.
   | `RubyGems` | RubyGems (VOR-4) |
   | `NuGet` | NuGet (VOR-5) |
   | `Packagist` | Composer (VOR-6) |
+  | `Debian:<release>` | Debian (VOR-7) |
 
 ### Contract
 
@@ -63,6 +64,15 @@ own tools would.
   words, compared in turn: numbers as numbers, then `dev` < `alpha` < `beta` < `RC` < a number < `patch`, a version
   that goes on with a number after its prefix after it, one that goes on with a word as the rank of that word against
   a number; any other version (a `dev-` branch among them) is invalid.
+- **VOR-7** (deterministic) A `Debian:<release>` version must be read and ordered as Debian Policy 5.6.12 and `dpkg`
+  do: once trimmed, an optional epoch of ASCII digits before the first `:` (absent, it reads as `0`), the upstream
+  version, then a revision after the last `-` (absent, it reads as `0`); the epoch compared as a number, then the
+  upstream version, then the revision, each split into runs of non-digits and of digits compared in turn, the digits
+  as numbers (an empty run as `0`), the non-digits character by character with `~` before the end of the run, the end
+  before a letter and a letter before any other character, letters by byte; a version whose upstream version is empty,
+  does not start with a digit, or holds a character other than an ASCII letter, a digit, `.`, `+`, `~`, `-` and `:`
+  (`:` only after an epoch), whose revision is empty after a `-` or holds a character other than an ASCII letter, a
+  digit, `.`, `+` and `~`, or whose epoch is not digits, is invalid.
 
 ## Scenarios
 
@@ -101,6 +111,12 @@ own tools would.
   `1.0-patch1`, `1.0.1`, `1.x-dev`, `2.0`, when they are ordered, then they come in this order; `1.0` equals
   `v1.0.0.0`, `1.0b2` equals `1.0-beta.2`, `1.0+build` equals `1.0`, and `dev-main` and `1.0-foo` are invalid
   versions.
+- (VOR-1, VOR-7) Given `pkg:deb/debian/zlib1g@1%3A1.3.dfsg-3?distro=debian-13&upstream=zlib` and an `ECOSYSTEM`
+  range of `Debian:13` `zlib` introduced `0`, fixed `1:1.3.dfsg+really1.3.1-1`, when it is matched, then it is
+  affected; at `1:1.3.dfsg+really1.3.1-1` it is not, at `1.3.dfsg+really1.3.1-2`, without the epoch, it is.
+- (VOR-7) Given the `Debian:13` versions `0.9`, `1.0~rc1-1`, `1.0-1`, `1.0-1+b1`, `1.0-1+deb13u1`, `1.0a-1`,
+  `1.0.1-1`, `1:0.1-1`, when they are ordered, then they come in this order; `0:1.0-1` equals `1.0-1`, `1.0` equals
+  `1.0-0`, `1.01` equals `1.1`, and `a1.0`, `1.0-`, `1.0_1`, `x:1.0` and `1.0-1:2` are invalid versions.
 
 ## Non-goals
 

@@ -373,6 +373,7 @@ fn every_reason_has_its_json_name() {
         &json!([
             component("bare", "1", None),
             component("bad", "1", Some("not a purl")),
+            component("apk", "1", Some("pkg:apk/alpine/curl@1")),
             component("deb", "1", Some("pkg:deb/debian/curl@1")),
             {"type": "library", "name": "unversioned", "purl": "pkg:cargo/unversioned"},
             component("odd", "1.0", Some("pkg:cargo/odd@1.0")),
@@ -404,6 +405,7 @@ fn every_reason_has_its_json_name() {
             json!(["no package URL", null]),
             json!(["invalid package URL", null]),
             json!(["unknown ecosystem", null]),
+            json!(["unknown release", null]),
             json!(["no version", null]),
             json!(["invalid version", "RUSTSEC-1"]),
         ]

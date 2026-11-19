@@ -298,7 +298,7 @@ fn each_ecosystem_is_fetched_once_in_the_order_of_its_first_component() {
             component("lodash", "4.17.20", Some("pkg:npm/lodash@4.17.20")),
             component("time", "0.1.43", Some("pkg:cargo/time@0.1.43")),
             component("left-pad", "1.3.0", Some("pkg:npm/left-pad@1.3.0")),
-            component("deb", "1", Some("pkg:deb/debian/curl@1")),
+            component("apk", "1", Some("pkg:apk/alpine/curl@1")),
             component("django", "2.1", Some("pkg:pypi/django@2.1")),
         ]),
     );

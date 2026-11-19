@@ -42,7 +42,7 @@ flowchart TD
 
 | Crate | Role | Main modules |
 |---|---|---|
-| `forewarn-domain` | The rules, no I/O | `sbom` (product, components, first-party), `completeness`, `matching` (+ private `version`: one ordering per ecosystem), `exploited`, `vex` (verdicts, the matches set aside), `deadlines`, `date`, `early_warning` (the fields of the draft), `purl`, `vulnerability` |
+| `forewarn-domain` | The rules, no I/O | `sbom` (product, components, first-party), `completeness`, `matching` (+ private `version`: one ordering per ecosystem; private `debian`: a `deb` package URL to its `Debian:<release>` ecosystem and source package), `exploited`, `vex` (verdicts, the matches set aside), `deadlines`, `date`, `early_warning` (the fields of the draft), `purl`, `vulnerability` |
 | `forewarn-cyclonedx` | Reads a CycloneDX JSON SBOM into `Sbom`, its VEX verdicts included, and a VEX document into `Verdict`s | single module |
 | `forewarn-osv` | Reads OSV records, fetches ecosystem archives into the cache, queries the OSV API | `lib` (read), `fetch`, `api` |
 | `forewarn-exploited` | Reads or fetches the exploited lists into `ExploitedList` | `kev`, `euvd` |

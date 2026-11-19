@@ -1,5 +1,5 @@
 //! The version orderings of the `ECOSYSTEM` ranges, observed through the matching of one component against one range
-//! (`specs/version-ordering.md`, VOR-1 to VOR-6).
+//! (`specs/version-ordering.md`, VOR-1 to VOR-7).
 
 use forewarn_domain::matching::{MatchReport, PairReason, Reason, match_components};
 use forewarn_domain::sbom::Component;
@@ -41,6 +41,12 @@ const PACKAGIST: Package = Package {
     ecosystem: "Packagist",
     name: "laravel/framework",
     purl: "pkg:composer/laravel/framework",
+};
+
+const DEBIAN: Package = Package {
+    ecosystem: "Debian:13",
+    name: "zlib",
+    purl: "pkg:deb/debian/zlib1g?distro=debian-13&upstream=zlib",
 };
 
 fn introduced(version: &str) -> Event {
@@ -436,5 +442,70 @@ fn reports_a_packagist_version_composer_does_not_read_as_invalid() {
         "12345678901234567890123",
     ] {
         PACKAGIST.assert_invalid(invalid, "2.0");
+    }
+}
+
+// spec: VMT-9, VOR-1, VOR-7
+#[test]
+fn evaluates_an_ecosystem_range_of_debian_by_dpkg() {
+    let window = [introduced("0"), fixed("1:1.3.dfsg+really1.3.1-1")];
+    assert!(DEBIAN.affects("1:1.3.dfsg-3", &window));
+    assert!(!DEBIAN.affects("1:1.3.dfsg+really1.3.1-1", &window));
+    assert!(DEBIAN.affects("1.3.dfsg+really1.3.1-2", &window));
+}
+
+// spec: VMT-9, VOR-1, VOR-7
+#[test]
+fn does_not_match_a_debian_range_of_another_release() {
+    let mut report = DEBIAN.report("1:1.3.dfsg-3", &[introduced("0")]);
+    assert_eq!(report.matches().len(), 1);
+    let other = Package {
+        ecosystem: "Debian:12",
+        ..DEBIAN
+    };
+    report = other.report("1:1.3.dfsg-3", &[introduced("0")]);
+    assert_eq!(
+        (report.matches(), report.not_evaluated()),
+        (&[][..], &[][..])
+    );
+}
+
+// spec: VOR-7
+#[test]
+fn orders_debian_versions_by_dpkg() {
+    DEBIAN.assert_ordered(&[
+        "0.9",
+        "1.0~~",
+        "1.0~rc1-1",
+        "1.0-1",
+        "1.0-1+b1",
+        "1.0-1+deb13u1",
+        "1.0a-1",
+        "1.0+dfsg-1",
+        "1.0.1-1",
+        "1.0.1-1.1",
+        "1.10",
+        "99999999999999999999",
+        "100000000000000000000",
+        "1:0.1-1",
+        "2:0",
+    ]);
+    DEBIAN.assert_ordered(&["1.0-1~bpo1", "1.0-1", "1.0-1a", "1.0-1.1", "1.0-2"]);
+    DEBIAN.assert_equal("0:1.0-1", "1.0-1");
+    DEBIAN.assert_equal("1.0", "1.0-0");
+    DEBIAN.assert_equal("1.01", "1.1");
+    DEBIAN.assert_equal("00:1.0", " 1.0 ");
+    DEBIAN.assert_equal("1:2.0:1-1", "1:2.0:1-1");
+    DEBIAN.assert_equal("1.0-1-1", "1.0-1-1");
+}
+
+// spec: VOR-7, VMT-10
+#[test]
+fn reports_a_debian_version_dpkg_does_not_read_as_invalid() {
+    for invalid in [
+        "a1.0", "1.0-", "1.0_1", "x:1.0", ":1.0", "1:", "1.0-1:2", "2.0:1", "1.0-1_1", "1.0 1",
+        "1.0-1-",
+    ] {
+        DEBIAN.assert_invalid(invalid, "2.0");
     }
 }

@@ -45,11 +45,16 @@ fn maps_each_package_url_type_to_its_osv_ecosystem_and_name() {
             "Packagist",
             "laravel/framework",
         ),
+        (
+            "pkg:deb/debian/libssl3t64@3.5.7-1~deb13u3?arch=amd64&distro=debian-13.7&upstream=openssl",
+            "Debian:13",
+            "openssl",
+        ),
     ];
     for (purl, ecosystem, name) in cases {
         let package = package(purl);
         assert_eq!(
-            (package.ecosystem, package.name.as_str()),
+            (package.ecosystem.as_str(), package.name.as_str()),
             (ecosystem, name),
             "{purl}"
         );
@@ -150,7 +155,7 @@ fn gives_the_component_reason_it_cannot_be_matched() {
         Err(ComponentReason::NoPackageUrl)
     );
     assert_eq!(
-        ComponentPackage::of(&component("pkg:deb/debian/curl@7.0", None)),
+        ComponentPackage::of(&component("pkg:apk/alpine/curl@7.0", None)),
         Err(ComponentReason::UnknownEcosystem)
     );
     assert_eq!(
@@ -212,7 +217,7 @@ fn keeps_a_first_party_component_out_before_any_other_reason() {
     };
     for component in [
         component("pkg:cargo/time@0.1.43", None),
-        component("pkg:deb/debian/curl@7.0", None),
+        component("pkg:apk/alpine/curl@7.0", None),
         Component::default(),
     ] {
         assert_eq!(
@@ -293,4 +298,122 @@ fn reports_the_component_reasons_before_a_local_path() {
         ComponentPackage::of(&component("pkg:cargo/lib?download_url=file:../lib", None)),
         Err(ComponentReason::NoVersion)
     );
+}
+
+// spec: VMT-32
+#[test]
+fn maps_a_debian_package_to_the_release_of_its_distro_qualifier() {
+    for (purl, ecosystem) in [
+        (
+            "pkg:deb/debian/libc6@2.41-12?distro=debian-13.7",
+            "Debian:13",
+        ),
+        ("pkg:deb/debian/libc6@2.41-12?distro=debian-13", "Debian:13"),
+        (
+            "pkg:deb/debian/libc6@2.36-9?arch=amd64&Distro=debian-012",
+            "Debian:12",
+        ),
+        (
+            "pkg:deb/debian/libc6@2.36-9?distro=debian%2D12",
+            "Debian:12",
+        ),
+        (
+            "pkg:deb/debian/libc6@2.36-9?distro=debian-12x#sub",
+            "Debian:12",
+        ),
+    ] {
+        assert_eq!(package(purl).ecosystem, ecosystem, "{purl}");
+    }
+}
+
+// spec: VMT-10, VMT-32
+#[test]
+fn reports_a_debian_package_without_a_release_as_unknown_release() {
+    for purl in [
+        "pkg:deb/debian/libc6@2.41-12?arch=amd64",
+        "pkg:deb/debian/libc6@2.41-12?distro=trixie",
+        "pkg:deb/debian/libc6@2.41-12?distro=debian-",
+        "pkg:deb/debian/libc6@2.41-12?distro=ubuntu-24.04",
+        "pkg:deb/debian/libc6@2.41-12?distro=",
+    ] {
+        assert_eq!(
+            ComponentPackage::of(&component(purl, None)),
+            Err(ComponentReason::UnknownRelease),
+            "{purl}"
+        );
+    }
+}
+
+// spec: VMT-4
+#[test]
+fn leaves_the_deb_packages_of_another_namespace_unmapped() {
+    for purl in [
+        "pkg:deb/ubuntu/libc6@2.39-0ubuntu8?distro=ubuntu-24.04",
+        "pkg:deb/libc6@2.41-12?distro=debian-13",
+    ] {
+        assert_eq!(
+            ComponentPackage::of(&component(purl, None)),
+            Err(ComponentReason::UnknownEcosystem),
+            "{purl}"
+        );
+    }
+}
+
+// spec: VMT-5, VMT-33
+#[test]
+fn names_a_debian_package_by_its_source() {
+    let without_upstream = package("pkg:deb/debian/zlib1g@1%3A1.3.dfsg-3?distro=debian-13");
+    assert_eq!(
+        (
+            without_upstream.name.as_str(),
+            without_upstream.version.as_str()
+        ),
+        ("zlib1g", "1:1.3.dfsg-3")
+    );
+    for (purl, name) in [
+        (
+            "pkg:deb/debian/libc6@2.41-12?distro=debian-13&upstream=glibc",
+            "glibc",
+        ),
+        (
+            "pkg:deb/debian/libc6@2.41-12?distro=debian-13&Upstream=glib%63",
+            "glibc",
+        ),
+        (
+            "pkg:deb/debian/libc6@2.41-12?distro=debian-13&upstream=",
+            "libc6",
+        ),
+        (
+            "pkg:deb/debian/libc6@2.41-12?distro=debian-13&upstream=@2.41-12",
+            "libc6",
+        ),
+    ] {
+        assert_eq!(package(purl).name, name, "{purl}");
+    }
+}
+
+// spec: VMT-7, VMT-34
+#[test]
+fn matches_a_debian_package_at_the_version_of_its_source() {
+    let purl = "pkg:deb/debian/libc6@2.41-12%2Bb1?distro=debian-13&upstream=glibc%402.41-12";
+    for (purl, version, expected) in [
+        (purl.to_owned(), None, "2.41-12"),
+        (purl.to_owned(), Some("2.41-12+b1"), "2.41-12"),
+        (purl.replace("%402.41-12", "@"), None, "2.41-12+b1"),
+        (
+            purl.replace("%402.41-12", ""),
+            Some("2.41-12+b2"),
+            "2.41-12+b2",
+        ),
+    ] {
+        let package = ComponentPackage::of(&component(&purl, version)).expect("a package");
+        assert_eq!(package.version, expected, "{purl} {version:?}");
+    }
+}
+
+// spec: VMT-6
+#[test]
+fn compares_debian_names_exactly() {
+    assert!(same_name("Debian:13", "glibc", "glibc"));
+    assert!(!same_name("Debian:13", "glibc", "GLIBC"));
 }

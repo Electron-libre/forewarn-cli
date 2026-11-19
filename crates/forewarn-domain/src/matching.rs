@@ -5,9 +5,12 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::cve::{is_cve, read_cve};
+use crate::debian::{self, DebianPackage};
 use crate::purl::{PackageUrl, points_to_local_path};
 use crate::sbom::Component;
-use crate::version::{Maven, NuGet, Packagist, Pep440, RubyGems, Scheme, Semver, VersionOrder};
+use crate::version::{
+    Debian, Maven, NuGet, Packagist, Pep440, RubyGems, Scheme, Semver, VersionOrder,
+};
 use crate::vulnerability::{AffectedPackage, Event, Range, RangeKind, Vulnerability};
 
 /// How the name of a package URL type is built (VMT-4).
@@ -24,7 +27,7 @@ enum NameForm {
 }
 
 /// The package URL types matching knows: type, OSV ecosystem, name form (VMT-4), and the ordering of the versions of
-/// its `ECOSYSTEM` ranges (VOR-1).
+/// its `ECOSYSTEM` ranges (VOR-1); the Debian packages apart (module `debian`).
 const ECOSYSTEMS: [(&str, &str, NameForm, Scheme); 8] = [
     ("cargo", "crates.io", NameForm::Name, Scheme::Semver),
     ("npm", "npm", NameForm::Slash, Scheme::Semver),
@@ -53,6 +56,8 @@ pub enum ComponentReason {
     InvalidPackageUrl,
     /// The package URL type maps to no OSV ecosystem matching knows.
     UnknownEcosystem,
+    /// A Debian package URL names no release matching reads (VMT-32).
+    UnknownRelease,
     /// Neither the component nor its package URL has a version.
     NoVersion,
     /// The package URL points to a local path (VMT-31): a crate of the workspace, or a fork kept by path, which the
@@ -260,9 +265,10 @@ impl<'a> Index<'a> {
         let mut places: HashMap<&str, HashMap<Cow<str>, Vec<usize>>> = HashMap::new();
         for (place, vulnerability) in vulnerabilities.iter().enumerate() {
             let known = vulnerability.affected.iter().filter(|affected| {
-                ECOSYSTEMS
-                    .iter()
-                    .any(|(_, ecosystem, _, _)| *ecosystem == affected.ecosystem)
+                debian::is_ecosystem(&affected.ecosystem)
+                    || ECOSYSTEMS
+                        .iter()
+                        .any(|(_, ecosystem, _, _)| *ecosystem == affected.ecosystem)
             });
             for affected in known {
                 let list = places
@@ -281,8 +287,8 @@ impl<'a> Index<'a> {
     /// The places of the vulnerabilities an affected package of which names the package, in id order.
     fn naming(&self, package: &ComponentPackage) -> &[usize] {
         self.places
-            .get(package.ecosystem)
-            .and_then(|names| names.get(name_key(package.ecosystem, &package.name).as_ref()))
+            .get(package.ecosystem.as_str())
+            .and_then(|names| names.get(name_key(&package.ecosystem, &package.name).as_ref()))
             .map_or(&[], Vec::as_slice)
     }
 }
@@ -551,7 +557,7 @@ enum Outcome {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentPackage {
     /// The OSV ecosystem.
-    pub ecosystem: &'static str,
+    pub ecosystem: String,
     /// The name in that ecosystem.
     pub name: String,
     /// The component's version, else the version of its package URL.
@@ -575,9 +581,45 @@ impl ComponentPackage {
             .as_deref()
             .filter(|purl| !purl.trim().is_empty())
             .ok_or(ComponentReason::NoPackageUrl)?;
-        let local_path = points_to_local_path(purl.trim());
-        let purl =
-            PackageUrl::parse(purl.trim()).map_err(|_| ComponentReason::InvalidPackageUrl)?;
+        let text = purl.trim();
+        let local_path = points_to_local_path(text);
+        let purl = PackageUrl::parse(text).map_err(|_| ComponentReason::InvalidPackageUrl)?;
+        let (ecosystem, scheme, name, source_version) = if purl.purl_type == debian::PURL_TYPE {
+            let package = DebianPackage::of(&purl, text)?;
+            (
+                package.ecosystem,
+                Scheme::Debian,
+                package.name,
+                package.source_version,
+            )
+        } else {
+            let (ecosystem, scheme, name) = Self::mapped(&purl)?;
+            (ecosystem.to_owned(), scheme, name, None)
+        };
+        let version = [
+            source_version.as_deref(),
+            component.version.as_deref(),
+            purl.version.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .map(str::trim)
+        .find(|version| !version.is_empty())
+        .ok_or(ComponentReason::NoVersion)?
+        .to_owned();
+        if local_path {
+            return Err(ComponentReason::LocalPath);
+        }
+        Ok(Self {
+            ecosystem,
+            name,
+            version,
+            scheme,
+        })
+    }
+
+    /// The ecosystem, ordering and name of a package URL of a type of the table of VMT-4.
+    fn mapped(purl: &PackageUrl) -> Result<(&'static str, Scheme, String), ComponentReason> {
         let (_, ecosystem, form, scheme) = ECOSYSTEMS
             .iter()
             .find(|(purl_type, _, _, _)| *purl_type == purl.purl_type)
@@ -586,28 +628,13 @@ impl ComponentPackage {
             (NameForm::SlashRequired | NameForm::ColonRequired, true) => {
                 return Err(ComponentReason::InvalidPackageUrl);
             }
-            (NameForm::Name, _) | (NameForm::Slash, true) => purl.name,
+            (NameForm::Name, _) | (NameForm::Slash, true) => purl.name.clone(),
             (NameForm::Slash | NameForm::SlashRequired, false) => {
                 format!("{}/{}", purl.namespace, purl.name)
             }
             (NameForm::ColonRequired, false) => format!("{}:{}", purl.namespace, purl.name),
         };
-        let version = [component.version.as_deref(), purl.version.as_deref()]
-            .into_iter()
-            .flatten()
-            .map(str::trim)
-            .find(|version| !version.is_empty())
-            .ok_or(ComponentReason::NoVersion)?
-            .to_owned();
-        if local_path {
-            return Err(ComponentReason::LocalPath);
-        }
-        Ok(Self {
-            ecosystem,
-            scheme: *scheme,
-            name,
-            version,
-        })
+        Ok((ecosystem, *scheme, name))
     }
 
     /// Whether the vulnerability affects this package: affected by any listed version or range, else the first
@@ -646,7 +673,7 @@ impl ComponentPackage {
 
     fn is_named_by(&self, affected: &AffectedPackage) -> bool {
         affected.ecosystem == self.ecosystem
-            && same_name(self.ecosystem, &affected.name, &self.name)
+            && same_name(&self.ecosystem, &affected.name, &self.name)
     }
 
     /// Whether the version is in the range, by the OSV algorithm, in the ordering of the range (VMT-9, VOR-1).
@@ -658,6 +685,7 @@ impl ComponentPackage {
             Some(Scheme::RubyGems) => in_range::<RubyGems>(&self.version, &range.events),
             Some(Scheme::NuGet) => in_range::<NuGet>(&self.version, &range.events),
             Some(Scheme::Packagist) => in_range::<Packagist>(&self.version, &range.events),
+            Some(Scheme::Debian) => in_range::<Debian>(&self.version, &range.events),
             None => Err(PairReason::RangeNotEvaluated),
         }
     }

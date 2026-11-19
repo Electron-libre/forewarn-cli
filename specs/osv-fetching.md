@@ -1,6 +1,6 @@
 ---
 id: OSF
-status: accepted
+status: draft
 adrs: [0004, 0005, 0007, 0008, 0010]
 ---
 
@@ -58,13 +58,14 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
 - **OSF-13** (deterministic) A snapshot whose record of freshness names no files (stored by an earlier forewarn) must
   be downloaded again under `if-missing` or `older-than <age>`, and read as it is under `offline`.
 - **OSF-14** (deterministic) A download must request, with a `GET` and no body, the URL `<base>/<ecosystem>/all.zip`,
-  `<base>` being `https://osv-vulnerabilities.storage.googleapis.com` unless the caller gives another.
+  `<base>` being `https://osv-vulnerabilities.storage.googleapis.com` unless the caller gives another, each `:` of the
+  ecosystem written `%3A`.
 - **OSF-15** (deterministic) A fetch that reads a snapshot from the cache must return the vulnerabilities and the
   freshness the download that stored it returned.
 - **OSF-16** (deterministic) A download that fails, for any cause of OSF-18, must leave the snapshot the cache held
   before unchanged.
-- **OSF-17** (deterministic) Fetching must refuse an ecosystem name that is empty, starts with `.`, or holds a
-  character other than an ASCII letter, a digit, `.`, `-` and `_`, before any request.
+- **OSF-17** (deterministic) Fetching must refuse an ecosystem name that is empty, starts with `.` or `:`, or holds a
+  character other than an ASCII letter, a digit, `.`, `-`, `_` and `:`, before any request.
 - **OSF-18** (deterministic) A failed fetch must fail with the error of this table, naming the ecosystem, its
   message quoting the offending value when there is one.
 
@@ -83,6 +84,8 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
   caller gives, 40 minutes unless the caller gives another, then fail with the error of OSF-18.
 - **OSF-20** (deterministic) Fetching under `offline` must read the snapshots of a cache in which it cannot write,
   without waiting for another fetch.
+- **OSF-21** (deterministic) The snapshot of an ecosystem must be kept in a directory of the cache named after it,
+  each `:` written `%3A`, a name every supported system accepts.
 
 ## Scenarios
 
@@ -148,6 +151,8 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
   entry" quoting that name, and no file is written outside the cache directory.
 - (OSF-17) Given the ecosystem names `../x`, `.hidden` and an empty name, when each is fetched, then each fails with
   "invalid ecosystem name" and no request is sent.
+- (OSF-14, OSF-21) Given the ecosystem `Debian:13`, when it is fetched, then the URL `<base>/Debian%3A13/all.zip` is
+  requested and its snapshot kept in the cache directory `Debian%3A13`.
 - (OSF-1) Given an archive holding a record in a subdirectory and a `README.txt` beside its records, when it is
   fetched, then only the records at its top are returned.
 

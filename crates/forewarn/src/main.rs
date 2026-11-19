@@ -424,7 +424,7 @@ fn default_cache() -> Option<PathBuf> {
 }
 
 /// The OSV ecosystem of each component that maps to one, each once, in the order of its first component (MCH-5).
-fn ecosystems(sbom: &Sbom) -> Vec<&'static str> {
+fn ecosystems(sbom: &Sbom) -> Vec<String> {
     let mut ecosystems = Vec::new();
     for component in &sbom.components {
         if let Ok(package) = ComponentPackage::of(component)
@@ -443,12 +443,15 @@ fn packages(sbom: &Sbom) -> Vec<Package> {
         .iter()
         .filter_map(|component| ComponentPackage::of(component).ok())
         .map(|package| Package {
-            ecosystem: package.ecosystem.to_owned(),
-            name: package.name,
-            version: match (package.ecosystem, package.version.strip_prefix('v')) {
+            version: match (
+                package.ecosystem.as_str(),
+                package.version.strip_prefix('v'),
+            ) {
                 ("Go", Some(bare)) => bare.to_owned(),
                 _ => package.version,
             },
+            ecosystem: package.ecosystem,
+            name: package.name,
         })
         .collect()
 }

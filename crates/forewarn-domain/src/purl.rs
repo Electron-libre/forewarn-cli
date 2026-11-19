@@ -1,7 +1,8 @@
 //! A package URL read by the package URL specification, the parts matching needs: type, namespace, name, version
 //! (`specs/vulnerability-matching.md`, VMT-5).
 
-/// The parts of a package URL; its qualifiers and subpath are dropped ([`points_to_local_path`] reads one qualifier).
+/// The parts of a package URL; its qualifiers and subpath are dropped ([`points_to_local_path`] and [`qualifier`] read
+/// its qualifiers).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PackageUrl {
     /// The type, in lower case (`cargo`, `npm`…).
@@ -85,6 +86,19 @@ pub fn points_to_local_path(purl: &str) -> bool {
             key.eq_ignore_ascii_case("download_url")
                 && decoded_prefix(value, 5).eq_ignore_ascii_case(b"file:")
         })
+}
+
+/// The value of the first qualifier of a package URL whose key is `key` in any ASCII case, percent-decoded, or `None`
+/// when it has none or its value does not decode (VMT-5).
+#[must_use]
+pub fn qualifier(purl: &str, key: &str) -> Option<String> {
+    let purl = purl.split_once('#').map_or(purl, |(before, _)| before);
+    let (_, qualifiers) = purl.split_once('?')?;
+    qualifiers
+        .split('&')
+        .filter_map(|qualifier| qualifier.split_once('='))
+        .find(|(name, _)| name.eq_ignore_ascii_case(key))
+        .and_then(|(_, value)| decode(value).ok())
 }
 
 /// The first `length` bytes of a value, percent-decoded, a `%` not followed by two hexadecimal digits kept as it is.

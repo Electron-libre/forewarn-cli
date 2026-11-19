@@ -1,8 +1,13 @@
-//! The version orderings a range is compared by (`specs/version-ordering.md`, VOR-1; VMT-9).
+//! The version orderings a range is compared by (`specs/version-ordering.md`, VOR-1; VMT-9); the Debian
+//! ordering in its module.
 
 use std::cmp::Ordering;
 
 use crate::vulnerability::RangeKind;
+
+mod debian;
+
+pub(crate) use debian::Debian;
 
 /// How the versions of a range are read and ordered.
 pub(crate) trait VersionOrder {
@@ -31,6 +36,8 @@ pub(crate) enum Scheme {
     NuGet,
     /// The ordering of `Packagist`, as Composer normalizes versions and PHP compares them (VOR-6).
     Packagist,
+    /// The ordering of `Debian:<release>`, as `dpkg` compares versions (VOR-7).
+    Debian,
 }
 
 impl Scheme {

@@ -6,6 +6,7 @@ pub mod completeness;
 mod cve;
 pub mod date;
 pub mod deadlines;
+mod debian;
 pub mod early_warning;
 pub mod exploited;
 pub mod matching;

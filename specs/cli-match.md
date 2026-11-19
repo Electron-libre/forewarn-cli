@@ -102,7 +102,7 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   | `drafts` | an array of objects `{"cve", "path"}` of the draft files written (MXL-28), in the order of EWD-1, `path` the path written, empty without `--drafts` or when no match is actively exploited |
   | `staleDrafts` | an array of objects `{"cve", "path"}` of the stale drafts of MXL-36, sorted by file name, `path` the directory of `--drafts` joined to the file name, empty without `--drafts` or when there is none |
   | `vex`, `setAsideCount`, `setAside`, `unusedVerdicts` | as MVX-8 says |
-  | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"no version"`, `"first-party"`, `"local path"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
+  | `notEvaluated` | an array, in the order of VMT-13, of objects `name`, `version`, `purl` (as in `affected`), `reason` (one of `"no package URL"`, `"invalid package URL"`, `"unknown ecosystem"`, `"unknown release"`, `"no version"`, `"first-party"`, `"local path"`, `"range not evaluated"`, `"invalid version"`), `vulnerabilityId` (the id of the pair, or `null` for a component reason) |
 
 - **MCH-17** (deterministic) `--format` must accept `human`, the default, and `json`.
 - **MCH-18** (deterministic) The human report must print each control character, each character that hides or reorders

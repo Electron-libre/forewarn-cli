@@ -128,17 +128,18 @@ impl Archives {
     /// cache held before unchanged.
     pub fn fetch(
         &self,
-        ecosystems: &[&str],
+        ecosystems: &[impl AsRef<str>],
         clock: impl Fn() -> SystemTime,
     ) -> Result<Vec<Snapshot>, FetchError> {
         // One agent for every download, so that they share its connections.
         let agent = forewarn_cache::agent();
         ecosystems
             .iter()
+            .map(AsRef::as_ref)
             .map(|ecosystem| {
                 self.snapshot(ecosystem, &agent, &clock)
                     .map_err(|cause| FetchError {
-                        ecosystem: (*ecosystem).to_owned(),
+                        ecosystem: ecosystem.to_owned(),
                         cause,
                     })
             })

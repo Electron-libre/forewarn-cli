@@ -208,7 +208,7 @@ fn reports_apart_each_component_it_could_not_evaluate_with_its_reason() {
             ComponentReason::InvalidPackageUrl,
         ),
         (
-            component("pkg:deb/debian/curl@7.0"),
+            component("pkg:apk/alpine/curl@7.0"),
             ComponentReason::UnknownEcosystem,
         ),
         (component("pkg:cargo/time"), ComponentReason::NoVersion),
@@ -541,7 +541,7 @@ fn reports_a_pair_once_when_its_package_is_named_apart_twice() {
 fn ignores_the_affected_packages_of_an_ecosystem_matching_does_not_know() {
     let mut mixed = semver(&[introduced("0")]);
     let mut debian = mixed.affected[0].clone();
-    debian.ecosystem = "Debian:12".into();
+    debian.ecosystem = "Ubuntu:24.04:LTS".into();
     mixed.affected.insert(0, debian);
     let report = match_components(&[component("pkg:cargo/time@1.0.0")], &[mixed]);
     assert_eq!(report.matches().len(), 1);

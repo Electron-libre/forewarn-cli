@@ -123,7 +123,12 @@ Clean: 0 of 2 components
 ### How components are matched
 
 - By package URL and version, each ecosystem's versions in their own ordering (SemVer, PEP 440, Maven, RubyGems,
-  NuGet, Composer).
+  NuGet, Composer, Debian).
+- The Debian packages of a container image (`pkg:deb/debian/…`, as Syft or Trivy list them) against the advisories of
+  their release, read from the `distro` qualifier (`distro=debian-13.7` → `Debian:13`), under their source package
+  and its version when the `upstream` qualifier names them (`libssl3t64` under `openssl`). Without a `distro`
+  qualifier the release is unknown: the package is listed not evaluated, `unknown release`. Other distributions
+  (Ubuntu, Alpine, RPM) are not matched yet: `unknown ecosystem`.
 - One line per vulnerability: the records of one vulnerability that name each other (a `RUSTSEC` advisory and its
   `GHSA` mirror) are grouped, under its CVE when it has one; two CVEs are never merged. Each record is listed with
   what it says: `affected per`, `not affected per`, `not evaluated per`.
@@ -430,7 +435,7 @@ report lists them not evaluated, `local path`: a fork of a published crate kept 
 | `exploitedLists` | each list used: `name`, `kind` (`fetched`, `local`), `entryCount`, the catalog's `version` and `released`, and `downloadedAt` or `path` |
 | `awareSince`, `measureAvailable` | the moment of awareness of the run (a CVE `--awareness` recorded keeps its own, in `affected`) and of the measure, `null` when nothing is actively exploited |
 | `affected` | each match: `name`, `version`, `purl`, `id` (the CVE when there is one), `aliases`, `records` (`id`, `source`, `affects`), `exploited` (`list`, `cve`, `dateAdded`), `awareSince` (the moment its deadlines count from, which `--awareness` may have recorded) or `null`, `deadlines` (`earlyWarning`, `notification`, `finalReport`) or `null` |
-| `notEvaluated` | each component not evaluated, with its reason (`first-party`, `local path`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `no version`, `range not evaluated`, `invalid version`) |
+| `notEvaluated` | each component not evaluated, with its reason (`first-party`, `local path`, `no package URL`, `invalid package URL`, `unknown ecosystem`, `unknown release`, `no version`, `range not evaluated`, `invalid version`) |
 | `drafts` | each draft written: `cve`, `path` |
 | `staleDrafts` | each draft of the product left from an earlier run that this run no longer writes: `cve`, `path` |
 | `vex` | each source of verdicts: `kind` (`sbom`, `file`), `verdictCount`, and the `path` of a file |
