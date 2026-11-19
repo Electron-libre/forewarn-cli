@@ -59,6 +59,9 @@ distributions and other tools' properties stay out.
    `forewarn match --osv` test through the binary on a Trivy SBOM; makes true SBR-4, SBR-17, SBR-H6, VMT-33, VMT-34,
    now DEB-2, DEB-3, DEB-5, DEB-H2; ~500 lines. (autonomous)
 
+3. [x] Fixes of the `high` review: the version of `upstream` before the carried source's, a blank source name
+   ignored; verified by `tests/component_package.rs`; makes true DEB-2, DEB-3. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 2b990ee2c31bb420b738ba07761c755920193503
@@ -117,5 +120,36 @@ Code review: 1 finding
 
 not verified: a whole Trivy SBOM against the OSV `Debian:12` archive (the fixture is trimmed, the archive not
 fetched).
+
+decisions needed: none.
+
+## Deliverable 3: fixes of the `high` review
+
+done: the version of `upstream` comes before that of the carried source even when `upstream` names no package
+(DEB-3); a carried source of a blank name counts as none (DEB-2); the header of `component_package.rs` names
+`specs/debian-matching.md`.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean |
+| docs | `specs/debian-matching.md` (DEB-2) |
+| code review | see below |
+
+red: DEB-2, DEB-3: none recorded (the fix and its test written together from the review finding).
+
+`high` review, 5 findings:
+- `upstream=@<version>` with a carried source matched at the source's version: fixed.
+- a blank `SourcePackage::name` built outside the adapter: fixed.
+- an epoch only the package URL version carries (`login@1%3A4.13…`, component version `4.13…`) lost: pre-existing,
+  filed as `issues/keep_the_epoch_of_a_debian_package_url_version.md`.
+- `Component` gains a public field: not fixed, it derives `Default` and the crates are unpublished
+  (`publish = false`); a struct literal with `..Component::default()` still compiles.
+- the header of `component_package.rs`: fixed.
+
+Code review: no findings
+
+not verified: nothing.
 
 decisions needed: none.

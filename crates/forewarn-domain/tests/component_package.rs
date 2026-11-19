@@ -1,4 +1,5 @@
-//! The package a component is matched under: its OSV ecosystem, name and version (`specs/vulnerability-matching.md`).
+//! The package a component is matched under: its OSV ecosystem, name and version (`specs/vulnerability-matching.md`,
+//! `specs/debian-matching.md`).
 
 use forewarn_domain::matching::{ComponentPackage, ComponentReason, same_name};
 use forewarn_domain::sbom::{Component, SourcePackage};
@@ -496,6 +497,31 @@ fn prefers_the_upstream_qualifier_to_the_source_the_component_carries() {
         Some("3.0.12-1"),
     );
     assert_eq!(package.version, "3.0.10-1");
+    let package = built_from(
+        "pkg:deb/debian/libc6@2.41-12%2Bb1?distro=debian-13&upstream=%402.41-12",
+        None,
+        "glibc",
+        Some("2.36-9"),
+    );
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("glibc", "2.41-12")
+    );
+}
+
+// spec: DEB-2
+#[test]
+fn ignores_a_blank_source_name() {
+    let package = built_from(
+        "pkg:deb/debian/libc6@2.41-12?distro=debian-13",
+        None,
+        " ",
+        Some("2.36-9"),
+    );
+    assert_eq!(
+        (package.name.as_str(), package.version.as_str()),
+        ("libc6", "2.41-12")
+    );
 }
 
 // spec: DEB-2

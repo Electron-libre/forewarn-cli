@@ -46,14 +46,13 @@ impl DebianPackage {
                 .filter(|t| !t.is_empty())
                 .map(str::to_owned)
         };
+        let source = source.and_then(|source| Some((filled(&source.name)?, source)));
         let (name, source_version) = match (filled(name), source) {
-            (Some(name), _) => (name, filled(upstream_version)),
-            (None, Some(source)) => (
-                source.name.clone(),
-                source.version.as_deref().and_then(filled),
-            ),
-            (None, None) => (purl.name.clone(), filled(upstream_version)),
+            (Some(name), _) => (name, None),
+            (None, Some((name, source))) => (name, source.version.as_deref().and_then(filled)),
+            (None, None) => (purl.name.clone(), None),
         };
+        let source_version = filled(upstream_version).or(source_version);
         let epoch = epoch.as_deref().and_then(filled);
         let with_epoch = |version: String| match &epoch {
             Some(epoch) if !version.contains(':') => format!("{epoch}:{version}"),

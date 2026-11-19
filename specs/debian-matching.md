@@ -23,7 +23,8 @@ package and version the advisories name, whichever image scanner wrote the SBOM.
   (`specs/vulnerability-matching.md`, VMT-10).
 - **DEB-2** (deterministic) The name of a `deb` package must be the part of its `upstream` qualifier before its first
   `@`, the source package OSV names, when that part is not empty, else the name of the source package the component
-  carries (`specs/sbom-reading.md`, SBR-17), else the name of the package URL.
+  carries (`specs/sbom-reading.md`, SBR-17), a source with a name empty or only whitespace counting as none (DEB-3
+  too), else the name of the package URL.
 - **DEB-3** (deterministic) The version of a `deb` package must be the part of its `upstream` qualifier after its
   first `@`, the version of its source package, when that part is not empty; else, when `upstream` gives no name
   (DEB-2), the version of the source package the component carries, when it has one; else the version of VMT-7
