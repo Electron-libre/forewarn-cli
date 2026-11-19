@@ -35,9 +35,10 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
 - **OSF-8** (deterministic) A fetch stopped before it was done with an ecosystem (a killed process) must not make a
   later fetch of that ecosystem wait.
 - **OSF-22** (deterministic) Fetching an ecosystem `<parent>:<release>` (`Debian:14`) whose archive the server
-  answers 404 must return, in its place, the snapshot of the ecosystem `<parent>` (`Debian`, whose archive holds the
-  records of every release), fetched under the same refresh policy, once, at the place of the first ecosystem of the
-  list it stands for or that names it.
+  answers 404 must return in its place the snapshot of the ecosystem `<parent>` (`Debian`, whose archive holds the
+  records of every release), fetched under the same refresh policy; that snapshot, or that of a `<parent>` the list
+  names, must stand for every ecosystem `<parent>:<…>` of the list: returned once, at the place of the first of them,
+  the releases after it not fetched.
 
 ### Contract
 
@@ -168,8 +169,14 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
   "invalid ecosystem name" and no request is sent.
 - (OSF-14, OSF-21) Given the ecosystem `Debian:13`, when it is fetched, then the URL `<base>/Debian%3A13/all.zip` is
   requested and its snapshot kept in the cache directory `Debian%3A13`.
-- (OSF-22) Given the same server, when `Debian:14`, `crates.io` and `Debian:15` (also 404) are fetched, then
-  `Debian/all.zip` is requested once and the snapshots of `Debian` and `crates.io` are returned, in that order.
+- (OSF-22) Given the same server, when `Debian:14`, `crates.io`, `Debian:15` and `Debian` are fetched under
+  `always`, then `Debian/all.zip` is requested once, `Debian%3A15` not at all, and the snapshots of `Debian` and
+  `crates.io` are returned, in that order.
+- (OSF-22) Given a server also publishing `Debian%3A13`, when `Debian:13`, `Debian:14` and `Debian:15` are fetched,
+  then `Debian%3A13`, `Debian%3A14` and `Debian` are requested and the snapshot of `Debian` alone is returned: no
+  record is read from two snapshots of different ages; when `Debian:14` and `Debian:13` are fetched, then only
+  `Debian%3A14` and `Debian` are requested; when `crates.io`, `Debian:13`, `Debian` and `Debian:14` are fetched, then
+  the snapshots of `crates.io` and `Debian` are returned, `Debian%3A14` not requested.
 - (OSF-22, OSF-9) Given a cache holding a snapshot of `Debian` and the same server, when `Debian:14` is fetched under
   `if-missing`, then only `<base>/Debian%3A14/all.zip` is requested and the cached snapshot of `Debian` returned.
 - (OSF-23) Given a cache holding a snapshot of `Debian` and none of `Debian:14`, when `Debian:14` is fetched under

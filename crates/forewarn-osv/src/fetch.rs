@@ -124,7 +124,10 @@ impl Archives {
     ///
     /// An ecosystem `<parent>:<release>` whose archive the server answers 404, or that the cache does not hold under
     /// [`Refresh::Offline`], is read from the snapshot of `<parent>`, whose archive holds the records of every release
-    /// (OSF-22, OSF-23); each snapshot is returned once, at the place of the first ecosystem it stands for.
+    /// (OSF-22, OSF-23). That snapshot, or that of a `<parent>` the list names, stands for every `<parent>:<…>` of the
+    /// list: returned once, at the place of the
+    /// first of them, the releases fetched before it left out and those after it not fetched, so that no record is
+    /// read from two snapshots of different ages. Each ecosystem is fetched once.
     ///
     /// # Errors
     ///
@@ -139,38 +142,42 @@ impl Archives {
         let agent = forewarn_cache::agent();
         let mut snapshots: Vec<Snapshot> = Vec::new();
         for ecosystem in ecosystems.iter().map(AsRef::as_ref) {
-            let fetched = |name: &str| snapshots.iter().any(|s| s.ecosystem == name);
-            if fetched(ecosystem) {
+            let parent = ecosystem.split_once(':').map(|(parent, _)| parent);
+            if snapshots
+                .iter()
+                .any(|s| s.ecosystem == ecosystem || Some(s.ecosystem.as_str()) == parent)
+            {
                 continue;
             }
             let error = |cause| FetchError {
                 ecosystem: ecosystem.to_owned(),
                 cause,
             };
-            match self.snapshot(ecosystem, &agent, &clock) {
-                Ok(snapshot) => snapshots.push(snapshot),
-                Err(Missing::Release(parent)) => {
-                    if !fetched(parent) {
-                        let snapshot = self
-                            .snapshot(parent, &agent, &clock)
-                            .map_err(|missing| error(missing.into_cause()))?;
-                        snapshots.push(snapshot);
-                    }
+            match (self.snapshot(ecosystem, &agent, &clock), parent) {
+                (Ok(snapshot), _) => push(&mut snapshots, snapshot),
+                (Err(failure), Some(parent)) if failure.unpublished => {
+                    let snapshot = self
+                        .snapshot(parent, &agent, &clock)
+                        .map_err(|failure| error(failure.cause))?;
+                    push(&mut snapshots, snapshot);
                 }
-                Err(Missing::No(cause)) => return Err(error(cause)),
+                (Err(failure), _) => return Err(error(failure.cause)),
             }
         }
         Ok(snapshots)
     }
 
-    fn snapshot<'a>(
+    fn snapshot(
         &self,
-        ecosystem: &'a str,
+        ecosystem: &str,
         agent: &ureq::Agent,
         clock: &impl Fn() -> SystemTime,
-    ) -> Result<Snapshot, Missing<'a>> {
+    ) -> Result<Snapshot, Failure> {
         if ecosystem.starts_with(':') || !is_path_segment(ecosystem, b":") {
-            return Err(Missing::No(FetchCause::InvalidName));
+            return Err(Failure {
+                cause: FetchCause::InvalidName,
+                unpublished: false,
+            });
         }
         // `Debian:13`: a `:` is no file name on Windows, and opens a scheme in a relative URL (OSF-14, OSF-21).
         let entry = ecosystem.replace(':', "%3A");
@@ -185,47 +192,49 @@ impl Archives {
             unpack: &extract,
             read: &read_records,
         };
-        match cache.fetch(agent, &entry, &source, clock) {
-            Ok(Fetched { value, freshness }) => Ok(Snapshot {
-                ecosystem: ecosystem.to_owned(),
-                freshness,
-                vulnerabilities: value,
-            }),
-            Err(error) => {
-                let unpublished = matches!(
-                    error,
-                    forewarn_cache::Error::NotCached
-                        | forewarn_cache::Error::Download {
-                            status: Some(404),
-                            ..
-                        }
-                );
-                match ecosystem.split_once(':') {
-                    Some((parent, _)) if unpublished => Err(Missing::Release(parent)),
-                    _ => Err(Missing::No(error.into())),
-                }
-            }
-        }
+        let Fetched { value, freshness } =
+            cache
+                .fetch(agent, &entry, &source, clock)
+                .map_err(|error| Failure {
+                    unpublished: matches!(
+                        error,
+                        forewarn_cache::Error::NotCached
+                            | forewarn_cache::Error::Download {
+                                status: Some(404),
+                                ..
+                            }
+                    ),
+                    cause: error.into(),
+                })?;
+        Ok(Snapshot {
+            ecosystem: ecosystem.to_owned(),
+            freshness,
+            vulnerabilities: value,
+        })
     }
+}
+
+/// Adds a snapshot; that of a parent stands for its releases fetched before it, placed at the first of them (OSF-22).
+fn push(snapshots: &mut Vec<Snapshot>, snapshot: Snapshot) {
+    let release_of = |s: &Snapshot| {
+        s.ecosystem
+            .split_once(':')
+            .is_some_and(|(parent, _)| parent == snapshot.ecosystem)
+    };
+    let first = snapshots
+        .iter()
+        .position(release_of)
+        .unwrap_or(snapshots.len());
+    snapshots.retain(|s| !release_of(s));
+    snapshots.insert(first, snapshot);
 }
 
 /// Why the snapshot of an ecosystem was not returned.
-enum Missing<'a> {
-    /// The ecosystem is a release of this parent, whose archive the server does not publish (404), or which the cache
-    /// does not hold under [`Refresh::Offline`] (OSF-22, OSF-23).
-    Release(&'a str),
-    /// The cause of the failure.
-    No(FetchCause),
-}
-
-impl Missing<'_> {
-    /// The cause of the failure; the parent of a release, missing itself, has none of its own.
-    fn into_cause(self) -> FetchCause {
-        match self {
-            Self::Release(_) => FetchCause::NotCached,
-            Self::No(cause) => cause,
-        }
-    }
+struct Failure {
+    cause: FetchCause,
+    /// The server does not publish the archive (404), or the cache does not hold it under [`Refresh::Offline`]: a
+    /// release is then read from its parent (OSF-22, OSF-23).
+    unpublished: bool,
 }
 
 /// Reads the records of a snapshot directory, an error on a record naming its entry rather than the cache path.

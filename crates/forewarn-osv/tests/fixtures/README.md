@@ -1,7 +1,8 @@
 # OSV record fixtures
 
-Real OSV records, read by `../reading.rs`, kept as the source served them (compact JSON, one line). Fetched on
-2026-11-12; refetch them only on purpose: the tests assert their content.
+Real OSV records, read by `../reading.rs`, served in archives by `../fetching.rs` and `../release_archive.rs`, and read
+whole with `--osv` by the CLI tests (`crates/forewarn/tests/matching.rs` counts them), kept as the source served them
+(compact JSON, one line). Fetched on 2026-11-12; refetch them only on purpose: the tests assert their content.
 
 | File | What it shows | Fetched from |
 |---|---|---|

@@ -77,7 +77,6 @@ fn the_parent_is_fetched_and_returned_once_for_several_releases() {
             "GET /Debian%3A14/all.zip",
             "GET /Debian/all.zip",
             "GET /crates.io/all.zip",
-            "GET /Debian%3A15/all.zip",
         ]
     );
     let ecosystems: Vec<&str> = snapshots.iter().map(|s| s.ecosystem.as_str()).collect();
@@ -191,4 +190,70 @@ fn a_release_failing_otherwise_than_404_does_not_fall_back() {
 
     assert!(error.to_string().contains("503"), "{error}");
     assert_eq!(server.requests(), ["GET /Debian%3A14/all.zip"]);
+}
+
+// spec: OSF-22
+#[test]
+fn the_parent_stands_for_every_release_of_the_list() {
+    let cache = TempDir::new().expect("a cache");
+    let server = server();
+    server.route("/Debian%3A13/all.zip", ok(debian_archive()));
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["Debian:13", "Debian:14", "Debian:15"], || at(1_000))
+        .expect("the archives are fetched");
+
+    assert_eq!(
+        server.requests(),
+        [
+            "GET /Debian%3A13/all.zip",
+            "GET /Debian%3A14/all.zip",
+            "GET /Debian/all.zip"
+        ]
+    );
+    let ecosystems: Vec<&str> = snapshots.iter().map(|s| s.ecosystem.as_str()).collect();
+    assert_eq!(ecosystems, ["Debian"]);
+}
+
+// spec: OSF-22
+#[test]
+fn a_release_after_its_parent_is_not_fetched() {
+    let cache = TempDir::new().expect("a cache");
+    let server = server();
+    server.route("/Debian%3A13/all.zip", ok(debian_archive()));
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["Debian:14", "Debian:13"], || at(1_000))
+        .expect("the archives are fetched");
+
+    assert_eq!(
+        server.requests(),
+        ["GET /Debian%3A14/all.zip", "GET /Debian/all.zip"]
+    );
+    assert_eq!(snapshots.len(), 1);
+}
+
+// spec: OSF-22
+#[test]
+fn a_parent_named_in_the_list_stands_for_its_releases_fetched_before_it() {
+    let cache = TempDir::new().expect("a cache");
+    let server = server();
+    server.route("/Debian%3A13/all.zip", ok(debian_archive()));
+
+    let snapshots = archives(cache.path(), &server, Refresh::IfMissing)
+        .fetch(&["crates.io", "Debian:13", "Debian", "Debian:14"], || {
+            at(1_000)
+        })
+        .expect("the archives are fetched");
+
+    assert_eq!(
+        server.requests(),
+        [
+            "GET /crates.io/all.zip",
+            "GET /Debian%3A13/all.zip",
+            "GET /Debian/all.zip"
+        ]
+    );
+    let ecosystems: Vec<&str> = snapshots.iter().map(|s| s.ecosystem.as_str()).collect();
+    assert_eq!(ecosystems, ["crates.io", "Debian"]);
 }
