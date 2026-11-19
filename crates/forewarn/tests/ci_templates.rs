@@ -28,13 +28,13 @@ fn read(relative: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
 
-/// The shell lines of a template, comments left out and the lines continued by a `\` joined.
+/// The shell lines of a template, comments and step names left out and the lines continued by a `\` joined.
 fn shell_lines(template: &str) -> Vec<String> {
     let mut lines = Vec::new();
     let mut pending = String::new();
     for line in template.lines() {
         let line = line.trim();
-        if line.starts_with('#') {
+        if line.starts_with('#') || line.starts_with("name:") || line.starts_with("- name:") {
             continue;
         }
         if let Some(continued) = line.strip_suffix('\\') {
@@ -48,7 +48,8 @@ fn shell_lines(template: &str) -> Vec<String> {
     lines
 }
 
-/// Each `forewarn <command>` of a template with the options it gives, `--name=value` read as `--name`.
+/// Each `forewarn <command>` of a template with the options it gives, long or short, `--name=value` read as `--name`
+/// (`-` alone, standard input, is no option).
 fn invocations(template: &str) -> Vec<(String, Vec<String>)> {
     let mut found = Vec::new();
     for line in shell_lines(template) {
@@ -60,7 +61,7 @@ fn invocations(template: &str) -> Vec<(String, Vec<String>)> {
             let options = tokens[i + 2..]
                 .iter()
                 .take_while(|token| !matches!(**token, "|" | "&&" | "||" | ";" | ">" | "2>"))
-                .filter(|token| token.starts_with("--"))
+                .filter(|token| token.starts_with('-') && token.len() > 1)
                 .map(|token| token.split('=').next().unwrap_or(token).to_owned())
                 .collect();
             found.push((window[1].to_owned(), options));
@@ -69,13 +70,23 @@ fn invocations(template: &str) -> Vec<(String, Vec<String>)> {
     found
 }
 
-/// Whether the help of a command describes `option`: a line of options naming it, alone or followed by its value.
+/// Whether the help of a command describes `option`: a line of its option column (`  -h, --help`, `      --name`)
+/// naming it, alone or followed by its value; a description, indented further, never counts.
 fn describes(help: &str, option: &str) -> bool {
-    help.lines().any(|line| {
-        line.trim_start()
-            .split(", ")
-            .any(|name| name == option || name.starts_with(&format!("{option} ")))
-    })
+    help.lines()
+        .filter_map(|line| {
+            line.strip_prefix("  -")
+                .map(|rest| format!("-{rest}"))
+                .or_else(|| {
+                    line.strip_prefix("      --")
+                        .map(|rest| format!("--{rest}"))
+                })
+        })
+        .any(|entry| {
+            entry
+                .split(", ")
+                .any(|name| name == option || name.starts_with(&format!("{option} ")))
+        })
 }
 
 #[test]

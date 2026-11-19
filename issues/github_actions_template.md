@@ -62,6 +62,11 @@ other issues of the milestone). No spec: an example in the docs, no behaviour of
    target is one the release workflow builds; section "In CI" of `docs/user-guide.md` points to it and says what each
    exit code does to the job; verified by the new test (red before the file exists). (autonomous)
 
+2. [x] Fixes of the `high` review of the issue: the daily run on the latest tag, `forewarn` installed out of the
+   scanned checkout, the cache saved when the job fails, `--refresh 12h`, comments on the deadlines and on the product
+   package URL `syft` leaves out, the option column and short options in the test; verified by `ci_templates`.
+   (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 52db6f2df278938536942c7348859f4d5e8bea6f
@@ -89,3 +94,30 @@ Code review: no findings.
 
 not verified: the workflow has not run on GitHub (the issue `run_the_templates_in_ci` does); the `syft` flags
 `--source-name` and `--source-version` and the action versions are taken from their latest releases, not run.
+
+## Deliverable 2
+done: the fixes of the `high` review (9 findings) in the template, its test and the guide's "In CI".
+
+| check | result |
+|---|---|
+| tests | pass (`ci_templates`; a renamed long or short option turns it red) |
+| lint | pass |
+| specs | n/a |
+| docs | user guide "In CI" |
+| code review | 2 findings, fixed |
+
+red: none traced; deliverable of fixes, its test already green.
+
+`high` review: 9 findings. Fixed: the daily run on `main` (now the latest tag `v*`), the archive in the scanned
+checkout (now `$RUNNER_TEMP`), the cache not saved on failure (`cache/restore` and `cache/save` with `always()`),
+yesterday's lists under `--refresh 1d` (`12h`), the help descriptions read as options and `name:` lines read as
+commands, short options unchecked. Commented, not fixable in the template: the product without a package URL from
+`syft` (the guide and the template recommend the ecosystem's tool). Left to other issues: the pinned version against
+the binary tested (`keep_the_templates_on_the_released_version`), the deadlines restarting at each daily run (new
+issue `remember_the_moment_of_awareness_of_each_cve`, the template comment says to keep the first drafts).
+
+Code review: 2 findings. Fixed: a scheduled run before any tag `v*` failed at `git describe` (now checks the commit,
+with a notice); the cache saved under the day's key was never updated by a later run that day (now a key per run,
+restored by prefix).
+
+not verified: the workflow has not run on GitHub.

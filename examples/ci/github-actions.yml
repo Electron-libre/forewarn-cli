@@ -1,9 +1,9 @@
 # forewarn in GitHub Actions: copy this file to `.github/workflows/forewarn.yml` of your product's repository.
 #
-# On each release tag and each day, it produces the CycloneDX SBOM of the repository, reports the components missing
-# what the CRA expects, matches them against OSV, the CISA KEV catalog and EUVD, and fails when one is affected by an
-# actively exploited vulnerability, the report and the draft early warnings kept as artifacts. On a tag, it also
-# uploads the SBOM to a Forewarn service. Only the inventory leaves the runner, never the source code.
+# On each release tag, and each day on the latest release tag, it produces the CycloneDX SBOM of the release, reports
+# the components missing what the CRA expects, matches them against OSV, the CISA KEV catalog and EUVD, and fails when
+# one is affected by an actively exploited vulnerability, the report and the draft early warnings kept as artifacts.
+# On a tag, it also uploads the SBOM to a Forewarn service. Only the inventory leaves the runner, never the source code.
 #
 # Documentation: https://github.com/Electron-libre/forewarn-cli/blob/main/docs/user-guide.md#in-ci
 
@@ -13,8 +13,9 @@ on:
   # A release: check what ships.
   push:
     tags: ['v*']
-  # Each day: a vulnerability becomes actively exploited without a change of your code, and CRA article 14 gives
-  # 24 hours from the moment you know it for the early warning.
+  # Each day, the latest release again: a vulnerability becomes actively exploited without a change of your code, and
+  # CRA article 14 gives 24 hours from the moment you know it for the early warning. Another release line you still
+  # support needs a run of its own (a copy of this job checking out its tag).
   schedule:
     - cron: '17 6 * * *'
   workflow_dispatch:
@@ -32,8 +33,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
+      # The release to check: the pushed tag, else the latest tag `v*` of the history, so the daily run checks what
+      # your users have, not the default branch; before a first tag, the commit checked out.
+      - name: Check out the release
+        id: product
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version=${GITHUB_REF_NAME#v}
+          elif tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null); then
+            git checkout --quiet "$tag"
+            version=${tag#v}
+          else
+            echo "::notice::no tag v* yet: checking the commit $GITHUB_SHA"
+            version=$GITHUB_SHA
+          fi
+          # The product name and version name the SBOM, the draft early warnings and the upload.
+          echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Installed outside the checkout, so the SBOM of your product does not take in forewarn and its files.
       - name: Install forewarn, checked against the SHA256SUMS of its release
+        working-directory: ${{ runner.temp }}
         run: |
           base="https://github.com/Electron-libre/forewarn-cli/releases/download/v$FOREWARN_VERSION"
           curl -fsSL -O "$base/forewarn-$TARGET.tar.gz" -O "$base/SHA256SUMS"
@@ -42,20 +65,10 @@ jobs:
           sudo install "forewarn-$TARGET/forewarn" /usr/local/bin/
           forewarn --version
 
-      # The product name and version name the SBOM, the draft early warnings and the upload: the repository and the
-      # tag without its `v`, else the commit.
-      - name: Name the product and its version
-        id: product
-        run: |
-          echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-          fi
-
-      # forewarn reads an SBOM, it does not detect dependencies. syft scans the checkout; `cargo cyclonedx` (Rust) or
-      # `cdxgen` (many languages) are other producers: keep the output, CycloneDX JSON.
+      # forewarn reads an SBOM, it does not detect dependencies. syft scans the checkout, but names your product
+      # without a package URL: forewarn then cannot tell your own packages from the third-party ones and matches them
+      # too. The tool of your ecosystem names it (`cargo cyclonedx` for Rust, `cdxgen` for many languages): prefer it,
+      # writing CycloneDX JSON to sbom.cdx.json.
       - uses: anchore/sbom-action/download-syft@v0
         with:
           syft-version: v1.57.2
@@ -67,14 +80,13 @@ jobs:
         run: |
           syft scan dir:. --source-name "$PRODUCT" --source-version "$VERSION" -o cyclonedx-json=sbom.cdx.json
 
-      # The OSV archives, the CISA KEV catalog and the EUVD list, downloaded once a day and kept between runs.
-      - name: Name the day
-        id: day
-        run: echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
+      # The OSV archives, the CISA KEV catalog and the EUVD list, kept between runs: each run restores the latest copy
+      # and saves its own, even when the job fails (a key cannot be overwritten, so one per run; GitHub evicts the
+      # oldest).
+      - uses: actions/cache/restore@v6
         with:
           path: ~/.cache/forewarn
-          key: forewarn-feeds-${{ steps.day.outputs.day }}
+          key: forewarn-feeds-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: forewarn-feeds-
 
       # The gaps of the SBOM (supplier, license, hashes), reported without failing the job.
@@ -82,10 +94,18 @@ jobs:
         run: forewarn check --allow-incomplete sbom.cdx.json
 
       # Exits with 0 when components are affected but none is actively exploited, with 6 when one is: the job fails
-      # then, and the drafts of the early warnings are ready to complete. The deadlines count from the run; give the
-      # moment you became aware of the vulnerability with `--aware-since` when you rerun it later.
+      # then, and the drafts of the early warnings are ready to complete. The feeds are downloaded again when older
+      # than 12 hours, so a daily run never matches against the lists of the day before.
+      # The 24 h and 72 h deadlines count from the moment of the run (`--aware-since`): the first run that fails is
+      # the moment you knew; each later run counts from itself again, so keep the drafts of that first one.
       - name: Match the SBOM against the vulnerabilities
-        run: forewarn match --allow-affected --format json --drafts drafts sbom.cdx.json > forewarn.json
+        run: forewarn match --allow-affected --refresh 12h --format json --drafts drafts sbom.cdx.json > forewarn.json
+
+      - if: ${{ always() }}
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/forewarn
+          key: forewarn-feeds-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Keep the SBOM, the report and the drafts
         if: ${{ !cancelled() && steps.sbom.outcome == 'success' }}

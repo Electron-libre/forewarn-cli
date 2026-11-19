@@ -307,9 +307,10 @@ intermediary that refuses the expectation) is the only answer after which the re
 ## In CI
 
 [`examples/ci/github-actions.yml`](../examples/ci/github-actions.yml) is a GitHub Actions workflow to copy into
-`.github/workflows/` of your product, each step commented. On each tag `v*` and each day, it installs a pinned release
-checked against its `SHA256SUMS`, produces the SBOM with `syft` (named after the repository and the tag), keeps the
-cache of the feeds a day, reports the gaps of the SBOM without failing, and runs `forewarn match --allow-affected`:
+`.github/workflows/` of your product, each step commented. On each tag `v*`, and each day on the latest tag `v*`, it
+installs a pinned release checked against its `SHA256SUMS`, produces the SBOM with `syft` (named after the repository
+and the tag), keeps the cache of the feeds between runs, reports the gaps of the SBOM without failing, and runs
+`forewarn match --allow-affected --refresh 12h`:
 
 | `forewarn match` exits with | The job |
 |---|---|
@@ -319,7 +320,9 @@ cache of the feeds a day, reports the gaps of the SBOM without failing, and runs
 
 On a tag, it then uploads the SBOM whatever the match found (secrets `FOREWARN_ENDPOINT` and `FOREWARN_TOKEN`; remove
 the step without a service). The daily run matters: a dependency becomes actively exploited without a change of your
-code, and the 24 h deadline runs from the moment you know it.
+code, and the 24 h deadline runs from the moment you know it. Each run counts the deadlines from itself: keep the drafts
+of the first run that fails, the moment you knew. `syft` names your product without a package URL, so your own packages
+are matched as third-party ones; the SBOM tool of your ecosystem (`cargo cyclonedx`, `cdxgen`) avoids it.
 
 The exit codes let a job fail on what matters:
 
