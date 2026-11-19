@@ -306,6 +306,21 @@ intermediary that refuses the expectation) is the only answer after which the re
 
 ## In CI
 
+[`examples/ci/github-actions.yml`](../examples/ci/github-actions.yml) is a GitHub Actions workflow to copy into
+`.github/workflows/` of your product, each step commented. On each tag `v*` and each day, it installs a pinned release
+checked against its `SHA256SUMS`, produces the SBOM with `syft` (named after the repository and the tag), keeps the
+cache of the feeds a day, reports the gaps of the SBOM without failing, and runs `forewarn match --allow-affected`:
+
+| `forewarn match` exits with | The job |
+|---|---|
+| 0: nothing affected, or affected but none actively exploited | passes; the report is an artifact |
+| 6: a match is actively exploited | fails; the report and the draft early warnings are artifacts |
+| 2 to 5, 7: an error (the arguments, the SBOM, a source, the report or a draft) | fails |
+
+On a tag, it then uploads the SBOM whatever the match found (secrets `FOREWARN_ENDPOINT` and `FOREWARN_TOKEN`; remove
+the step without a service). The daily run matters: a dependency becomes actively exploited without a change of your
+code, and the 24 h deadline runs from the moment you know it.
+
 The exit codes let a job fail on what matters:
 
 ```sh

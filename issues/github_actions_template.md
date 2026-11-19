@@ -45,3 +45,47 @@ CI integration templates
 * Pin the actions the template uses to a version, as `check.yml` does.
 * Keep the template free of anything about the hosted service other than the endpoint variable: this repository is
   public.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+A commented workflow `examples/ci/github-actions.yml` a vendor copies: install a pinned, checked `forewarn`, produce
+the SBOM with `syft`, `check`, `match` with report and drafts as artifacts, upload on a tag; the guide points to it, a
+test keeps its commands and target valid. Out of scope: GitLab, the version bump at release, running it in CI (the
+other issues of the milestone). No spec: an example in the docs, no behaviour of the CLI changes.
+
+## Plan
+1. [x] Template, test and guide: `examples/ci/github-actions.yml`; `crates/forewarn/tests/ci_templates.rs` checks that
+   each `forewarn <command> --option` of its `run:` blocks is an option of `forewarn <command> --help` and that its
+   target is one the release workflow builds; section "In CI" of `docs/user-guide.md` points to it and says what each
+   exit code does to the job; verified by the new test (red before the file exists). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 52db6f2df278938536942c7348859f4d5e8bea6f
+- Triggers: a pushed tag `v*` and a daily run on the default branch (a vulnerability becomes exploited without a
+  change of the code).
+- The upload runs on a tag once the SBOM is produced, whatever `match` exits with: the service's inventory follows
+  every release.
+- `syft` installed with `anchore/sbom-action/download-syft`, pinned.
+
+## Deliverable 1
+done: `examples/ci/github-actions.yml`, its test `ci_templates.rs`, the guide's "In CI", a pointer in `README.md`,
+`CLAUDE.md`, a row of `.claude/update-docs-map.md`.
+
+| check | result |
+|---|---|
+| tests | pass (`ci_templates`: 2; an option renamed in the template turns it red) |
+| lint | pass |
+| specs | n/a (no behaviour of the CLI changes) |
+| docs | user guide, README, CLAUDE.md, docs map |
+| code review | no findings |
+
+red: none traced; `ci_templates`: `examples/ci/github-actions.yml: No such file or directory`.
+
+Code review: no findings.
+
+not verified: the workflow has not run on GitHub (the issue `run_the_templates_in_ci` does); the `syft` flags
+`--source-name` and `--source-version` and the action versions are taken from their latest releases, not run.

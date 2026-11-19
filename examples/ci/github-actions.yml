@@ -1,0 +1,108 @@
+# forewarn in GitHub Actions: copy this file to `.github/workflows/forewarn.yml` of your product's repository.
+#
+# On each release tag and each day, it produces the CycloneDX SBOM of the repository, reports the components missing
+# what the CRA expects, matches them against OSV, the CISA KEV catalog and EUVD, and fails when one is affected by an
+# actively exploited vulnerability, the report and the draft early warnings kept as artifacts. On a tag, it also
+# uploads the SBOM to a Forewarn service. Only the inventory leaves the runner, never the source code.
+#
+# Documentation: https://github.com/Electron-libre/forewarn-cli/blob/main/docs/user-guide.md#in-ci
+
+name: forewarn
+
+on:
+  # A release: check what ships.
+  push:
+    tags: ['v*']
+  # Each day: a vulnerability becomes actively exploited without a change of your code, and CRA article 14 gives
+  # 24 hours from the moment you know it for the early warning.
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The release of forewarn to install, and the archive of the runner's platform.
+  FOREWARN_VERSION: 0.4.0
+  TARGET: x86_64-unknown-linux-musl
+
+jobs:
+  forewarn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install forewarn, checked against the SHA256SUMS of its release
+        run: |
+          base="https://github.com/Electron-libre/forewarn-cli/releases/download/v$FOREWARN_VERSION"
+          curl -fsSL -O "$base/forewarn-$TARGET.tar.gz" -O "$base/SHA256SUMS"
+          sha256sum --check --ignore-missing SHA256SUMS
+          tar -xzf "forewarn-$TARGET.tar.gz"
+          sudo install "forewarn-$TARGET/forewarn" /usr/local/bin/
+          forewarn --version
+
+      # The product name and version name the SBOM, the draft early warnings and the upload: the repository and the
+      # tag without its `v`, else the commit.
+      - name: Name the product and its version
+        id: product
+        run: |
+          echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+
+      # forewarn reads an SBOM, it does not detect dependencies. syft scans the checkout; `cargo cyclonedx` (Rust) or
+      # `cdxgen` (many languages) are other producers: keep the output, CycloneDX JSON.
+      - uses: anchore/sbom-action/download-syft@v0
+        with:
+          syft-version: v1.57.2
+      - name: Produce the SBOM
+        id: sbom
+        env:
+          PRODUCT: ${{ steps.product.outputs.name }}
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          syft scan dir:. --source-name "$PRODUCT" --source-version "$VERSION" -o cyclonedx-json=sbom.cdx.json
+
+      # The OSV archives, the CISA KEV catalog and the EUVD list, downloaded once a day and kept between runs.
+      - name: Name the day
+        id: day
+        run: echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/forewarn
+          key: forewarn-feeds-${{ steps.day.outputs.day }}
+          restore-keys: forewarn-feeds-
+
+      # The gaps of the SBOM (supplier, license, hashes), reported without failing the job.
+      - name: Check the SBOM
+        run: forewarn check --allow-incomplete sbom.cdx.json
+
+      # Exits with 0 when components are affected but none is actively exploited, with 6 when one is: the job fails
+      # then, and the drafts of the early warnings are ready to complete. The deadlines count from the run; give the
+      # moment you became aware of the vulnerability with `--aware-since` when you rerun it later.
+      - name: Match the SBOM against the vulnerabilities
+        run: forewarn match --allow-affected --format json --drafts drafts sbom.cdx.json > forewarn.json
+
+      - name: Keep the SBOM, the report and the drafts
+        if: ${{ !cancelled() && steps.sbom.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: forewarn
+          path: |
+            sbom.cdx.json
+            forewarn.json
+            drafts/
+          if-no-files-found: warn
+
+      # On a tag, the SBOM is uploaded whatever the match found: the service keeps the inventory of every release.
+      # Set the secrets FOREWARN_ENDPOINT and FOREWARN_TOKEN of the repository; remove this step without a service.
+      - name: Upload the SBOM of the release
+        if: ${{ !cancelled() && steps.sbom.outcome == 'success' && github.ref_type == 'tag' }}
+        env:
+          FOREWARN_ENDPOINT: ${{ secrets.FOREWARN_ENDPOINT }}
+          FOREWARN_TOKEN: ${{ secrets.FOREWARN_TOKEN }}
+        run: forewarn upload sbom.cdx.json

@@ -90,6 +90,9 @@ changelog section; `crates/forewarn/tests/release_workflow.rs` checks the user g
 it builds and runs that `jq` program (`jq` needed by `cargo test`); a pull request changing a manifest, `Cargo.lock`,
 the notices or that program builds without publishing. crates.io waits
 for its own decision.
+`examples/ci/github-actions.yml` is a GitHub Actions workflow vendors copy (install a pinned release, `syft`, `check`,
+`match`, upload on a tag); `crates/forewarn/tests/ci_templates.rs` checks each option it gives `forewarn` exists and
+that it installs an archive the release builds.
 
 ## Layout
 
