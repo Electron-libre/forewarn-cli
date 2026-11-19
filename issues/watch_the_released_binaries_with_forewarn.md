@@ -1,0 +1,45 @@
+---
+priority: medium
+why: 'the releases of forewarn may fall under the CRA reporting obligation, in force since 2026-09-11; no milestone needs it yet'
+---
+# Watch the released binaries with forewarn each day
+
+# Goal
+The release workflow checks the completeness of the SBOM of each target once, at the tag, but nothing matches the
+released binaries against the vulnerability lists afterwards. A dependency of a published release can become actively
+exploited without any change of this repository, and the CRA article 14 deadlines then run for its manufacturer. Run
+forewarn on its own releases each day, as the CI templates tell vendors to do, so the project uses what it ships and
+meets the reporting obligation for its own binaries.
+
+# Findings
+* `.github/workflows/release.yml` writes `sbom/forewarn-<target>.cdx.json` with `cargo-cyclonedx`, completes it with
+  `.github/sbom-complete.jq` and runs `forewarn check` on it; the SBOMs are attached to the GitHub release.
+* No workflow runs `forewarn match`: `check.yml` runs the project check and `cargo deny check` (RustSec advisories of
+  the lock file, not the released binaries' SBOM nor the KEV/EUVD lists).
+* `examples/ci/github-actions.yml` already has the daily run vendors copy: latest tag, feeds and `--awareness` kept in
+  the cache, `--drafts`, exit 6 on an exploited match, upload on a tag. It produces the SBOM with `syft`, which names
+  the product without a package URL; the release SBOM from `cargo-cyclonedx` does not have that problem.
+
+# Approach
+1. A scheduled workflow (daily, plus `workflow_dispatch`) that downloads the binary and the SBOMs of the latest
+   release (`gh release download`, checked against `SHA256SUMS`), restores the feed cache and the awareness file, runs
+   `forewarn match --awareness … --drafts drafts` on the SBOM of each target, saves the cache even on failure, and keeps
+   the report and drafts as artifacts. The job fails (exit 6) on an exploited match, which notifies the maintainers.
+2. Use the released binary, not one built from `main`: the run then checks what users have, with the tool they have.
+3. Once a Forewarn service account exists for the project, upload the SBOM of each target on the tag (in
+   `release.yml` after the release is published, or in the new workflow), with `FOREWARN_ENDPOINT` and
+   `FOREWARN_TOKEN` as repository secrets. Can be a later cut.
+4. Decide whether the targets share one SBOM report or each gets its own (their dependency trees may differ).
+
+# Resources
+* `.github/workflows/release.yml` (SBOMs, targets of `about.toml`)
+* `examples/ci/github-actions.yml` (the daily run to follow)
+* `specs/cli-match-awareness.md`, `specs/cli-match-exploited.md`
+* `docs/user-guide.md` (section "In CI")
+
+# Hints
+* `crates/forewarn/tests/release_workflow.rs` and `ci_templates.rs` read workflow files: check whether a new
+  workflow should be covered the same way.
+* The cache key must be unique per run (GitHub never overwrites a key), as in the template.
+* `just set-version` writes the `FOREWARN_VERSION` the templates pin; the new workflow should take the latest release
+  instead, so it never needs a bump.
