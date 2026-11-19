@@ -14,5 +14,5 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
   - [github_actions_template](issues/done/github_actions_template.md)
   - [gitlab_ci_template](issues/done/gitlab_ci_template.md)
   - [keep_the_templates_on_the_released_version](issues/done/keep_the_templates_on_the_released_version.md)
-  - [run_the_templates_in_ci](issues/run_the_templates_in_ci.md)
+  - [run_the_templates_in_ci](issues/done/run_the_templates_in_ci.md)
   - [run_the_gitlab_template_in_the_tests](issues/run_the_gitlab_template_in_the_tests.md)
