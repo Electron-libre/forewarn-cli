@@ -63,7 +63,12 @@ adapter, sends the SBOM as is in one `PUT` to that route under the endpoint of a
 loopback host, then reached without a proxy, no user information), with a bearer token never written in a debug form
 or an error, no redirect followed and no retry, an SBOM over 10 MiB (`MAX_SBOM_BYTES` of `forewarn-api`) refused first, and tells apart a receipt, the endpoint unreachable, the
 credentials refused (`401`, `403`), the upload refused and an unreadable answer (`specs/sbom-upload.md`, ADR
-[0018](docs/adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md)); no command uploads yet.
+[0018](docs/adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md)).
+`forewarn upload <sbom>` reads the SBOM with the CycloneDX adapter, then sends its bytes as read for the product name
+and version of its `metadata.component` (`--product`, `--product-version` override them) to the endpoint of
+`--endpoint`, else `FOREWARN_ENDPOINT`, with the token of `FOREWARN_TOKEN` (never an option), prints what the service
+stored, and exits with 8 (unreachable), 9 (credentials refused), 10 (upload refused) or 11 (unreadable answer) when it
+is not stored (`specs/cli-upload.md`, module `upload`).
 `just check` (i.e. `cardinal run project-check`) runs the `check_command` of `.claude/cardinal.toml`:
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`. The workflow
 `.github/workflows/check.yml` runs that command on every push to `main` and every pull request, builds on the toolchain
@@ -101,7 +106,7 @@ Crates under `crates/` (ADR [0001](docs/adr/0001-workspace-crate-layout.md)), wi
 | `forewarn-exploited` | exploited-list adapter: the CISA KEV catalog (module `kev`), read or fetched into a cache, and the exploited records of EUVD (module `euvd`), read or paged into a cache, into the domain's exploited lists | `feeds` |
 | `forewarn-api` | the contract of an SBOM upload shared with the service, no I/O: the route of a product version and the names it accepts, the answers of the service (module `answer`) (`specs/upload-api.md`, ADR 0017) | `api` |
 | `forewarn-upload` | upload adapter: the endpoint of a service and the bearer token, checked (modules `endpoint`, `token`), the `PUT` of the SBOM and its answer mapped to a receipt or an error (module `send`) (`specs/sbom-upload.md`, ADR 0018) | `api` |
-| `forewarn` | the CLI binary: arguments (module `args`), wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`), the error lines naming a file (module `error_line`) | `cli` |
+| `forewarn` | the CLI binary: arguments (module `args`), wiring, the report formats (module `report`), the written early warning draft (module `early_warning`) and its files (module `drafts`), the VEX verdicts of a run and their part of the reports (module `vex`), the characters both writers escape (module `escape`), the error lines naming a file (module `error_line`), `forewarn upload` (module `upload`) | `cli` |
 
 The product was first named `rollcall`; it became `forewarn` because another CRA/SBOM project publishes the `rollcall`
 crates. `publish = false` stays until the first publication is decided (the path dependencies then need a `version`).

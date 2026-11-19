@@ -33,7 +33,7 @@ flowchart TD
     api["forewarn-api<br/>(upload contract, no I/O)"]
     upl["forewarn-upload<br/>(upload adapter)"]
 
-    cli --> cdx & osv & exp & domain
+    cli --> cdx & osv & exp & domain & upl
     cdx --> domain
     osv --> domain & cache
     exp --> domain & cache
@@ -49,7 +49,7 @@ flowchart TD
 | `forewarn-cache` | Refresh policy, freshness, the files of each download, a file lock per entry | single module |
 | `forewarn-api` | The contract of an SBOM upload, shared with the service: the route of a product version, the names it accepts, the answers of the service, read from a status and a body ([upload-api](../specs/upload-api.md), [ADR 0017](adr/0017-share-the-upload-contract-in-a-crate-of-plain-types.md)) | `lib` (route), `answer` |
 | `forewarn-upload` | The upload adapter: one `PUT` of the SBOM to a service, the endpoint (HTTPS, or a loopback host in plain HTTP) and the bearer token checked before anything is sent, the answer read with `forewarn-api` into a receipt or an error (unreachable, credentials refused, upload refused, unreadable answer) ([sbom-upload](../specs/sbom-upload.md), [ADR 0018](adr/0018-upload-an-sbom-from-an-adapter-crate-of-its-own.md)) | `endpoint`, `token`, `send` |
-| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` (the characters both writers escape, a path's own way), `error_line` (the error lines naming a file) |
+| `forewarn` | Arguments, wiring, exit codes, the writers | `main`, `args` (the options and their parsers), `report` (human and JSON), `early_warning` (Markdown draft), `drafts` (its files), `vex` (the verdicts of a run and their part of the reports), `escape` (the characters both writers escape, a path's own way), `error_line` (the error lines naming a file), `upload` (`forewarn upload`: the endpoint and token of the environment, its report) |
 
 The dependency direction is enforced: `crates/forewarn/tests/workspace_policy.rs` fails when the domain depends on
 another crate of the workspace, or when a crate does not inherit the workspace license and lints.
@@ -96,6 +96,11 @@ flowchart LR
 
 `forewarn check` stops after step 2 and runs the completeness rules
 ([sbom-completeness](../specs/sbom-completeness.md), [cli-check](../specs/cli-check.md)).
+
+`forewarn upload` checks the endpoint (`--endpoint`, else `FOREWARN_ENDPOINT`) and the token (`FOREWARN_TOKEN`)
+first, reads the SBOM's bytes and runs step 2 on them, so that a document the adapter refuses is never sent, takes the
+product name and version from `metadata.component` unless an option gives them, then sends the bytes as read through
+`forewarn-upload` and maps its answer to a report or an exit code of 8 to 11 ([cli-upload](../specs/cli-upload.md)).
 
 ## The cache
 

@@ -37,3 +37,44 @@ Upload from CI
 # Hints
 * Only inventories leave the CI, never source code: the SBOM is sent as given, nothing else of the work tree.
 * Windows paths are supported (`issues/done/support_windows_paths.md`): the SBOM path follows the same rules.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+`forewarn upload <sbom>` sends the SBOM as is to the service with `forewarn-upload`: endpoint from `--endpoint` or
+`FOREWARN_ENDPOINT`, token from `FOREWARN_TOKEN`, product and version from the SBOM unless `--product`,
+`--product-version`; exit codes 8 to 11 for the failures. Means differ from the issue: no date sent nor `--now` (the
+contract leaves the date to the service clock, UPA non-goals); the report prints the receipt's `received_at`.
+
+## Plan
+1. [x] Upload: subcommand `upload` (module `args`), wiring, human report and exit codes in a module `upload` of the CLI
+   crate, endpoint and token from the options and the environment, SBOM read then sent as is, overrides, the failures
+   and their error lines; verified by `crates/forewarn/tests/upload.rs` against a loopback fake service; makes true
+   CUP-1 to CUP-4, CUP-6 to CUP-15 (~800 lines). (autonomous)
+2. [ ] `--dry-run`: prints endpoint, product, version, size, sends nothing, reads no token; docs of the whole command
+   (user guide: section, "In CI", "What leaves your machine", exit codes; `docs/architecture.md`; `CLAUDE.md`);
+   verified by the same test file; makes true CUP-5; spec `accepted` (~200 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 4af6a300facd539dcda452ab3ba44e8926959bf8
+- No date sent, no `--now`: the service dates the upload (UPA non-goals); the report prints the receipt's `received_at`.
+- Token from `FOREWARN_TOKEN` only, no option.
+- Overrides named `--product`, `--product-version`.
+- Exit codes: 8 unreachable, 9 credentials refused, 10 upload refused (a name or a size refused before sending
+  included), 11 unreadable answer.
+- No JSON report in this issue.
+- Deliverables 1 and 2 of the validated plan merged into one: the failure mapping is a dozen lines of the same module,
+  its tests would have had no red phase apart; together 798 changed lines, under the limit.
+
+## Summaries
+
+### Deliverable 1
+- done: `forewarn upload` sends the SBOM as read to the service, reports the receipt, exits with 2, 3, 8 to 11; guide,
+  architecture and `CLAUDE.md` describe it.
+- red: CUP-1, CUP-2, CUP-3, CUP-4, CUP-6, CUP-7, CUP-8, CUP-9, CUP-10, CUP-11, CUP-12, CUP-13, CUP-14, CUP-15:
+  `error: unrecognized subcommand 'upload'` (exit 2) in each of the 15 tests.
+- Code review: no findings
+- not verified: the Windows path of CUP-15 (CI runs the tests on Windows; the test here covers the escaped path only).

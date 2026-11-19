@@ -1,5 +1,5 @@
 //! The arguments of the `forewarn` command line and the parsers of their values (`specs/cli-check.md`,
-//! `specs/cli-match.md`, `specs/cli-match-exploited.md`).
+//! `specs/cli-match.md`, `specs/cli-match-exploited.md`, `specs/cli-upload.md`).
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -26,6 +26,24 @@ pub(crate) enum Command {
     /// Print the components of an SBOM affected by known OSV vulnerabilities, those the CISA KEV catalog or EUVD names
     /// marked actively exploited with their CRA reporting deadlines, and those that could not be evaluated.
     Match(Box<MatchArgs>),
+    /// Upload an SBOM as is to a Forewarn service, for the product name and version it describes, with the token of
+    /// the environment variable `FOREWARN_TOKEN`.
+    Upload(UploadArgs),
+}
+
+#[derive(Args)]
+pub(crate) struct UploadArgs {
+    /// The CycloneDX JSON SBOM to upload, `-` for standard input (`./-` for a file named `-`).
+    pub(crate) sbom: PathBuf,
+    /// The root URL of the Forewarn service, HTTPS (plain HTTP to a loopback host only) [env: `FOREWARN_ENDPOINT`].
+    #[arg(long, value_name = "URL")]
+    pub(crate) endpoint: Option<String>,
+    /// The product name to upload under, instead of the name of the SBOM's `metadata.component`.
+    #[arg(long, value_name = "NAME")]
+    pub(crate) product: Option<String>,
+    /// The version to upload under, instead of the version of the SBOM's `metadata.component`.
+    #[arg(long, value_name = "VERSION")]
+    pub(crate) product_version: Option<String>,
 }
 
 #[derive(Args)]

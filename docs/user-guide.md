@@ -8,11 +8,14 @@
 3. **When must I report, and what?** For each actively exploited vulnerability, `forewarn match` gives the article
    14(2) deadlines and can write a draft early warning to fill in.
 
+`forewarn upload` keeps the inventory of a Forewarn service up to date: it sends the SBOM of each release there.
+
 - [Install](#install)
 - [Check an SBOM](#check-an-sbom)
 - [Match against vulnerabilities](#match-against-vulnerabilities)
 - [Reporting deadlines](#reporting-deadlines)
 - [Draft early warnings](#draft-early-warnings)
+- [Upload to a Forewarn service](#upload-to-a-forewarn-service)
 - [In CI](#in-ci)
 - [What leaves your machine](#what-leaves-your-machine)
 - [Reference](#reference): options, JSON reports, exit codes
@@ -265,6 +268,29 @@ To complete before entering it into the ENISA Single Reporting Platform: 2. Titl
 
 A draft is a starting point: you submit the early warning yourself, on the ENISA Single Reporting Platform.
 
+## Upload to a Forewarn service
+
+```console
+$ export FOREWARN_TOKEN=<token of the service>
+$ forewarn upload --endpoint https://forewarn.example.com sbom.cdx.json
+Uploaded acme-gateway 2.4.0 to https://forewarn.example.com
+Stored: a new version, 42 components (CycloneDX 1.6), received at 2026-11-19T10:00:00Z
+```
+
+- **The endpoint**: `--endpoint`, else the environment variable `FOREWARN_ENDPOINT`; HTTPS, or plain HTTP to a
+  loopback host (`localhost`, `127.0.0.1`, `[::1]`) only, without credentials, a query or a fragment.
+- **The token**: the environment variable `FOREWARN_TOKEN` only, never an option, so that it shows in no process list
+  nor shell history; no output prints it.
+- **The product and the version**: those of the SBOM's `metadata.component`; `--product` and `--product-version`
+  override each. A run whose SBOM gives neither and no option stops, naming the option to give.
+- **The SBOM**: read first, as `check` reads it (a CycloneDX 1.2 file is refused, nothing sent), then sent as is, up
+  to 10 MiB. Uploading a version again replaces its SBOM: the report says `replaced the SBOM of a known version`.
+  The service dates the upload with its own clock; the report prints when it received it, and its warnings (a spec
+  version below 1.6, for example).
+
+A request is sent once, never retried, and no redirect is followed; each failure has its exit code (8 to 11, see
+[Exit codes](#exit-codes)): a `503` names the code `unavailable`, after which a rerun is safe.
+
 ## In CI
 
 The exit codes let a job fail on what matters:
@@ -278,6 +304,10 @@ forewarn check --allow-incomplete sbom.cdx.json
 
 # Generate and check in one pipe.
 syft scan . -o cyclonedx-json | forewarn match --allow-affected -
+
+# At each release, keep the inventory of a Forewarn service up to date (FOREWARN_ENDPOINT and FOREWARN_TOKEN set as
+# secrets of the job).
+forewarn upload sbom.cdx.json
 ```
 
 With `--allow-affected`, a job exits with 0 when components are affected but none is actively exploited, and with 6
@@ -291,6 +321,7 @@ when one is. Keep the cache between jobs (a CI cache keyed on the day, for examp
 | `forewarn match` (default) | the names of the ecosystems of the SBOM (OSV archives); requests for the KEV catalog and the EUVD list, naming no component |
 | `forewarn match --osv … --kev … --euvd …` or `--refresh offline` | nothing |
 | `forewarn match --osv-api` | the ecosystem, name and version of each component, except your own code |
+| `forewarn upload` | the SBOM itself, as given, with the product name, the version and the token, to the endpoint only |
 
 Never source code. Your own components (first-party) are never matched nor sent.
 
@@ -329,13 +360,17 @@ Never source code. Your own components (first-party) are never matched nor sent.
 
 ### Exit codes
 
-| Code | `check` | `match` |
-|---|---|---|
-| 0 | the SBOM is complete (or `--allow-incomplete`) | nothing affected (or `--allow-affected` and nothing actively exploited) |
-| 1 | a component is incomplete | a component is affected, a match set aside by VEX not counted |
-| 2 | invalid arguments | invalid arguments, an instant refused |
-| 3 | the SBOM cannot be read | the SBOM or a `--vex` file cannot be read |
-| 4 | the report cannot be written | the report cannot be written |
-| 5 | | the OSV records, the KEV catalog or the EUVD list cannot be read, fetched or queried |
-| 6 | | a match is actively exploited, even with `--allow-affected` |
-| 7 | | a draft cannot be written, or the directory of the drafts listed; nothing is printed on standard output |
+| Code | `check` | `match` | `upload` |
+|---|---|---|---|
+| 0 | the SBOM is complete (or `--allow-incomplete`) | nothing affected (or `--allow-affected` and nothing actively exploited) | the SBOM is stored |
+| 1 | a component is incomplete | a component is affected, a match set aside by VEX not counted | |
+| 2 | invalid arguments | invalid arguments, an instant refused | invalid arguments, no endpoint or one refused, no `FOREWARN_TOKEN` or one refused, no product name or version |
+| 3 | the SBOM cannot be read | the SBOM or a `--vex` file cannot be read | the SBOM cannot be read |
+| 4 | the report cannot be written | the report cannot be written | the report cannot be written |
+| 5 | | the OSV records, the KEV catalog or the EUVD list cannot be read, fetched or queried | |
+| 6 | | a match is actively exploited, even with `--allow-affected` | |
+| 7 | | a draft cannot be written, or the directory of the drafts listed; nothing is printed on standard output | |
+| 8 | | | the endpoint cannot be reached |
+| 9 | | | the service refused the credentials (`401`, `403`) |
+| 10 | | | the upload is refused: by the service, or before anything is sent (a name the service would refuse, an SBOM over 10 MiB) |
+| 11 | | | the answer of the service cannot be read |

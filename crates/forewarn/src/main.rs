@@ -1,5 +1,5 @@
 //! The `forewarn` command line: parses the arguments and wires the adapters to the domain (`specs/cli-check.md`,
-//! `specs/cli-match.md`, `specs/cli-match-exploited.md`).
+//! `specs/cli-match.md`, `specs/cli-match-exploited.md`, `specs/cli-upload.md`).
 
 mod args;
 mod drafts;
@@ -7,6 +7,7 @@ mod early_warning;
 mod error_line;
 mod escape;
 mod report;
+mod upload;
 mod vex;
 
 use std::collections::HashSet;
@@ -48,6 +49,7 @@ fn main() -> ExitCode {
     let outcome = match Cli::parse().command {
         Command::Check(args) => run_check(&args),
         Command::Match(args) => run_match(&args),
+        Command::Upload(args) => upload::run(&args),
     };
     outcome.unwrap_or_else(ExitCode::from)
 }
@@ -341,11 +343,16 @@ impl EuvdList<'_> {
 
 /// Prints a usage error of `forewarn match` and exits with 2, as `clap` does for the errors it finds.
 fn usage_error(kind: clap::error::ErrorKind, message: &str) -> ! {
+    subcommand_usage_error("match", kind, message)
+}
+
+/// Prints a usage error of `forewarn <subcommand>` and exits with 2, as `clap` does for the errors it finds.
+fn subcommand_usage_error(subcommand: &str, kind: clap::error::ErrorKind, message: &str) -> ! {
     let mut cli = Cli::command();
-    // Builds the names of the subcommands, so that the usage printed is that of `forewarn match`.
+    // Builds the names of the subcommands, so that the usage printed is that of the subcommand.
     cli.build();
-    cli.find_subcommand_mut("match")
-        .expect("the match subcommand")
+    cli.find_subcommand_mut(subcommand)
+        .expect("a subcommand of the command line")
         .error(kind, message)
         .exit()
 }
