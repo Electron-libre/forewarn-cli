@@ -28,3 +28,52 @@ rest matched.
 # Resources
 * `crates/forewarn-osv/src/fetch.rs`, `crates/forewarn/src/main.rs` (`ecosystems`, `no_records`).
 * `issues/done/match_debian_packages.md`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+A `Debian:<release>` whose archive OSV does not publish (404, `Debian:14` testing) must not fail the run: fetch the
+parent archive `Debian/all.zip` instead (checked 2026-11-19: 82 MB zipped, 75k records, `DEBIAN-CVE-2024-6387` names
+`Debian:14` there), so the packages of a testing image are matched, not just set aside. The rule is generic to any
+`<parent>:<release>`. `--osv-api` needs no change: the API answers for `Debian:14` (checked). Approach 2 of the issue.
+
+## Plan
+1. [x] Move the test helpers of `crates/forewarn-osv/tests/fetching.rs` (fake server, archives, fixtures; the file is
+   over the size limit) into `crates/forewarn-osv/tests/common/mod.rs`, no change of behaviour; verified by the
+   unchanged tests passing. (autonomous)
+2. [ ] Fall back to the parent archive: a 404 told apart from the other download failures (`forewarn-cache`), the
+   fallback in `Archives::fetch` (`forewarn-osv/src/fetch.rs`), the parent returned once, offline read of a cached
+   parent; verified by `forewarn-osv/tests/release_archive.rs` (new, fake server) and a `forewarn match` test in
+   `crates/forewarn/tests/debian.rs` (a `Debian:14` package matched through `Debian/all.zip`, the crates of the same
+   SBOM matched too); docs: user guide, `CLAUDE.md`; makes true OSF-22, OSF-23, OSF-24, OSF-25.
+
+## Decisions
+- Mode: autonomous
+- Base commit: aca81fcd49cd158f0ae07ccbc80842bfe9c3b9a5
+- The report names the archive `Debian` (its URL, its record count) as a source in place of `Debian:14`: what was
+  downloaded.
+- 2026-11-19 (the user's answer `ok`): the parent archive is fetched (approach 2), for any `<parent>:<release>`.
+
+## Deliverable 1: move the test helpers of fetching
+
+done: the loopback server, the archives of the fixtures and the `Archives` pointed at it moved from
+`crates/forewarn-osv/tests/fetching.rs` to `crates/forewarn-osv/tests/common/mod.rs`, made `pub`; no test changed.
+The spec amendment (OSF-22 to OSF-25, `draft`) goes with this commit.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | OSF `draft`, `check-specs` clean |
+| docs | none (tests only) |
+| code review | see below |
+
+red: none (a move, no new test).
+
+Code review: no findings
+
+not verified: nothing.
+
+decisions needed: none.
