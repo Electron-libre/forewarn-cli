@@ -9,4 +9,9 @@ A line `- On hold: <reason>` defers a milestone: `cardinal run next-issue` offer
 
 - Goal: ready-to-use examples run `forewarn` at each release in GitHub Actions and GitLab CI.
 - Why: lowers the cost of adoption to a copy-paste.
-- State: idea
+- State: in issues
+- Issues:
+  - [github_actions_template](issues/github_actions_template.md)
+  - [gitlab_ci_template](issues/gitlab_ci_template.md)
+  - [keep_the_templates_on_the_released_version](issues/keep_the_templates_on_the_released_version.md)
+  - [run_the_templates_in_ci](issues/run_the_templates_in_ci.md)
