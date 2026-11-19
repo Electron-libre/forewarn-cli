@@ -1,4 +1,4 @@
-//! The version orderings a range is compared by (`specs/vulnerability-matching.md`, VMT-9, VMT-23).
+//! The version orderings a range is compared by (`specs/version-ordering.md`, VOR-1; VMT-9).
 
 use std::cmp::Ordering;
 
@@ -21,21 +21,21 @@ pub(crate) trait VersionOrder {
 pub(crate) enum Scheme {
     /// Semantic Versioning 2.0, a leading `v` ignored.
     Semver,
-    /// PEP 440, the versions of `PyPI` (VMT-24).
+    /// PEP 440, the versions of `PyPI` (VOR-2).
     Pep440,
-    /// The ordering of `Maven` (VMT-25).
+    /// The ordering of `Maven` (VOR-3).
     Maven,
-    /// The ordering of `RubyGems`, as `Gem::Version` (VMT-26).
+    /// The ordering of `RubyGems`, as `Gem::Version` (VOR-4).
     RubyGems,
-    /// The ordering of `NuGet`, as `NuGet.Versioning` (VMT-27).
+    /// The ordering of `NuGet`, as `NuGet.Versioning` (VOR-5).
     NuGet,
-    /// The ordering of `Packagist`, as Composer normalizes versions and PHP compares them (VMT-28).
+    /// The ordering of `Packagist`, as Composer normalizes versions and PHP compares them (VOR-6).
     Packagist,
 }
 
 impl Scheme {
     /// The ordering a range of this kind is compared by, for a package whose ecosystem orders its versions by
-    /// `ecosystem`, or `None` when matching does not compare it (VMT-9, VMT-23).
+    /// `ecosystem`, or `None` when matching does not compare it (VMT-9, VOR-1).
     pub(crate) fn of(kind: RangeKind, ecosystem: Self) -> Option<Self> {
         match kind {
             RangeKind::Semver => Some(Self::Semver),
@@ -164,7 +164,7 @@ impl<'a> Cursor<'a> {
     }
 }
 
-/// PEP 440, the versions of `PyPI` (VMT-24).
+/// PEP 440, the versions of `PyPI` (VOR-2).
 pub(crate) struct Pep440;
 
 /// A PEP 440 version, as the fields it is ordered by, in order (the `_cmpkey` of the `packaging` project).
@@ -322,7 +322,7 @@ fn local_version(cursor: &mut Cursor) -> Option<Vec<LocalSegment>> {
     }
 }
 
-/// The ordering of `Maven`, by the algorithm of Maven's `ComparableVersion` (VMT-25).
+/// The ordering of `Maven`, by the algorithm of Maven's `ComparableVersion` (VOR-3).
 pub(crate) struct Maven;
 
 /// An item of a Maven version.
@@ -477,7 +477,7 @@ fn compare_qualifiers(a: &str, b: &str) -> Ordering {
     rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
 }
 
-/// The ordering of `RubyGems`, as `Gem::Version` reads and compares versions (VMT-26).
+/// The ordering of `RubyGems`, as `Gem::Version` reads and compares versions (VOR-4).
 pub(crate) struct RubyGems;
 
 /// A segment of a `RubyGems` version: text (a pre-release) before numbers.
@@ -563,7 +563,7 @@ fn is_gem_version(version: &str) -> bool {
     release_ok && pre_ok
 }
 
-/// The ordering of `NuGet`, as `NuGet.Versioning` reads and compares versions by default (VMT-27).
+/// The ordering of `NuGet`, as `NuGet.Versioning` reads and compares versions by default (VOR-5).
 pub(crate) struct NuGet;
 
 /// A `NuGet` version, as the fields it is ordered by, its build metadata dropped.
@@ -641,7 +641,7 @@ fn are_nuget_labels(text: &str) -> bool {
 }
 
 /// The ordering of `Packagist`: a version normalized as Composer's `VersionParser` does, then compared by PHP's
-/// `version_compare` (VMT-28).
+/// `version_compare` (VOR-6).
 pub(crate) struct Packagist;
 
 /// A part of a normalized `Packagist` version, in the order of `version_compare`: `dev` < `alpha` < `beta` < `RC` <

@@ -393,7 +393,7 @@ fn ecosystem_affects(ecosystem: &str, name: &str, purl: &str, events: &[Event]) 
     !report.matches().is_empty()
 }
 
-// spec: VMT-9, VMT-23
+// spec: VMT-9, VOR-1
 #[test]
 fn evaluates_an_ecosystem_range_of_go_by_semantic_versioning() {
     let window = [introduced("0"), fixed("1.2.3")];

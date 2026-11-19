@@ -84,7 +84,8 @@ flowchart LR
 4. **Exploited lists.** The CISA KEV catalog, then the EUVD exploited list, each read from a file or fetched into the
    cache ([kev-reading](../specs/kev-reading.md), [euvd-reading](../specs/euvd-reading.md)).
 5. **Domain.** Components are matched by package URL and version
-   ([vulnerability-matching](../specs/vulnerability-matching.md)); records naming each other are grouped, one CVE per
+   ([vulnerability-matching](../specs/vulnerability-matching.md)), each ecosystem's versions in its own ordering
+   ([version-ordering](../specs/version-ordering.md)); records naming each other are grouped, one CVE per
    match; a match whose CVE a list names is flagged with its evidence
    ([exploited-flagging](../specs/exploited-flagging.md)); a match every VEX verdict naming it says does not affect the
    product is set aside with its verdict and evidence, out of what follows

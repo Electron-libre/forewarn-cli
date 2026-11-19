@@ -24,7 +24,7 @@ enum NameForm {
 }
 
 /// The package URL types matching knows: type, OSV ecosystem, name form (VMT-4), and the ordering of the versions of
-/// its `ECOSYSTEM` ranges (VMT-23).
+/// its `ECOSYSTEM` ranges (VOR-1).
 const ECOSYSTEMS: [(&str, &str, NameForm, Scheme); 8] = [
     ("cargo", "crates.io", NameForm::Name, Scheme::Semver),
     ("npm", "npm", NameForm::Slash, Scheme::Semver),
@@ -642,7 +642,7 @@ impl ComponentPackage {
             && same_name(self.ecosystem, &affected.name, &self.name)
     }
 
-    /// Whether the version is in the range, by the OSV algorithm, in the ordering of the range (VMT-9, VMT-23).
+    /// Whether the version is in the range, by the OSV algorithm, in the ordering of the range (VMT-9, VOR-1).
     fn in_range(&self, range: &Range) -> Result<bool, PairReason> {
         match Scheme::of(range.kind, self.scheme) {
             Some(Scheme::Semver) => in_range::<Semver>(&self.version, &range.events),

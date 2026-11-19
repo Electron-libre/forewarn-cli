@@ -319,7 +319,7 @@ fn a_pair_not_evaluated_names_its_record_and_is_not_counted_clean() {
     );
 }
 
-// spec: VMT-23, VMT-24
+// spec: VOR-H1, VOR-1, VOR-2
 #[test]
 fn a_pypi_component_in_an_ecosystem_range_is_affected() {
     let osv = records(&[json!({

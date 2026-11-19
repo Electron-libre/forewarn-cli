@@ -1,5 +1,5 @@
 //! The version orderings of the `ECOSYSTEM` ranges, observed through the matching of one component against one range
-//! (`specs/vulnerability-matching.md`, VMT-23 to VMT-28).
+//! (`specs/version-ordering.md`, VOR-1 to VOR-6).
 
 use forewarn_domain::matching::{MatchReport, PairReason, Reason, match_components};
 use forewarn_domain::sbom::Component;
@@ -138,7 +138,7 @@ impl Package {
     }
 }
 
-// spec: VMT-9, VMT-23, VMT-24
+// spec: VMT-9, VOR-1, VOR-2
 #[test]
 fn evaluates_an_ecosystem_range_of_pypi_by_pep_440() {
     let window = [introduced("0"), fixed("3.0")];
@@ -149,7 +149,7 @@ fn evaluates_an_ecosystem_range_of_pypi_by_pep_440() {
     assert!(PYPI.affects("3.0.dev2", &window));
 }
 
-// spec: VMT-24
+// spec: VOR-2
 #[test]
 fn orders_pypi_versions_by_pep_440() {
     PYPI.assert_ordered(&[
@@ -182,7 +182,7 @@ fn orders_pypi_versions_by_pep_440() {
     PYPI.assert_ordered(&["99999999999999999999", "100000000000000000000"]);
 }
 
-// spec: VMT-24, VMT-10
+// spec: VOR-2, VMT-10
 #[test]
 fn reports_a_pypi_version_pep_440_does_not_read_as_invalid() {
     for invalid in [
@@ -197,7 +197,7 @@ fn reports_a_pypi_version_pep_440_does_not_read_as_invalid() {
     }
 }
 
-// spec: VMT-9, VMT-23, VMT-25
+// spec: VOR-H2, VMT-9, VOR-1, VOR-3
 #[test]
 fn evaluates_an_ecosystem_range_of_maven_by_its_ordering() {
     let window = [introduced("2.0-beta9"), fixed("2.15.0")];
@@ -207,7 +207,7 @@ fn evaluates_an_ecosystem_range_of_maven_by_its_ordering() {
     assert!(!MAVEN.affects("2.0-alpha1", &window));
 }
 
-// spec: VMT-25
+// spec: VOR-3
 #[test]
 fn orders_maven_versions_by_comparable_version() {
     MAVEN.assert_ordered(&[
@@ -252,7 +252,7 @@ fn orders_maven_versions_by_comparable_version() {
     MAVEN.assert_ordered(&["1-1", "1.0.1"]);
 }
 
-// spec: VMT-9, VMT-23, VMT-26
+// spec: VMT-9, VOR-1, VOR-4
 #[test]
 fn evaluates_an_ecosystem_range_of_rubygems_by_gem_version() {
     let window = [introduced("0"), fixed("1.10")];
@@ -261,7 +261,7 @@ fn evaluates_an_ecosystem_range_of_rubygems_by_gem_version() {
     assert!(RUBYGEMS.affects("1.10.0.rc1", &window));
 }
 
-// spec: VMT-26
+// spec: VOR-4
 #[test]
 fn orders_rubygems_versions_by_gem_version() {
     RUBYGEMS.assert_ordered(&[
@@ -293,7 +293,7 @@ fn orders_rubygems_versions_by_gem_version() {
     }
 }
 
-// spec: VMT-26, VMT-10
+// spec: VOR-4, VMT-10
 #[test]
 fn reports_a_rubygems_version_gem_does_not_read_as_invalid() {
     for invalid in [
@@ -303,7 +303,7 @@ fn reports_a_rubygems_version_gem_does_not_read_as_invalid() {
     }
 }
 
-// spec: VMT-9, VMT-23, VMT-27
+// spec: VMT-9, VOR-1, VOR-5
 #[test]
 fn evaluates_an_ecosystem_range_of_nuget_by_nuget_versioning() {
     let window = [introduced("0"), fixed("13.0.1")];
@@ -312,7 +312,7 @@ fn evaluates_an_ecosystem_range_of_nuget_by_nuget_versioning() {
     assert!(NUGET.affects("13.0.1-beta1", &window));
 }
 
-// spec: VMT-27
+// spec: VOR-5
 #[test]
 fn orders_nuget_versions_by_nuget_versioning() {
     NUGET.assert_ordered(&[
@@ -346,7 +346,7 @@ fn orders_nuget_versions_by_nuget_versioning() {
     NUGET.assert_ordered(&["1.0.0-a.b", "1.0.0-a-b"]);
 }
 
-// spec: VMT-27, VMT-10
+// spec: VOR-5, VMT-10
 #[test]
 fn reports_a_nuget_version_it_does_not_read_as_invalid() {
     for invalid in [
@@ -367,7 +367,7 @@ fn reports_a_nuget_version_it_does_not_read_as_invalid() {
     }
 }
 
-// spec: VMT-9, VMT-23, VMT-28
+// spec: VMT-9, VOR-1, VOR-6
 #[test]
 fn evaluates_an_ecosystem_range_of_packagist_by_composer() {
     let window = [introduced("0"), fixed("10.2.1")];
@@ -376,7 +376,7 @@ fn evaluates_an_ecosystem_range_of_packagist_by_composer() {
     assert!(PACKAGIST.affects("10.2.1-RC1", &window));
 }
 
-// spec: VMT-28
+// spec: VOR-6
 #[test]
 fn orders_packagist_versions_by_composer() {
     PACKAGIST.assert_ordered(&[
@@ -419,7 +419,7 @@ fn orders_packagist_versions_by_composer() {
     }
 }
 
-// spec: VMT-28, VMT-10
+// spec: VOR-6, VMT-10
 #[test]
 fn reports_a_packagist_version_composer_does_not_read_as_invalid() {
     for invalid in [
