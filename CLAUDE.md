@@ -96,6 +96,10 @@ changelog section; `crates/forewarn/tests/release_workflow.rs` checks the user g
 it builds and runs that `jq` program (`jq` needed by `cargo test`); a pull request changing a manifest, `Cargo.lock`,
 the notices or that program builds without publishing. crates.io waits
 for its own decision.
+`.github/workflows/watch.yml` runs each day the forewarn of the latest release (checked against its `SHA256SUMS` and
+its build provenance) on the SBOM of each target it published: `match` with the feeds and `--awareness` kept in the
+GitHub cache, the reports and drafts kept as artifacts, failing on an exploited match; `ci_templates.rs` checks the
+options it gives exist and the files it downloads are ones the release publishes.
 `examples/ci/github-actions.yml` and `examples/ci/gitlab-ci.yml` are the CI templates vendors copy (install a pinned
 release, `syft`, `check`, `match`, upload on a tag); `crates/forewarn/tests/ci_templates.rs` checks each option they
 give `forewarn` exists and that they install an archive the release builds; `crates/forewarn/tests/ci_template_run.rs`

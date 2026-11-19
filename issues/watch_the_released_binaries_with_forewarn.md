@@ -43,3 +43,38 @@ meets the reporting obligation for its own binaries.
 * The cache key must be unique per run (GitHub never overwrites a key), as in the template.
 * `just set-version` writes the `FOREWARN_VERSION` the templates pin; the new workflow should take the latest release
   instead, so it never needs a bump.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+A daily workflow `.github/workflows/watch.yml` that installs the binary of the latest GitHub release (checked against
+its `SHA256SUMS`) and runs `forewarn match` on the SBOM of each released target, feeds, awareness file and drafts kept
+in the cache, failing on an exploited match. Out of scope: the upload on a tag (no service account yet, a later issue).
+No spec: CI of the project, no change of what the CLI does.
+
+## Plan
+1. [x] Daily watch workflow: `watch.yml` (schedule + `workflow_dispatch`, `gh release download` of the latest release,
+   checksums, cache restore/save, `match --allow-affected --refresh 12h --awareness … --format json --drafts drafts`
+   per target SBOM, artifacts, job failing when one run exits non-zero), its tests in `crates/forewarn/tests/` (each
+   `forewarn` option it gives exists, each asset it downloads is one `release.yml` publishes), docs
+   (`docs/architecture.md` CI part, `CLAUDE.md`); verified by those tests and a `workflow_dispatch` run after push. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: ddfe0243757f27f4cea350cb717167b9eba551b9
+- Targets: the SBOM of each of the four released targets, matched in a loop; one awareness file for the product.
+- Upload on a tag: out of scope, a follow-up issue once a service account exists.
+- Tests: static (options the binary has, assets `release.yml` publishes); the real run checked by a `workflow_dispatch` after the push.
+- Provenance: `gh attestation verify` of the archive, besides `SHA256SUMS`.
+
+## Deliverable 1
+- done: `.github/workflows/watch.yml` matches the SBOM of each target of the latest release each day with that
+  release's binary; two tests in `ci_templates.rs`; `CLAUDE.md` and the docs map.
+- Code review: 1 finding: the job exited with the code of the last failing target, hiding an exploited match (6)
+  behind a later error; fixed, 6 now wins.
+- red: none (no spec); the two tests failed first on `.github/workflows/watch.yml` missing.
+- docs: `docs/architecture.md` has no CI part, left as is.
+- not verified: the run on GitHub (`gh release download`, `gh attestation verify`, the cache), to check with a
+  `workflow_dispatch` after the push; no local `actionlint`.

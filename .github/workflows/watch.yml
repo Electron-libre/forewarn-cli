@@ -1,0 +1,85 @@
+name: Watch
+
+# Each day, the binaries of the latest release matched against OSV, the CISA KEV catalog and EUVD by the forewarn of that
+# release: a dependency of what users run can become actively exploited without a change of this repository, and the
+# CRA article 14 deadlines then run for its manufacturer. The run of examples/ci/github-actions.yml, on the SBOMs the
+# release publishes (cargo-cyclonedx, completed, one per target) instead of a syft scan. The job fails on an actively
+# exploited match (exit 6), which GitHub mails to whoever last changed the schedule; the reports and the draft early
+# warnings are kept as artifacts.
+
+on:
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  attestations: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      # The binary and the SBOMs of the latest release, checked against its checksums and the attestation of their
+      # build provenance by release.yml.
+      - name: Download the latest release and install its forewarn
+        working-directory: ${{ runner.temp }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ARCHIVE: forewarn-x86_64-unknown-linux-musl
+        run: |
+          mkdir release
+          cd release
+          gh release download --repo "$REPO" --pattern "$ARCHIVE.tar.gz" --pattern 'forewarn-*.cdx.json' \
+            --pattern SHA256SUMS
+          sha256sum --check --ignore-missing SHA256SUMS
+          for file in "$ARCHIVE.tar.gz" forewarn-*.cdx.json; do
+            gh attestation verify "$file" --repo "$REPO"
+          done
+          tar -xzf "$ARCHIVE.tar.gz"
+          sudo install "$ARCHIVE/forewarn" /usr/local/bin/
+          forewarn --version
+
+      # The feeds and the moments of awareness, kept between runs: each run restores the latest copy and saves its own,
+      # even when the job fails (a key cannot be overwritten, so one per run).
+      - uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/forewarn
+          key: forewarn-watch-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: forewarn-watch-
+
+      # Each target has its SBOM, its dependencies differing with the target. They describe the same product: the
+      # awareness file holds one moment per CVE, and a draft the targets share is written once per target, the same.
+      - name: Match the SBOM of each target
+        run: |
+          mkdir reports
+          status=0
+          for sbom in "$RUNNER_TEMP"/release/forewarn-*.cdx.json; do
+            target=$(basename "$sbom" .cdx.json)
+            code=0
+            forewarn match --allow-affected --refresh 12h --awareness ~/.cache/forewarn/awareness.json \
+              --format json --drafts drafts "$sbom" > "reports/$target.json" || code=$?
+            if [ "$code" -ne 0 ]; then
+              echo "::error::forewarn match exits with $code on the SBOM of $target"
+              # An exploited match (6) is the exit code of the job whatever another target gave.
+              [ "$status" -eq 6 ] || status=$code
+            fi
+          done
+          exit "$status"
+
+      - if: ${{ always() }}
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/forewarn
+          key: forewarn-watch-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Keep the reports and the drafts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: forewarn-watch
+          path: |
+            reports/
+            drafts/
+          if-no-files-found: warn

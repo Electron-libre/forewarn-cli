@@ -2,6 +2,8 @@
 //! exists in the binary, so renaming an option breaks this build instead of the vendors' pipelines; and the archive
 //! they install is one the release workflow builds, of the workspace version that `just set-version` moves at each
 //! release.
+//! The same holds for the daily watch of the project's own releases, `.github/workflows/watch.yml`: the options it gives
+//! `forewarn match` exist, and the files it downloads are ones the release workflow publishes.
 
 mod common;
 
@@ -215,6 +217,72 @@ fn each_template_pins_the_workspace_version() {
             [env!("CARGO_PKG_VERSION")],
             "{template} must pin the workspace version on one line `FOREWARN_VERSION: X.Y.Z`, with nothing after \
              it: run `just set-version <version>`"
+        );
+    }
+}
+
+/// The workflow that matches the latest release of forewarn each day.
+const WATCH: &str = ".github/workflows/watch.yml";
+
+#[test]
+fn the_watch_workflow_matches_with_options_the_binary_has() {
+    let found = invocations(&read(WATCH));
+
+    let commands: BTreeSet<&str> = found.iter().map(|(command, _)| command.as_str()).collect();
+    assert_eq!(
+        commands,
+        BTreeSet::from(["match"]),
+        "{WATCH}: commands run: {found:?}"
+    );
+    let help = run(&["match", "--help"], None);
+    assert_eq!(help.code, 0, "forewarn match --help: {}", help.stderr);
+    for (_, options) in &found {
+        for option in options {
+            assert!(
+                describes(&help.stdout, option),
+                "{WATCH}: forewarn match has no option {option}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_watch_workflow_downloads_files_the_release_publishes() {
+    let watch = read(WATCH);
+    let release = read(".github/workflows/release.yml");
+
+    let archives: Vec<&str> = watch
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("ARCHIVE: forewarn-"))
+        .collect();
+    assert_eq!(
+        archives.len(),
+        1,
+        "{WATCH} must name the archive it installs on one line `ARCHIVE: forewarn-<target>`"
+    );
+    assert!(
+        released_targets().contains(archives[0]),
+        "{WATCH} installs {}, which no release builds",
+        archives[0]
+    );
+    for (downloaded, published) in [
+        (
+            "--pattern \"$ARCHIVE.tar.gz\"",
+            "ARCHIVE: forewarn-${{ matrix.target }}",
+        ),
+        (
+            "--pattern 'forewarn-*.cdx.json'",
+            "--override-filename \"forewarn-$target.cdx\"",
+        ),
+        ("--pattern SHA256SUMS", "> SHA256SUMS"),
+    ] {
+        assert!(
+            watch.contains(downloaded),
+            "{WATCH} does not download {downloaded}"
+        );
+        assert!(
+            release.contains(published),
+            "release.yml no longer publishes what {downloaded} downloads"
         );
     }
 }
