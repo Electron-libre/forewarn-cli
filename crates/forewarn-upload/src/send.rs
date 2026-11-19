@@ -17,8 +17,10 @@ const ANSWER_LIMIT: u64 = 1024 * 1024;
 /// The content type of the body (UPL-5).
 const CONTENT_TYPE: &str = "application/vnd.cyclonedx+json";
 
-/// How long an upload waits to connect, to send the SBOM, for the answer, and for its body (ADR 0018).
+/// How long an upload waits to connect, for a `100 Continue` before it sends the SBOM anyway (UPL-14), to send the
+/// SBOM, for the answer, and for its body (ADR 0018).
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+const CONTINUE_TIMEOUT: Duration = Duration::from_secs(1);
 const SEND_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 const BODY_TIMEOUT: Duration = Duration::from_secs(60);
@@ -105,7 +107,8 @@ impl fmt::Display for Described<'_> {
 }
 
 /// Uploads the SBOM of `version` of `product` to the service at `endpoint` with `token` (UPL-1, UPL-5): one `PUT`,
-/// no retry, no redirect followed (UPL-10).
+/// no retry, no redirect followed (UPL-10), the SBOM sent once the service answered `100 Continue` or after 1 s
+/// (UPL-14).
 ///
 /// # Errors
 /// [`UploadError`]: a name or a size refused before anything is sent (UPL-8), the service unreachable, the
@@ -127,6 +130,8 @@ pub fn upload(
         .put(format!("{endpoint}{path}"))
         .header("Authorization", format!("Bearer {}", token.expose()))
         .header("Content-Type", CONTENT_TYPE)
+        // An answer before the body (credentials checked first) is read, not lost in a reset (UPL-14).
+        .header("Expect", "100-continue")
         .send(sbom)
         .map_err(|error| unreachable(&error))?;
     let status = response.status().as_u16();
@@ -212,6 +217,7 @@ fn agent(endpoint: &Endpoint) -> ureq::Agent {
         .http_status_as_error(false)
         .max_redirects(0)
         .timeout_connect(Some(CONNECT_TIMEOUT))
+        .timeout_await_100(Some(CONTINUE_TIMEOUT))
         .timeout_send_body(Some(SEND_TIMEOUT))
         .timeout_recv_response(Some(RESPONSE_TIMEOUT))
         .timeout_recv_body(Some(BODY_TIMEOUT))

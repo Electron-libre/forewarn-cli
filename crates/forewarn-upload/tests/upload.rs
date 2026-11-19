@@ -37,7 +37,12 @@ struct Server {
 }
 
 impl Server {
+    /// The server answering `100 Continue` to a request that asks for it, as servers do.
     fn answering(status: u16, headers: &[(&str, &str)], body: &str) -> Self {
+        Self::start(status, headers, body, true)
+    }
+
+    fn start(status: u16, headers: &[(&str, &str)], body: &str, continues: bool) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").expect("a loopback port");
         let base = format!("http://{}", listener.local_addr().expect("an address"));
         let requests = Arc::new(Mutex::new(Vec::new()));
@@ -75,6 +80,12 @@ impl Server {
                     .iter()
                     .find(|(name, _)| name == "content-length")
                     .map_or(0, |(_, value)| value.parse().expect("a length"));
+                let expects = headers
+                    .iter()
+                    .any(|(name, value)| name == "expect" && value == "100-continue");
+                if continues && expects {
+                    let _ = reader.get_mut().write_all(b"HTTP/1.1 100 Continue\r\n\r\n");
+                }
                 let mut body = vec![0; length];
                 reader.read_exact(&mut body).expect("the body");
                 seen.lock().expect("the requests").push(Request {
@@ -148,6 +159,7 @@ fn an_sbom_is_sent_as_is_with_the_token_and_its_receipt_read() {
         request.header("content-type"),
         Some("application/vnd.cyclonedx+json")
     );
+    assert_eq!(request.header("expect"), Some("100-continue"));
     assert_eq!(request.body, sbom);
 }
 
@@ -335,4 +347,74 @@ fn a_name_the_contract_refuses_is_refused_before_anything_is_sent() {
     );
     assert!(error.to_string().contains("product name"), "{error}");
     assert!(server.requests().is_empty());
+}
+
+/// A loopback server answering `status` with `body` once it has read the head of a request, then closing the
+/// connection without reading its body; returns its base URL.
+fn answering_before_the_body(status: u16, body: &'static str) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("a loopback port");
+    let base = format!("http://{}", listener.local_addr().expect("an address"));
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(stream) = stream else { continue };
+            let mut reader = BufReader::new(stream);
+            loop {
+                let mut line = String::new();
+                if reader.read_line(&mut line).unwrap_or(0) == 0 || line.trim_end().is_empty() {
+                    break;
+                }
+            }
+            let mut stream = reader.into_inner();
+            let _ = write!(
+                stream,
+                "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    base
+}
+
+/// An SBOM of 8 MiB, more than a connection buffers before the service reads it.
+fn large_sbom() -> Vec<u8> {
+    vec![b' '; 8 * 1024 * 1024]
+}
+
+// spec: UPL-14, UPL-9, UPL-4
+#[test]
+fn credentials_refused_before_the_body_is_read_are_told() {
+    let base = answering_before_the_body(401, r#"{"error": "unauthorized"}"#);
+    let error = send(&base, &large_sbom()).expect_err("the upload fails");
+    assert_holds_no_token(&error);
+    assert!(
+        matches!(&error, UploadError::CredentialsRefused { refusal, .. } if refusal.status == 401),
+        "{error:?}"
+    );
+}
+
+// spec: UPL-14, UPL-9
+#[test]
+fn an_upload_refused_before_the_body_is_read_is_told() {
+    let base = answering_before_the_body(413, r#"{"error": "too_large"}"#);
+    let error = send(&base, &large_sbom()).expect_err("the upload fails");
+    assert!(
+        matches!(&error, UploadError::Refused { refusal, .. }
+            if refusal.status == 413 && refusal.body.error == ErrorCode::TooLarge),
+        "{error:?}"
+    );
+}
+
+// spec: UPL-14, UPL-1
+#[test]
+fn a_service_that_never_answers_100_continue_receives_the_sbom() {
+    let server = Server::start(201, &[], &receipt(2), false);
+    let sbom = br#"{"bomFormat": "CycloneDX"}"#;
+    let stored = send(&server.base, sbom).expect("stored");
+    assert!(
+        matches!(&stored, Stored::Created(receipt) if receipt.components == 2),
+        "{stored:?}"
+    );
+    let requests = server.requests();
+    assert_eq!(requests.len(), 1, "{requests:?}");
+    assert_eq!(requests[0].body, sbom);
 }

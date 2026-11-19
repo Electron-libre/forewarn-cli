@@ -35,3 +35,32 @@ Upload from CI
 
 # Hints
 * The token must never reach an error, whatever path the fix takes (UPL-4).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+Reproduced: a server answering `401` after the head and closing gives `Unreachable` ("Connection reset by peer").
+Means: candidate 1, measured: with `Expect: 100-continue`, `ureq` 3.5.2 reads an answer other than `100` instead of
+sending the body (no `100` within `timeout_await_100`, 1 s: the body is sent). Candidate 2 is impossible with the API
+of `ureq` (a send error drops the connection); candidate 3 costs a request on a route the spec keeps a non-goal. Out
+of scope: a refusal after a `100 Continue` (a proxy that buffers the body), a non-goal of the spec.
+
+## Plan
+1. [x] Early answer: the `PUT` sends `Expect: 100-continue`, the await of `100` set to 1 s in `send.rs`; the test
+   server answers `100 Continue` when asked, as real servers do; verified by tests of an early `401` and `413` on an
+   SBOM of 8 MiB and of a server that never answers `100`; ADR 0018 states the wait; makes true UPL-14, UPL-5. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 00a906aa524997be62051b4058b06d1c4de5153b
+
+## Deliverable 1
+- done: the `PUT` sends `Expect: 100-continue` and waits 1 s for `100 Continue`; an early `401`/`413` is read and
+  mapped (UPL-14); spec `accepted`, ADR 0018, user guide and CLAUDE.md state it.
+- red: UPL-14, UPL-9: `Unreachable { reason: "io: Connection reset by peer (os error 104)" }` for an early `401` and
+  `413`; the SBOM test lacked the header `expect`.
+- Code review: no findings
+- not verified: a real reverse proxy (nginx, a cloud load balancer); the CLI tests whose server never answers
+  `100 Continue` each wait 1 s (17 tests, 2.1 s in parallel).

@@ -298,7 +298,9 @@ Would upload acme-gateway 2.4.0 to https://forewarn.example.com: an SBOM of 1834
 It refuses what an upload would refuse before sending (exit codes 2, 3 and 10).
 
 A request is sent once, never retried, and no redirect is followed; each failure has its exit code (8 to 11, see
-[Exit codes](#exit-codes)): a `503` names the code `unavailable`, after which a rerun is safe.
+[Exit codes](#exit-codes)): a `503` names the code `unavailable`, after which a rerun is safe. The request asks
+`Expect: 100-continue` and sends the SBOM once the service agrees, or after 1 s without an answer, so a token the
+service refuses before reading the SBOM exits with 9, not 8.
 
 ## In CI
 

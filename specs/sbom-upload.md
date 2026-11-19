@@ -28,8 +28,8 @@ differently.
 ### Contract
 
 - **UPL-5** (deterministic) The request must be a `PUT` to the endpoint followed by the route of `sbom_upload_path`
-  (UPA-5), one `/` between them, with the headers `Authorization: Bearer <token>` and `Content-Type:
-  application/vnd.cyclonedx+json`, and the SBOM bytes as body.
+  (UPA-5), one `/` between them, with the headers `Authorization: Bearer <token>`, `Content-Type:
+  application/vnd.cyclonedx+json` and `Expect: 100-continue`, and the SBOM bytes as body.
 - **UPL-6** (deterministic) The endpoint must be an absolute URL whose scheme is `https`, or `http` with the host
   `localhost`, an IPv4 address of `127.0.0.0/8` or `[::1]`, an IPv6 host being an address, a port of `0` to `65535`
   or none, a path or none (the root of the service), and no `@` (user information), no query and no fragment.
@@ -55,6 +55,10 @@ differently.
 
 - **UPL-13** (deterministic) An upload to a loopback endpoint in plain HTTP must reach it directly, never through a
   proxy the environment names (`ALL_PROXY`, `HTTPS_PROXY`, `HTTP_PROXY`).
+- **UPL-14** (deterministic) An upload must send the SBOM only once the service answered `100 Continue` to the head of
+  the request, or gave no answer within 1 second, and read an answer the service gives before, then closing the
+  connection, as UPL-9 maps it, so that credentials refused before the body are not reported as an
+  endpoint it cannot reach.
 
 ## Scenarios
 
@@ -91,6 +95,11 @@ differently.
 - (UPL-13) Given `HTTP_PROXY` naming a proxy and the endpoint `http://127.0.0.1:<port>`, the service receives the
   request and the proxy none.
 - (UPL-12) Given the service answers `400` with a message holding the token, the error holds `***` in its place.
+- (UPL-14, UPL-9) Given the service answers `401` with `{"error": "unauthorized"}` as soon as it read the head of the
+  request, then closes the connection without reading an SBOM of 8 MiB, the upload fails with credentials refused;
+  given `413` with `{"error": "too_large"}`, with upload refused.
+- (UPL-14, UPL-1) Given a service that never answers `100 Continue`, the SBOM is sent after 1 second and its receipt
+  read.
 
 ## Non-goals
 
@@ -100,4 +109,6 @@ differently.
 - The account of a token (`/api/v1/account`): no command asks for it yet.
 - A proxy of its own setting, a client certificate or a custom root certificate: an HTTPS endpoint goes through the
   proxy the environment names, as the other sources do, with the roots `ureq` ships.
+- A refusal the service gives after it answered `100 Continue`, while the SBOM is being sent (a reverse proxy that
+  accepts the body before the service checks the token): the send fails and is reported as unreachable.
 - The timeouts of the request: a test cannot prove them without waiting; ADR 0018 states them.

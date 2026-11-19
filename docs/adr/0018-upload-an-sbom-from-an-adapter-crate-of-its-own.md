@@ -24,7 +24,9 @@ upload and an unreadable answer differently.
 - **No redirect followed**: a `PUT` redirected to another host would send the token and the SBOM there.
 - **No proxy for a loopback endpoint in plain HTTP**: a proxy the environment names would carry the token and the SBOM
   in clear to another machine, and reach its own loopback. An HTTPS endpoint goes through it, TLS end to end.
-- **An agent of its own**: no redirect, connect 30 s, sending the body 5 min, waiting for the answer 2 min, reading it
+- **An agent of its own**: no redirect, connect 30 s, the head sent with `Expect: 100-continue` and the body sent once
+  the service answers `100 Continue` or after 1 s (an answer before it, such as credentials refused, is read instead
+  of lost in a reset), sending the body 5 min, waiting for the answer 2 min, reading it
   1 min; the cache's agent (`forewarn_cache::agent`) follows redirects and waits 30 min for a body.
 - **No retry**: the request is sent once; the code `unavailable` tells the caller a retry is safe.
 - **The SBOM is refused over 10 MiB before it is sent**, the limit of the service (UPA-9), rather than uploaded to be
