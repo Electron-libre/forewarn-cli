@@ -5,17 +5,15 @@
 //! fetched.
 #![cfg(unix)]
 
+mod ci_template;
 mod common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::os::unix::fs::symlink;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
+use ci_template::{Sandbox, fixture, indent};
 use common::{Run, run_command};
-use serde_json::Value;
-use tempfile::TempDir;
 
 const TEMPLATE: &str = "examples/ci/github-actions.yml";
 
@@ -29,23 +27,6 @@ const UPLOAD: &str = "Upload the SBOM of the release";
 /// instead of the one `syft` would write.
 const INSTALL: &str = "Install forewarn, checked against the SHA256SUMS of its release";
 const PRODUCE_SBOM: &str = "Produce the SBOM";
-
-fn workspace_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(2)
-        .expect("the crate lives two levels below the workspace root")
-        .to_path_buf()
-}
-
-fn fixture(relative: &str) -> PathBuf {
-    workspace_root().join(relative)
-}
-
-/// The indentation of a line, in spaces.
-fn indent(line: &str) -> usize {
-    line.len() - line.trim_start_matches(' ').len()
-}
 
 /// A step of the template that runs a shell block.
 #[derive(Default)]
@@ -148,117 +129,29 @@ fn run_steps(template: &str) -> BTreeMap<String, TemplateStep> {
     found
 }
 
-/// Shell-quotes a path.
-fn quoted(path: &Path) -> String {
-    let text = path.to_str().expect("a UTF-8 path");
-    format!("'{}'", text.replace('\'', r"'\''"))
-}
-
-/// The `forewarn <command>` line of `block` rewritten by `rewrite` (its tokens after the command); the block must run
-/// that command once, on one line without quotes, so that no rewrite misses an argument.
-fn rewritten(block: &str, command: &str, rewrite: impl Fn(Vec<&str>) -> Vec<String>) -> String {
-    let prefix = format!("forewarn {command} ");
-    let lines: Vec<&str> = block
-        .lines()
-        .filter(|line| line.contains(&prefix))
-        .collect();
-    assert_eq!(
-        lines.len(),
-        1,
-        "{TEMPLATE}: one `forewarn {command}` in:\n{block}"
-    );
-    let line = lines[0];
-    assert!(
-        !line.contains(['\'', '"', '\\']),
-        "{TEMPLATE}: the line of `forewarn {command}` is rewritten word by word: {line}"
-    );
-    let (head, tail) = line.split_once(&prefix).expect("the line runs the command");
-    let tokens = rewrite(tail.split_whitespace().collect());
-    block.replace(line, &format!("{head}{prefix}{}", tokens.join(" ")))
-}
-
-/// The match of the template with the feeds given as files, so that nothing is fetched; its refresh policy is
-/// dropped, as `forewarn` refuses one when nothing is fetched.
 fn with_local_feeds(block: &str) -> String {
-    rewritten(block, "match", |tokens| {
-        let at = tokens
-            .iter()
-            .position(|token| *token == "--refresh" || token.starts_with("--refresh="))
-            .unwrap_or_else(|| {
-                panic!("{TEMPLATE}: the match gives a refresh policy, dropped here: {tokens:?}")
-            });
-        let refresh = if tokens[at] == "--refresh" {
-            at..=at + 1
-        } else {
-            at..=at
-        };
-        let mut args: Vec<String> = [
-            ("--osv", "crates/forewarn-osv/tests/fixtures"),
-            ("--osv", "crates/forewarn/tests/fixtures/ci-template/osv"),
-            ("--kev", "crates/forewarn-exploited/tests/fixtures/kev.json"),
-            (
-                "--euvd",
-                "crates/forewarn-exploited/tests/fixtures/euvd.json",
-            ),
-        ]
-        .iter()
-        .flat_map(|(option, path)| [(*option).to_owned(), quoted(&fixture(path))])
-        .collect();
-        args.extend(
-            tokens
-                .iter()
-                .enumerate()
-                .filter(|(i, _)| !refresh.contains(i))
-                .map(|(_, token)| (*token).to_owned()),
-        );
-        args
-    })
+    ci_template::with_local_feeds(TEMPLATE, block)
 }
 
-/// The upload of the template as a dry run: nothing sent, no token read.
 fn as_dry_run(block: &str) -> String {
-    rewritten(block, "upload", |tokens| {
-        std::iter::once("--dry-run".to_owned())
-            .chain(tokens.into_iter().map(str::to_owned))
-            .collect()
-    })
+    ci_template::as_dry_run(TEMPLATE, block)
 }
 
 /// A run of the job: the trigger's variables of GitHub and the directory of the product.
 struct Job {
-    _scratch: TempDir,
-    product: PathBuf,
-    bin: PathBuf,
-    home: PathBuf,
+    sandbox: Sandbox,
     output: PathBuf,
-    env: Vec<(&'static str, String)>,
     steps: BTreeMap<String, TemplateStep>,
 }
 
 impl Job {
     fn new(env: &[(&'static str, &str)]) -> Self {
         let template = fs::read_to_string(fixture(TEMPLATE)).expect("the template is read");
-        let scratch = TempDir::new().expect("a temporary directory");
-        let product = scratch.path().join("acme-app");
-        let bin = scratch.path().join("bin");
-        let home = scratch.path().join("home");
-        let output = scratch.path().join("github-output");
-        for directory in [&product, &bin, &home] {
-            fs::create_dir(directory).expect("a directory is created");
-        }
-        // The install step, replaced: the binary of this commit, first on `PATH`.
-        symlink(env!("CARGO_BIN_EXE_forewarn"), bin.join("forewarn"))
-            .expect("the binary is linked");
+        let sandbox = Sandbox::new(env);
+        let output = sandbox.scratch().join("github-output");
         Self {
-            _scratch: scratch,
-            product,
-            bin,
-            home,
+            sandbox,
             output,
-            env: env
-                .iter()
-                .map(|(name, value)| (*name, (*value).to_owned()))
-                .collect(),
             steps: run_steps(&template),
         }
     }
@@ -274,23 +167,10 @@ impl Job {
     /// the product, with the variables of the job and of the step only: none of the caller's (`GIT_DIR`, its Git
     /// configuration, `BASH_ENV`) reaches it.
     fn run(&self, script: &str, step_env: &[(&str, &str)]) -> Run {
-        let path = format!(
-            "{}:{}",
-            self.bin.display(),
-            std::env::var("PATH").unwrap_or_default()
-        );
-        let mut command = Command::new("bash");
+        let mut command = self.sandbox.command("bash");
         command
-            .env_clear()
-            .current_dir(&self.product)
-            .env("PATH", path)
-            .env("HOME", &self.home)
-            .env("XDG_CACHE_HOME", self.home.join(".cache"))
-            .env("GIT_CONFIG_NOSYSTEM", "1")
-            .env("GIT_CONFIG_GLOBAL", "/dev/null")
             .env("GITHUB_OUTPUT", &self.output)
-            .env("GITHUB_REPOSITORY", "acme/acme-app")
-            .envs(self.env.iter().map(|(name, value)| (*name, value.as_str())));
+            .env("GITHUB_REPOSITORY", "acme/acme-app");
         let env: Vec<(&str, Option<&str>)> = step_env
             .iter()
             .map(|(name, value)| (*name, Some(*value)))
@@ -356,27 +236,9 @@ impl Job {
             fixture(&format!(
                 "crates/forewarn/tests/fixtures/ci-template/{fixture_name}"
             )),
-            self.product.join("sbom.cdx.json"),
+            self.sandbox.product.join("sbom.cdx.json"),
         )
         .expect("the SBOM is copied");
-    }
-
-    fn git(&self, args: &[&str]) -> String {
-        let ran = self.run(
-            &format!(
-                "git -c user.name=ci -c user.email=ci@example.invalid {}",
-                args.join(" ")
-            ),
-            &[],
-        );
-        assert_eq!(ran.code, 0, "git {args:?}: {}", ran.stderr);
-        ran.stdout.trim().to_owned()
-    }
-
-    fn report(&self) -> Value {
-        let text =
-            fs::read_to_string(self.product.join("forewarn.json")).expect("the report is written");
-        serde_json::from_str(&text).unwrap_or_else(|e| panic!("{e}: {text}"))
     }
 }
 
@@ -415,18 +277,11 @@ fn a_daily_run_checks_the_latest_tag_and_fails_on_an_actively_exploited_match() 
         ("GITHUB_REF_NAME", "main"),
         ("GITHUB_SHA", "0000000000000000000000000000000000000000"),
     ]);
-    job.git(&["init", "--quiet"]);
-    fs::write(job.product.join("README"), "1.2.0\n").expect("written");
-    job.git(&["add", "README"]);
-    job.git(&["commit", "--quiet", "-m", "release"]);
-    job.git(&["tag", "v1.2.0"]);
-    let release = job.git(&["rev-parse", "HEAD"]);
-    fs::write(job.product.join("README"), "next\n").expect("written");
-    job.git(&["commit", "--quiet", "-am", "next"]);
+    let release = job.sandbox.tagged_release_and_a_commit_after();
 
     job.step(CHECK_OUT, unchanged, &[], 0);
     assert_eq!(
-        job.git(&["rev-parse", "HEAD"]),
+        job.sandbox.git(&["rev-parse", "HEAD"]),
         release,
         "the latest tag is checked out"
     );
@@ -438,10 +293,11 @@ fn a_daily_run_checks_the_latest_tag_and_fails_on_an_actively_exploited_match() 
     job.step(CHECK, unchanged, &[], 0);
     job.step(MATCH, with_local_feeds, &[], 6);
 
-    let report = job.report();
+    let report = job.sandbox.report();
     assert_eq!(report["exploitedCount"], 1, "{report}");
     assert!(
-        job.product
+        job.sandbox
+            .product
             .join("drafts/acme-app-CVE-2021-44228.md")
             .is_file(),
         "the draft early warning of the exploited CVE is written"
@@ -465,7 +321,7 @@ fn a_tag_run_passes_on_a_match_not_exploited_and_uploads_the_sbom() {
     job.produce_sbom("affected.cdx.json");
     job.step(CHECK, unchanged, &[], 0);
     job.step(MATCH, with_local_feeds, &[], 0);
-    let report = job.report();
+    let report = job.sandbox.report();
     assert_eq!(report["exploitedCount"], 0, "{report}");
     assert!(
         !report["affected"].as_array().expect("an array").is_empty(),
