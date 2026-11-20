@@ -31,7 +31,7 @@ exit code a CI job can act on. The matches an exploited list names are marked as
   server sent one (OSF-2); for a local path given with `--osv`, that path.
 - **MCH-5** (deterministic) Without `--osv`, `forewarn match <sbom>` must fetch the OSV archive (OSF-1) of each OSV
   ecosystem a component maps to (VMT-4), each once, in the order of the first component that maps to it, and fetch
-  nothing when no component maps to one; the archive of `Debian` stands for the releases OSV publishes none of
+  nothing when no component maps to one; the archive of `Debian` stands for every Debian release
   (OSF-22), named `Debian` among the sources.
 - **MCH-6** (deterministic) `forewarn match --osv <path> <sbom>` must match against the records of that OSV record file
   or directory (OSR-1, OSR-2), repeated for several paths, and fetch no OSV archive.

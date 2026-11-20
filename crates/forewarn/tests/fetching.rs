@@ -320,29 +320,16 @@ fn each_ecosystem_is_fetched_once_in_the_order_of_its_first_component() {
     );
 }
 
-// spec: MCH-5, OSF-14, OSF-21
+// spec: OSF-H4, OSF-22, OSF-21, MCH-5
 #[test]
-fn the_debian_packages_fetch_the_archive_of_their_release() {
-    let cache = TempDir::new().expect("a cache");
-    let mirror = Mirror::new();
-    mirror.serve("Debian%3A13", &[], None);
-    let purl = "pkg:deb/debian/libc6@2.41-12?arch=amd64&distro=debian-13.7&upstream=glibc";
-    let input = bom("1.6", &json!([component("libc6", "2.41-12", Some(purl))]));
-    let run = fetch(cache.path(), &mirror, &["--format", "json"], &input);
-    assert_eq!(run.code, 0, "{}", run.stderr);
-    assert_eq!(mirror.requests(), ["/Debian%3A13/all.zip"]);
-    assert_eq!(osv_of(&run)[0]["ecosystem"], json!("Debian:13"));
-    assert!(cache.path().join("Debian%3A13").is_dir());
-}
-
-// spec: OSF-H4, OSF-22, MCH-5
-#[test]
-fn a_debian_release_without_an_archive_is_matched_against_the_debian_archive() {
+fn the_debian_packages_are_matched_against_the_current_debian_archive() {
     let cache = TempDir::new().expect("a cache");
     let mirror = crates_io_mirror();
     mirror.serve("Debian", &["DEBIAN-CVE-2024-6387.json"], None);
+    // The frozen archive of the release, holding no record of `openssh`: never requested.
+    mirror.serve("Debian%3A13", &[], None);
     let purl =
-        "pkg:deb/debian/openssh-server@1%3A9.6p1-3?arch=amd64&distro=debian-14&upstream=openssh";
+        "pkg:deb/debian/openssh-server@1%3A9.6p1-3?arch=amd64&distro=debian-13.1&upstream=openssh";
     let input = bom(
         "1.6",
         &json!([
@@ -352,14 +339,9 @@ fn a_debian_release_without_an_archive_is_matched_against_the_debian_archive() {
     );
     let run = fetch(cache.path(), &mirror, &["--format", "json"], &input);
     assert_eq!(run.code, 1, "{}", run.stderr);
-    assert_eq!(
-        mirror.requests(),
-        [
-            "/Debian%3A14/all.zip",
-            "/Debian/all.zip",
-            "/crates.io/all.zip"
-        ]
-    );
+    assert_eq!(mirror.requests(), ["/Debian/all.zip", "/crates.io/all.zip"]);
+    assert!(cache.path().join("Debian").is_dir());
+    assert!(!cache.path().join("Debian%3A13").exists());
     let osv = osv_of(&run);
     assert_eq!(osv[0]["ecosystem"], json!("Debian"));
     assert_eq!(osv[1]["ecosystem"], json!("crates.io"));

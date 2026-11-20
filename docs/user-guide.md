@@ -149,10 +149,10 @@ Clean: 0 of 2 components
 | Local OSV records (a file or an extracted archive) | `--osv <path>`, repeatable | nothing |
 | OSV API | `--osv-api`; `--osv-api-url` for another | ecosystem, name and version of each component |
 
-The default downloads `<ecosystem>/all.zip` for each ecosystem of the SBOM (`Debian%3A13/all.zip` for `Debian:13`).
-A release OSV publishes no archive of (`Debian:14`, testing, answers 404) is read from the archive of its parent,
-`Debian/all.zip` (about 80 MB, every release), downloaded once and named `Debian` among the sources of the report; with
-`--refresh offline`, from that archive when the cache holds it.
+The default downloads `<ecosystem>/all.zip` for each ecosystem of the SBOM. A Debian release (`Debian:13`) is read
+from the archive of its parent, `Debian/all.zip` (about 80 MB, the current advisories of every release), downloaded
+once and named `Debian` among the sources of the report: OSV still serves an archive per release, `Debian%3A13/all.zip`,
+but stopped updating it in October 2024, so forewarn never reads it.
 The API answer depends on the moment of the query, which the report gives; it is never on by default.
 
 ### Actively exploited
@@ -197,7 +197,7 @@ verdicts**. A `--vex` file that cannot be read stops the run with exit code 3.
 | | |
 |---|---|
 | Location | `$XDG_CACHE_HOME/forewarn/osv`, else `~/.cache/forewarn/osv`; `--cache <dir>` for another |
-| Contents | one directory per OSV ecosystem (each `:` written `%3A`: `Debian%3A13`), `cisa-kev`, `euvd-exploited` |
+| Contents | one directory per OSV ecosystem (`Debian` for every Debian release), `cisa-kev`, `euvd-exploited`; a `Debian%3A<n>` directory an earlier forewarn left is no longer read, and can be removed |
 | Refresh | `--refresh 1d` by default; `offline` (never download), `if-missing`, `always`, or an age (`30m`, `12h`, `7d`) |
 | Shared by several runs | yes: readers share it, a download waits for them and they for it, up to 40 minutes per entry |
 | A copy damaged outside `forewarn` | downloaded again; under `--refresh offline`, the run fails with "damaged cached copy" |

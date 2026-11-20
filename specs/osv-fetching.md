@@ -34,11 +34,10 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
 - **OSF-7** (deterministic) Fetches of two different ecosystems into the same cache must not wait for each other.
 - **OSF-8** (deterministic) A fetch stopped before it was done with an ecosystem (a killed process) must not make a
   later fetch of that ecosystem wait.
-- **OSF-22** (deterministic) Fetching an ecosystem `<parent>:<release>` (`Debian:14`) whose archive the server
-  answers 404 must return in its place the snapshot of the ecosystem `<parent>` (`Debian`, whose archive holds the
-  records of every release), fetched under the same refresh policy; that snapshot, or that of a `<parent>` the list
-  names, must stand for every ecosystem `<parent>:<…>` of the list: returned once, at the place of the first of them,
-  the releases after it not fetched.
+- **OSF-22** (deterministic) Fetching an ecosystem `<parent>:<release>` (`Debian:13`) must return in its place the
+  snapshot of the ecosystem `<parent>` (`Debian`, whose archive holds the current records of every release), fetched
+  under the same refresh policy, without requesting the archive of the release (OSV stopped updating those in October
+  2024), and once for `<parent>` and every ecosystem `<parent>:<…>` of the list, at the place of the first of them.
 
 ### Contract
 
@@ -63,8 +62,8 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
 - **OSF-13** (deterministic) A snapshot whose record of freshness names no files (stored by an earlier forewarn) must
   be downloaded again under `if-missing` or `older-than <age>`, and read as it is under `offline`.
 - **OSF-14** (deterministic) A download must request, with a `GET` and no body, the URL `<base>/<ecosystem>/all.zip`,
-  `<base>` being `https://osv-vulnerabilities.storage.googleapis.com` unless the caller gives another, each `:` of the
-  ecosystem written `%3A`.
+  `<base>` being `https://osv-vulnerabilities.storage.googleapis.com` unless the caller gives another, `<ecosystem>`
+  being `<parent>` for an ecosystem `<parent>:<release>` (OSF-22).
 - **OSF-15** (deterministic) A fetch that reads a snapshot from the cache must return the vulnerabilities and the
   freshness the download that stored it returned.
 - **OSF-16** (deterministic) A download that fails, for any cause of OSF-18, must leave the snapshot the cache held
@@ -89,13 +88,13 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
   caller gives, 40 minutes unless the caller gives another, then fail with the error of OSF-18.
 - **OSF-20** (deterministic) Fetching under `offline` must read the snapshots of a cache in which it cannot write,
   without waiting for another fetch.
-- **OSF-21** (deterministic) The snapshot of an ecosystem must be kept in a directory of the cache named after it,
-  each `:` written `%3A`, a name every supported system accepts.
-- **OSF-23** (deterministic) Under `offline`, an ecosystem `<parent>:<release>` whose cache holds no snapshot must be
-  read from the snapshot of `<parent>` the cache holds (OSF-22), and fail with "not cached" naming
-  `<parent>:<release>` when it holds neither.
-- **OSF-24** (deterministic) An ecosystem `<parent>:<release>` whose archive answers 404 and whose `<parent>` cannot be
-  fetched must fail with the error of OSF-18 for `<parent>`, naming `<parent>:<release>`.
+- **OSF-21** (deterministic) The snapshot of an ecosystem must be kept in a directory of the cache named after the
+  ecosystem whose archive was downloaded (`Debian` for `Debian:13`), a name every supported system accepts.
+- **OSF-23** (deterministic) Under `offline`, an ecosystem `<parent>:<release>` must be read from the snapshot of
+  `<parent>` the cache holds (OSF-22), never from a snapshot of the release an earlier forewarn left in the cache, and
+  fail with "not cached" naming `<parent>:<release>` when the cache holds no snapshot of `<parent>`.
+- **OSF-24** (deterministic) An ecosystem `<parent>:<release>` whose `<parent>` cannot be fetched must fail with the
+  error of OSF-18 for `<parent>`, naming `<parent>:<release>`.
 - **OSF-25** (deterministic) An ecosystem with no `:` whose archive answers 404 must fail with "cannot download",
   without another request.
 
@@ -110,10 +109,11 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
 - **OSF-H3** (happy; OSF-4, OSF-9) Given a run fetching `crates.io` into a cache, when a second run fetches
   `crates.io` into it under `if-missing` at the same time, then the second sends no request until the first is done,
   and returns the snapshot the first stored without downloading it again.
-- **OSF-H4** (happy; OSF-22, OSF-14) Given an empty cache and a server publishing the `Debian` and `crates.io`
-  archives but answering 404 for `Debian%3A14`, when `Debian:14` and `crates.io` are fetched under `if-missing`, then
-  `<base>/Debian%3A14/all.zip`, `<base>/Debian/all.zip` and `<base>/crates.io/all.zip` are requested, and the
-  snapshots of `Debian` and `crates.io` are returned in that order, the first carrying the URL of `Debian/all.zip`.
+- **OSF-H4** (happy; OSF-22, OSF-14, OSF-21) Given an empty cache and a server publishing the `Debian`, `Debian%3A13`
+  and `crates.io` archives, when `Debian:13` and `crates.io` are fetched under `if-missing`, then only
+  `<base>/Debian/all.zip` and `<base>/crates.io/all.zip` are requested, and the snapshots of `Debian` and `crates.io`
+  are returned in that order, the first carrying the URL of `Debian/all.zip` and kept in the cache directory
+  `Debian`.
 - (OSF-9) Given a snapshot downloaded 2 hours ago, when it is fetched under `older-than 1h`, then the archive is
   downloaded again; under `older-than 1d`, it is read from the cache.
 - (OSF-9) Given a snapshot in the cache, when it is fetched under `always`, then the archive is downloaded again.
@@ -167,27 +167,18 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
   entry" quoting that name, and no file is written outside the cache directory.
 - (OSF-17) Given the ecosystem names `../x`, `.hidden` and an empty name, when each is fetched, then each fails with
   "invalid ecosystem name" and no request is sent.
-- (OSF-14, OSF-21) Given the ecosystem `Debian:13`, when it is fetched, then the URL `<base>/Debian%3A13/all.zip` is
-  requested and its snapshot kept in the cache directory `Debian%3A13`.
-- (OSF-22) Given the same server, when `Debian:14`, `crates.io`, `Debian:15` and `Debian` are fetched under
-  `always`, then `Debian/all.zip` is requested once, `Debian%3A15` not at all, and the snapshots of `Debian` and
-  `crates.io` are returned, in that order.
-- (OSF-22) Given a server also publishing `Debian%3A13`, when `Debian:13`, `Debian:14` and `Debian:15` are fetched,
-  then `Debian%3A13`, `Debian%3A14` and `Debian` are requested and the snapshot of `Debian` alone is returned: no
-  record is read from two snapshots of different ages; when `Debian:14` and `Debian:13` are fetched, then only
-  `Debian%3A14` and `Debian` are requested; when `crates.io`, `Debian:13`, `Debian` and `Debian:14` are fetched, then
-  the snapshots of `crates.io` and `Debian` are returned, `Debian%3A14` not requested.
-- (OSF-22, OSF-9) Given a cache holding a snapshot of `Debian` and the same server, when `Debian:14` is fetched under
-  `if-missing`, then only `<base>/Debian%3A14/all.zip` is requested and the cached snapshot of `Debian` returned.
-- (OSF-23) Given a cache holding a snapshot of `Debian` and none of `Debian:14`, when `Debian:14` is fetched under
-  `offline`, then the snapshot of `Debian` is returned and no request is sent; with an empty cache, it fails with
-  "not cached" naming `Debian:14`.
-- (OSF-24) Given a server answering 404 for both `Debian%3A14` and `Debian`, when `Debian:14` is fetched, then it fails
-  with "cannot download" naming `Debian:14` and the URL of `Debian/all.zip`.
+- (OSF-22) Given the same server, when `Debian:13`, `crates.io`, `Debian:12` and `Debian` are fetched under
+  `always`, then `Debian/all.zip` is requested once and the snapshots of `Debian` and `crates.io` are returned, in
+  that order; when `crates.io`, `Debian` and `Debian:13` are fetched, then those of `crates.io` and `Debian`.
+- (OSF-22, OSF-9) Given a cache holding a snapshot of `Debian` and the same server, when `Debian:13` is fetched under
+  `if-missing`, then no request is sent and the cached snapshot of `Debian` is returned.
+- (OSF-23) Given a cache holding a snapshot of `Debian:13` in `Debian%3A13` (left by an earlier forewarn) and one of
+  `Debian`, when `Debian:13` is fetched under `offline`, then the snapshot of `Debian` is returned and no request is
+  sent; with a cache holding only the snapshot of `Debian:13`, it fails with "not cached" naming `Debian:13`.
+- (OSF-24) Given a server answering 404 for `Debian`, when `Debian:13` is fetched, then it fails with "cannot download"
+  naming `Debian:13` and the URL of `Debian/all.zip`, after one request.
 - (OSF-25) Given a server answering 404 for `npm`, when `npm` is fetched, then it fails with "cannot download" after
   one request.
-- (OSF-22) Given a server answering 503 for `Debian%3A14`, when `Debian:14` is fetched, then it fails with "cannot
-  download" and `Debian/all.zip` is not requested.
 - (OSF-1) Given an archive holding a record in a subdirectory and a `README.txt` beside its records, when it is
   fetched, then only the records at its top are returned.
 
@@ -205,6 +196,7 @@ that the matching runs on OSV data with only ecosystem names leaving the CI.
 - An `offline` fetch reading a snapshot that a writing fetch replaces at that moment, in a cache it cannot write in.
 - Reading a zip archive other than one fetched: a local archive is extracted by the user and read as a directory.
 - Retrying a failed download.
-- Remembering that a release has no archive: each fetch that would download it asks again, one request answered 404.
+- Removing the snapshots of a release an earlier forewarn kept in the cache (`Debian%3A13`): they are no longer read,
+  and the user removes them.
 - Keeping only the records of the release from the archive of `<parent>`: the matching leaves the other releases
   out by their ecosystem.

@@ -33,7 +33,7 @@ file or paged from the EUVD search into the same cache, into the list `EUVD`, an
 [0009](docs/adr/0009-page-the-euvd-search-for-its-exploited-list.md)); the OSV adapter reads an OSV record file, or a directory of them (an extracted
 ecosystem archive), into those vulnerabilities (`specs/osv-reading.md`, ADR
 [0003](docs/adr/0003-osv-adapter-crate-with-own-serde-model.md)), and fetches the archive of each ecosystem
-(`<ecosystem>/all.zip`, that of `Debian` for a release it publishes none of, `Debian:14`) into a cache under a refresh policy, recording when it was downloaded (`specs/osv-fetching.md`, ADR
+(`<ecosystem>/all.zip`, that of `Debian` for every release, `Debian:13`, whose own archives OSV no longer updates) into a cache under a refresh policy, recording when it was downloaded (`specs/osv-fetching.md`, ADR
 [0004](docs/adr/0004-fetch-osv-ecosystem-archives-into-a-cache.md)): only ecosystem names leave the CI. A file lock
 per ecosystem makes concurrent runs sharing a cache wait for a run that downloads, while runs that only read share it (ADRs
 [0005](docs/adr/0005-lock-each-ecosystem-of-the-osv-cache-with-a-file-lock.md),
