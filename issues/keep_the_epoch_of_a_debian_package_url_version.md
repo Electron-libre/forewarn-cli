@@ -16,6 +16,13 @@ the package URL version kept in that case.
   of the `epoch` qualifier to a version that lacks one, not the epoch written in the package URL version.
 * Trivy 0.76.2 writes the epoch in the component `version` and in the `epoch` qualifier (both handled); the tool
   that writes it in the package URL version only was not measured.
+* 2026-11-20, measured on `debian:12` (`login`, `passwd`, `zlib1g`): Syft 1.57.1 writes the epoch in the component
+  `version` and the package URL version (`1%3A…`); cdxgen 13.2.0 (its Trivy plugin v0.74.0) in both and in the
+  `epoch` qualifier, the `:` of the package URL version not percent-encoded (`login@1:4.13%2B…`). No tool measured
+  writes it in the package URL version only; both SBOMs are matched at `1:4.13+dfsg1-1+deb12u2` (a record fixed at
+  `+deb12u2` does not report it, one at `+deb12u3` does).
+* Same measure: cdxgen 13.2.0 names no source package of a `deb` component (no `upstream` qualifier, no
+  `aquasecurity:trivy:Src…` property): `match_the_debian_packages_of_a_cdxgen_sbom`.
 
 # Approach
 1. Measure: the Syft and cdxgen SBOMs of a Debian image, a package with an epoch (`login`, `passwd`): where each
@@ -51,7 +58,7 @@ Measure (approach step 1): not run, a Docker run of Syft/cdxgen was refused in t
 ## Decisions
 - Mode: autonomous
 - Base commit: cc8892d9e7017b2413e25e2938a5a84acbdefef8
-- Measure: skipped (1 a); the fix holds whatever Syft and cdxgen write.
+- Measure: skipped at validation (1 a), then run on 2026-11-20 once Docker was allowed (Findings).
 - Both epochs given: the epoch of the package URL version first, so a package is matched at the same version with or
   without a component version (`high` review, answer 1 on 2026-11-20; replaces the earlier 2 a).
 
