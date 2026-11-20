@@ -47,6 +47,12 @@ package and version the advisories name, whichever image scanner wrote the SBOM.
   `pkg:deb/debian/libc6@2.36-9%2Bdeb12u14?arch=amd64&distro=debian-12.15` of source package `glibc` 2.36-9+deb12u14,
   and a record affecting `Debian:12` `glibc` in the `ECOSYSTEM` range introduced `0`, fixed `2.36-9+deb12u15`, when
   the components are matched, then `libc6` 2.36-9+deb12u14 is reported with that record.
+- **DEB-H3** (happy; DEB-1, DEB-2, DEB-5) Given an SBOM `cdxgen` wrote for the image `debian:12`, with the binary
+  package `pkg:deb/debian/passwd@1:4.13%2Bdfsg1-1%2Bdeb12u2?arch=amd64&distro=debian-12&epoch=1` and, beside it, the
+  component cdxgen adds for its source package, tagged `source`,
+  `pkg:deb/debian/shadow@1:4.13%2Bdfsg1-1%2Bdeb12u2?arch=amd64&distro=debian-12&epoch=1`, and a record affecting
+  `Debian:12` `shadow` in the `ECOSYSTEM` range introduced `0`, fixed `1:4.13+dfsg1-1+deb12u3`, when the components
+  are matched, then `shadow` 1:4.13+dfsg1-1+deb12u2 is reported with that record and `passwd` is not.
 - (DEB-1) Given the `openssl` record of DEB-H1 under `Debian:12`, when the `libssl3t64` of DEB-H1 is matched, then no
   match is reported.
 - (DEB-1) Given `pkg:deb/debian/libc6@2.41-12?arch=amd64`, with no `distro`, or with `distro=trixie`, when it is
@@ -78,3 +84,5 @@ package and version the advisories name, whichever image scanner wrote the SBOM.
 - The packages of Debian derivatives (Ubuntu) and of other distributions (Alpine, RPM), and a Debian release named by
   its code name (`trixie`): each needs its own mapping to an OSV ecosystem.
 - The ordering of Debian versions: `specs/version-ordering.md` states it.
+- Naming, beside a source package component `cdxgen` adds (DEB-H3), the binary packages its evidence says it was
+  built into: the advisory is reported under the component the SBOM lists.

@@ -241,6 +241,30 @@ fn reads_the_source_packages_trivy_writes_for_a_debian_image() {
     );
 }
 
+// spec: SBR-4, SBR-17
+#[test]
+fn reads_the_source_packages_cdxgen_lists_apart_for_a_debian_image() {
+    let sbom = read_fixture("cdxgen-debian.cdx.json");
+    assert_eq!(sbom.spec_version, SpecVersion::new(1, 7));
+    let read: Vec<(&str, Option<&str>, bool)> = sbom
+        .components
+        .iter()
+        .map(|c| (c.name.as_str(), c.version.as_deref(), c.source.is_some()))
+        .collect();
+    assert_eq!(
+        read,
+        vec![
+            ("libblkid1", Some("2.38.1-5+deb12u3"), false),
+            ("glibc", Some("2.36-9+deb12u14"), false),
+            ("libc6", Some("2.36-9+deb12u14"), false),
+            ("login", Some("1:4.13+dfsg1-1+deb12u2"), false),
+            ("shadow", Some("1:4.13+dfsg1-1+deb12u2"), false),
+            ("passwd", Some("1:4.13+dfsg1-1+deb12u2"), false),
+            ("util-linux", Some("2.38.1-5+deb12u3"), false),
+        ]
+    );
+}
+
 // spec: SBR-16, SBR-4
 #[test]
 fn reads_the_bom_ref_each_tool_writes() {

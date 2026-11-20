@@ -41,3 +41,51 @@ package matched under its source, or reported as not evaluated, rather than sile
 
 # Hints
 * cdxgen writes the `:` of a package URL version unencoded (`login@1:4.13%2B…`); `forewarn` reads it.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-20
+
+## Understanding
+Measured on 2026-11-20 (cdxgen 13.2.0, `debian:12`, `/opt/cdxgen/lib/managers/binary.js`): cdxgen reads the
+`aquasecurity:trivy:Src…` properties of its Trivy plugin, drops them from the binary package and adds a component of
+its own for each source package named apart (`shadow`, `glibc`: tag `source`, identity evidence of confidence 0
+naming the binaries), dropped when a binary of the same package URL exists (`util-linux`, `apt`). `forewarn match`
+already reports the advisory of `shadow` under that component: nothing is silently clean, so no new reading. Left to
+do: guard it with a cdxgen fixture and a test through the binary, and say it in the user guide. Naming the binaries
+(`passwd`) beside the source component is out of scope (non-goal of `specs/debian-matching.md`).
+
+## Plan
+1. [x] A trimmed cdxgen SBOM of `debian:12` as fixture (`cdxgen-debian.cdx.json`: `passwd`, `login`, `libc6`, the
+   source components `shadow` and `glibc`, `util-linux` and `libblkid1`, its command in the fixtures README), read by
+   `real_tools.rs`, and a `forewarn match --osv` test through the binary reporting `shadow` and `glibc` under their
+   records, `passwd` and `libc6` not; the user guide names cdxgen and its source components; verified by
+   `crates/forewarn/tests/debian.rs`; makes true DEB-H3; ~250 lines. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: db528763cbcd5acc4287c308a37cce54aabcd1cc
+- 2026-11-20, the user's answer `ok`: the binaries a cdxgen source component names in its evidence are not reported (1 a).
+
+## Deliverable 1: guard the source components of a cdxgen SBOM
+
+done: a trimmed cdxgen 13.2.0 SBOM of `debian:12` as fixture (`cdxgen-debian.cdx.json`), read by `real_tools.rs`;
+`forewarn match --osv` on it reports `shadow`, `glibc` and `util-linux` under their records, the binaries named apart
+clean; DEB-H3 and a non-goal in `specs/debian-matching.md` (back to `accepted`); the user guide names cdxgen and its
+source components.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean |
+| docs | user guide, fixtures README; `CLAUDE.md` and `docs/architecture.md` still true |
+| code review | see below |
+
+red: none (DEB-H3 guards a behaviour already true: the test passed on first run).
+
+Code review: no findings
+
+not verified: the whole cdxgen SBOM against the OSV `Debian:12` archive (the archive not fetched).
+
+decisions needed: none.

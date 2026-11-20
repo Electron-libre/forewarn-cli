@@ -1,9 +1,10 @@
 //! `forewarn match` on the Debian packages of a container image, as an image scanner lists them
-//! (`specs/debian-matching.md`, DEB-H1, DEB-H2, DEB-1 to DEB-3, DEB-5).
+//! (`specs/debian-matching.md`, DEB-H1 to DEB-H3, DEB-1 to DEB-3, DEB-5).
 
 mod common;
 
 use std::fs;
+use std::path::Path;
 
 use common::{bom, json_report, run};
 use serde_json::{Value, json};
@@ -295,4 +296,55 @@ fn keeps_the_epoch_of_the_package_url_version_a_component_version_lacks() {
         .map(|a| json!([a["name"], a["version"], a["id"]]))
         .collect();
     assert_eq!(affected, [json!(["login", "4.13+dfsg1-1", "DSA-6102-1"])]);
+}
+
+// spec: DEB-H3, DEB-1, DEB-2, DEB-5
+#[test]
+fn matches_the_source_packages_a_cdxgen_sbom_lists_beside_the_binaries() {
+    let osv = TempDir::new().expect("a temporary directory");
+    for record in [
+        debian_record("DSA-6104-1", "12", "shadow", "1:4.13+dfsg1-1+deb12u3"),
+        debian_record("DSA-6105-1", "12", "glibc", "2.36-9+deb12u15"),
+        debian_record("DSA-6106-1", "12", "util-linux", "2.38.1-5+deb12u4"),
+    ] {
+        fs::write(
+            osv.path()
+                .join(format!("{}.json", record["id"].as_str().expect("an id"))),
+            record.to_string(),
+        )
+        .expect("the record is written");
+    }
+    let sbom = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../forewarn-cyclonedx/tests/fixtures/cdxgen-debian.cdx.json");
+    let run = run(
+        &[
+            "match",
+            "--no-euvd",
+            "--no-kev",
+            "--format",
+            "json",
+            "--osv",
+            osv.path().to_str().expect("UTF-8 path"),
+            sbom.to_str().expect("UTF-8 path"),
+        ],
+        None,
+    );
+    assert_eq!(run.code, 1, "{}", run.stderr);
+    let report = json_report(&run);
+    let mut affected: Vec<Value> = report["affected"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .map(|a| json!([a["name"], a["version"], a["id"]]))
+        .collect();
+    affected.sort_by_key(ToString::to_string);
+    assert_eq!(
+        affected,
+        [
+            json!(["glibc", "2.36-9+deb12u14", "DSA-6105-1"]),
+            json!(["shadow", "1:4.13+dfsg1-1+deb12u2", "DSA-6104-1"]),
+            json!(["util-linux", "2.38.1-5+deb12u3", "DSA-6106-1"]),
+        ]
+    );
+    assert_eq!(report["cleanCount"], json!(4));
 }
