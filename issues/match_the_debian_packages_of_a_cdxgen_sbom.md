@@ -61,6 +61,9 @@ do: guard it with a cdxgen fixture and a test through the binary, and say it in 
    `real_tools.rs`, and a `forewarn match --osv` test through the binary reporting `shadow` and `glibc` under their
    records, `passwd` and `libc6` not; the user guide names cdxgen and its source components; verified by
    `crates/forewarn/tests/debian.rs`; makes true DEB-H3; ~250 lines. (autonomous)
+2. [x] Fixes of the `high` review: the user guide says the binaries are counted clean and a VEX verdict names the
+   source component; the DEB-H3 test proves the epoch (a record fixed at `4.14`); `real_tools.rs` checks the package
+   URLs of the source components; verified by the same tests; makes true DEB-H3, DEB-5. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -87,5 +90,34 @@ red: none (DEB-H3 guards a behaviour already true: the test passed on first run)
 Code review: no findings
 
 not verified: the whole cdxgen SBOM against the OSV `Debian:12` archive (the archive not fetched).
+
+decisions needed: none.
+
+## Deliverable 2: fixes of the `high` review
+
+done: the user guide names what cdxgen does not write, says the binaries built from a source component are counted
+clean and that a VEX verdict sets the match aside when it names the source component; the DEB-H3 test adds a
+`shadow` record fixed at `4.14`, which only a lost epoch would report; `real_tools.rs` checks the package URLs of
+`shadow` and `glibc`.
+
+| check | result |
+|---|---|
+| tests | `cardinal run project-check` passes |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean |
+| docs | user guide |
+| code review | see below |
+
+red: none (the fixes strengthen tests of a behaviour already true).
+
+`high` review, 4 findings, all fixed:
+- the binaries of a source component counted clean, unsaid: said in the user guide (with the VEX consequence).
+- the DEB-H3 test did not prove DEB-5: a record fixed at `4.14` added.
+- `real_tools.rs` did not check the source components: their package URLs asserted.
+- "`cdxgen` writes neither" ambiguous after the epoch sentence: names the `upstream` qualifier and the properties.
+
+Code review: no findings
+
+not verified: nothing.
 
 decisions needed: none.

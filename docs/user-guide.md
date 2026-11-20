@@ -128,11 +128,12 @@ Clean: 0 of 2 components
   advisories of their release, read from the `distro` qualifier (`distro=debian-13.7` → `Debian:13`), under their source
   package and its version when the `upstream` qualifier (Syft) or the `aquasecurity:trivy:Src…` properties (Trivy) name
   them (`libssl3t64` under `openssl`), a version without an epoch preceded by the epoch of the package URL version, else
-  by the `epoch` qualifier. `cdxgen` writes neither: it lists the source package as a component of its own, tagged
-  `source` (`shadow` beside `passwd` and `login`), which is matched and reported under that name. A Debian advisory
-  (`DSA-`, `DLA-`, `DEBIAN-CVE-`) is reported under the CVE it names. Without a `distro` qualifier the release is
-  unknown: the package is listed not evaluated, `unknown release`. Other distributions (Ubuntu, Alpine, RPM) are not
-  matched yet: `unknown ecosystem`.
+  by the `epoch` qualifier. `cdxgen` writes neither the `upstream` qualifier nor these properties: it lists the source
+  package as a component of its own, tagged `source` (`shadow` beside `passwd` and `login`), matched and reported under
+  that name, while the binary packages built from it are counted clean; a VEX verdict sets the match aside when it names
+  the source component, not a binary. A Debian advisory (`DSA-`, `DLA-`, `DEBIAN-CVE-`) is reported under the CVE it
+  names. Without a `distro` qualifier the release is unknown: the package is listed not evaluated, `unknown release`.
+  Other distributions (Ubuntu, Alpine, RPM) are not matched yet: `unknown ecosystem`.
 - One line per vulnerability: the records of one vulnerability that name each other (a `RUSTSEC` advisory and its
   `GHSA` mirror) are grouped, under its CVE when it has one; two CVEs are never merged. Each record is listed with
   what it says: `affected per`, `not affected per`, `not evaluated per`.

@@ -306,6 +306,7 @@ fn matches_the_source_packages_a_cdxgen_sbom_lists_beside_the_binaries() {
         debian_record("DSA-6104-1", "12", "shadow", "1:4.13+dfsg1-1+deb12u3"),
         debian_record("DSA-6105-1", "12", "glibc", "2.36-9+deb12u15"),
         debian_record("DSA-6106-1", "12", "util-linux", "2.38.1-5+deb12u4"),
+        debian_record("DSA-6107-1", "12", "shadow", "4.14"),
     ] {
         fs::write(
             osv.path()

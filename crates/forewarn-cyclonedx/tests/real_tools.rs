@@ -251,6 +251,24 @@ fn reads_the_source_packages_cdxgen_lists_apart_for_a_debian_image() {
         .iter()
         .map(|c| (c.name.as_str(), c.version.as_deref(), c.source.is_some()))
         .collect();
+    let purl = |name: &str| {
+        sbom.components
+            .iter()
+            .find(|c| c.name == name)
+            .and_then(|c| c.purl.clone())
+    };
+    assert_eq!(
+        purl("shadow").as_deref(),
+        Some(
+            "pkg:deb/debian/shadow@1:4.13%2Bdfsg1-1%2Bdeb12u2?arch=amd64&distro=debian-12&distro_name=bookworm&epoch=1"
+        )
+    );
+    assert_eq!(
+        purl("glibc").as_deref(),
+        Some(
+            "pkg:deb/debian/glibc@2.36-9%2Bdeb12u14?arch=amd64&distro=debian-12&distro_name=bookworm"
+        )
+    );
     assert_eq!(
         read,
         vec![
