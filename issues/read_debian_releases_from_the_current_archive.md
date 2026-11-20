@@ -60,6 +60,9 @@ distributions (the domain maps only Debian), removing the stale `Debian%3A<n>` s
    and CLI) rewritten to the amended scenarios, user guide and MCH-5 updated; verified by the OSF-H4, OSF-22 to
    OSF-24 tests and `just check`; makes true OSF-14, OSF-21, OSF-22, OSF-23, OSF-24, MCH-5. (autonomous)
 
+2. [x] Fixes of the `high` review: OSF-17 test of a refused release name (`Debian:../x`, `Debian:a b`), user guide on
+   an offline run over a 0.6.0 cache and the stale lock files; verified by `just check`. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 10bb2a2a74793fffc3814171ae4141e27f73509a
@@ -75,3 +78,11 @@ distributions (the domain maps only Debian), removing the stale `Debian%3A<n>` s
 - checks: `project-check` green (fmt, clippy, tests, specs), docs updated, specs `accepted` again.
 - Code review: no findings
 - not verified: a real run against the OSV bucket (the measure above stands for it).
+
+## Deliverable 2
+- done: `high` review findings fixed (test guard on the release part of a name, user guide on offline after an upgrade).
+- red: none (guard test, green on arrival: the check already ran on the whole name).
+- High review: 4 findings: offline after an upgrade (documented); stale snapshots carried in CI caches (kept in place
+  as decided, lock files now named in the guide); OSF-17 untested for a release name (test added); `%` still allowed
+  in a cache entry name by `forewarn-cache` (not fixed: no caller passes it any more, no wrong behaviour).
+- Code review: no findings

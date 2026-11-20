@@ -278,7 +278,15 @@ fn an_entry_escaping_the_cache_is_refused() {
 fn an_invalid_ecosystem_name_is_refused_before_any_request() {
     let cache = TempDir::new().expect("a cache");
     let server = Server::new();
-    for name in ["../x", ".hidden", "", "a/b", "a b"] {
+    for name in [
+        "../x",
+        ".hidden",
+        "",
+        "a/b",
+        "a b",
+        "Debian:../x",
+        "Debian:a b",
+    ] {
         let error = fetch_error(cache.path(), &server, Refresh::IfMissing, name);
 
         assert_eq!(error.cause, FetchCause::InvalidName, "{name:?}");
