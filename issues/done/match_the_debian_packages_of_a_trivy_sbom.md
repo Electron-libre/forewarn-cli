@@ -143,7 +143,7 @@ red: DEB-2, DEB-3: none recorded (the fix and its test written together from the
 - `upstream=@<version>` with a carried source matched at the source's version: fixed.
 - a blank `SourcePackage::name` built outside the adapter: fixed.
 - an epoch only the package URL version carries (`login@1%3A4.13…`, component version `4.13…`) lost: pre-existing,
-  filed as `issues/keep_the_epoch_of_a_debian_package_url_version.md`.
+  filed as `issues/done/keep_the_epoch_of_a_debian_package_url_version.md`.
 - `Component` gains a public field: not fixed, it derives `Default` and the crates are unpublished
   (`publish = false`); a struct literal with `..Component::default()` still compiles.
 - the header of `component_package.rs`: fixed.
