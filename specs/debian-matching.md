@@ -32,9 +32,9 @@ package and version the advisories name, whichever image scanner wrote the SBOM.
 - **DEB-4** (deterministic) A `deb` package URL of namespace `debian` whose `distro` or `upstream` qualifier does not
   percent-decode must carry the reason `invalid package URL` (`specs/vulnerability-matching.md`, VMT-10).
 - **DEB-5** (deterministic) A version of a `deb` package taken from the component or its package URL
-  (`specs/vulnerability-matching.md`, VMT-7) must be preceded by `<epoch>:` when it holds no `:`, `<epoch>` its
-  `epoch` qualifier when that is not empty nor only whitespace, else the part before the first `:` of the package URL
-  version when it holds one, the same; an `epoch` qualifier that does not percent-decode gives the reason
+  (`specs/vulnerability-matching.md`, VMT-7) must be preceded by `<epoch>:` when it holds no `:`, `<epoch>` the part
+  before the first `:` of the package URL version, else its `epoch` qualifier, the first of the two that is not empty
+  nor only whitespace; an `epoch` qualifier that does not percent-decode gives the reason
   `invalid package URL` (`specs/vulnerability-matching.md`, VMT-10).
 
 ## Scenarios
@@ -66,7 +66,7 @@ package and version the advisories name, whichever image scanner wrote the SBOM.
   `epoch=%G1`, it is reported as not evaluated, invalid package URL.
 - (DEB-5) Given `pkg:deb/debian/login@1%3A4.13%2Bdfsg1-1?distro=debian-12` with the component version 4.13+dfsg1-1,
   when it is matched, then its version is 1:4.13+dfsg1-1 and a record fixed at 1:4.13+dfsg1-1 does not report it;
-  with `epoch=2` too, 2:4.13+dfsg1-1, the qualifier first.
+  with `epoch=2` too, 1:4.13+dfsg1-1 with or without the component version, the package URL version first.
 - (DEB-2) Given `pkg:deb/debian/zlib1g@1%3A1.3.dfsg-3?distro=debian-13`, with no `upstream`, when it is matched, then
   its name is `zlib1g` and its version `1:1.3.dfsg-3`.
 - (DEB-2, DEB-3) Given `pkg:deb/debian/libc6@2.41-12%2Bb1?distro=debian-13&upstream=glibc%402.41-12`, a binNMU, when

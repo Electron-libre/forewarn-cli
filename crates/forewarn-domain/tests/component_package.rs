@@ -560,7 +560,13 @@ fn reads_the_epoch_qualifier_into_the_version_of_the_package_url() {
             purl.replace("4.13%2B", "1%3A4.13%2B")
                 .replace("epoch=1", "epoch=2"),
             Some("4.13+dfsg1-1"),
-            "2:4.13+dfsg1-1",
+            "1:4.13+dfsg1-1",
+        ),
+        (
+            purl.replace("4.13%2B", "1%3A4.13%2B")
+                .replace("epoch=1", "epoch=2"),
+            None,
+            "1:4.13+dfsg1-1",
         ),
         (
             purl.replace("4.13%2B", "1%3A4.13%2B")

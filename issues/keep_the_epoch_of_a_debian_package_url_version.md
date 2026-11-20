@@ -44,12 +44,16 @@ Measure (approach step 1): not run, a Docker run of Syft/cdxgen was refused in t
 1. [x] Epoch of the package URL version: `DebianPackage::of` takes the epoch of the package URL version when the
    chosen version holds no `:` and the qualifier gives none; verified by a DEB-5 test in `component_package.rs`
    and one matching a record fixed at `1:` (not reported); makes true DEB-5. (autonomous)
+2. [x] Fixes of the `high` review: the epoch of the package URL version before the `epoch` qualifier, so a package
+   is matched at one version with or without a component version; verified by the DEB-5 test; makes true DEB-5.
+   (autonomous)
 
 ## Decisions
 - Mode: autonomous
 - Base commit: cc8892d9e7017b2413e25e2938a5a84acbdefef8
 - Measure: skipped (1 a); the fix holds whatever Syft and cdxgen write.
-- Both epochs given: the `epoch` qualifier first (2 a).
+- Both epochs given: the epoch of the package URL version first, so a package is matched at the same version with or
+  without a component version (`high` review, answer 1 on 2026-11-20; replaces the earlier 2 a).
 
 ## Summary of deliverable 1
 done: a `deb` version without `:` takes the epoch of the `epoch` qualifier, else that of the package URL version.
@@ -65,3 +69,17 @@ red: DEB-5: `login` 4.13+dfsg1-1 of `pkg:deb/debian/login@1%3A4.13%2Bdfsg1-1?…
 `1:4.13+dfsg1-1` (left: two matches, right: `DSA-6102-1` only); version `4.13+dfsg1-1`, expected `1:4.13+dfsg1-1`.
 Code review: no findings
 not verified: where Syft and cdxgen write the epoch (measure skipped, decision 1 a).
+
+## Summary of deliverable 2
+done: the epoch of the package URL version comes before the `epoch` qualifier (spec, code, doc comment, user guide).
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/user-guide.md`, doc comment of `DebianPackage::version` |
+| code review | `low`, no findings |
+
+red: none (a case of an existing test changed: `epoch=2` with a component version expected `1:`).
+Code review: no findings
+High review (whole issue): 1 finding, the two epochs disagreeing gave two versions; fixed here (decision above).
