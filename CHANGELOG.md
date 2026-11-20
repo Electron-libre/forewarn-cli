@@ -4,6 +4,19 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.6.0] - 2026-11-20
+
+### Added
+
+- `forewarn match` matches the Debian packages of a container image (`pkg:deb/debian/…`) against the OSV advisories
+  of their release (the `distro` qualifier), under their source package and version as Syft (`upstream`), Trivy (its
+  `Src…` properties) or cdxgen (a `source` component) names them, the epoch of the version kept; a Debian advisory is
+  reported under the CVE it names
+- the OSV archive of each Debian release is fetched into the cache, that of `Debian` for a release OSV publishes none
+  of (`Debian:14`)
+- the components whose package URL points to a local path (a `download_url` of `file:`) are listed not evaluated,
+  never matched nor sent to the OSV API
+
 ## [0.5.0] - 2026-11-19
 
 ### Added
