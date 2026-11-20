@@ -4,6 +4,14 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.7.0] - 2026-11-20
+
+### Fixed
+
+- the Debian packages are matched against the current advisories of `Debian/all.zip`, read for every release: OSV
+  stopped updating its archive per release (`Debian%3A13/all.zip`) in October 2024; a `Debian%3A<n>` directory of the
+  cache is no longer read, so with `--refresh offline` a cache filled by 0.6.0 needs the `Debian` archive first
+
 ## [0.6.0] - 2026-11-20
 
 ### Added
